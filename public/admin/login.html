@@ -4,14 +4,32 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ingresar · Panel ARD Suplementos</title>
+<meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="admin.css">
 </head>
-<body>
+<body class="login-page">
 
-<div class="login-wrap">
+<header class="login-page-header">
+  <div class="login-page-header-inner">
+    <a class="login-page-brand" href="/">
+      <span class="badge-icon-sm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+          <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+      </span>
+      <span class="brand-name">ARD Suplementos</span>
+    </a>
+    <a class="login-back-link" href="/">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Volver al sitio
+    </a>
+  </div>
+</header>
+
+<main class="login-wrap">
   <div class="login-card">
     <div class="login-brand">
       <div class="badge-icon">
@@ -25,38 +43,80 @@
 
     <div class="error-msg" id="error-msg"></div>
 
-    <form id="login-form">
+    <form id="login-form" novalidate>
       <div class="form-group">
         <label for="username">Usuario</label>
-        <input type="text" id="username" name="username" autocomplete="username" required>
+        <input type="text" id="username" name="username" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" required>
       </div>
       <div class="form-group">
         <label for="password">Contraseña</label>
-        <input type="password" id="password" name="password" autocomplete="current-password" required>
+        <div class="password-field">
+          <input type="password" id="password" name="password" autocomplete="current-password" required>
+          <button type="button" class="password-toggle" id="password-toggle" aria-label="Mostrar contraseña" aria-pressed="false">
+            <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.3 20.3 0 0 1 5.06-5.94M9.9 4.24A10.9 10.9 0 0 1 12 4c7 0 11 8 11 8a20.3 20.3 0 0 1-2.66 3.79M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>
+          </button>
+        </div>
       </div>
       <button type="submit" class="btn btn-primary" id="submit-btn">Ingresar</button>
     </form>
+
+    <div class="login-security-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Acceso exclusivo para el equipo de ARD Suplementos
+    </div>
   </div>
-</div>
+</main>
+
+<footer class="login-page-footer">
+  <span id="footer-year"></span> ARD Suplementos · Sarmiento 722, Catamarca ·
+  <a href="https://wa.me/5493834330320" target="_blank" rel="noopener">Escribinos por WhatsApp</a>
+</footer>
 
 <script>
   const form = document.getElementById('login-form');
   const errorMsg = document.getElementById('error-msg');
   const submitBtn = document.getElementById('submit-btn');
+  const passwordInput = document.getElementById('password');
+  const passwordToggle = document.getElementById('password-toggle');
+
+  document.getElementById('footer-year').textContent = '© ' + new Date().getFullYear();
+
+  // Mostrar / ocultar contraseña
+  passwordToggle.addEventListener('click', () => {
+    const showing = passwordInput.type === 'text';
+    passwordInput.type = showing ? 'password' : 'text';
+    passwordToggle.classList.toggle('showing', !showing);
+    passwordToggle.setAttribute('aria-pressed', String(!showing));
+    passwordToggle.setAttribute('aria-label', showing ? 'Mostrar contraseña' : 'Ocultar contraseña');
+  });
 
   // Si ya hay sesión activa, redirige directo al dashboard
   fetch('/api/admin/session').then(r => r.json()).then(data => {
     if (data.isAdmin) window.location.href = 'dashboard.html';
-  });
+  }).catch(() => {});
+
+  function setCargando(cargando) {
+    submitBtn.disabled = cargando;
+    submitBtn.innerHTML = cargando
+      ? '<span class="spinner"></span> Ingresando…'
+      : 'Ingresar';
+  }
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorMsg.classList.remove('visible');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Ingresando…';
 
     const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value;
+    const password = passwordInput.value;
+
+    if (!username || !password) {
+      errorMsg.textContent = 'Completá usuario y contraseña para continuar.';
+      errorMsg.classList.add('visible');
+      return;
+    }
+
+    setCargando(true);
 
     try {
       const res = await fetch('/api/admin/login', {
@@ -64,20 +124,18 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         errorMsg.textContent = data.error || 'No se pudo iniciar sesión';
         errorMsg.classList.add('visible');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Ingresar';
+        setCargando(false);
         return;
       }
       window.location.href = 'dashboard.html';
     } catch (err) {
       errorMsg.textContent = 'Error de conexión con el servidor';
       errorMsg.classList.add('visible');
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Ingresar';
+      setCargando(false);
     }
   });
 </script>
