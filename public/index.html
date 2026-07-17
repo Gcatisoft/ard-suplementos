@@ -74,8 +74,7 @@
   /* -------- Header -------- */
   header.nav{
     position:sticky; top:0; z-index:60;
-    background:rgba(10,22,38,0.97);
-    backdrop-filter:blur(8px);
+    background:rgba(10,22,38,0.99);
     border-bottom:1px solid rgba(255,255,255,0.08);
   }
   .nav-inner{
@@ -181,6 +180,7 @@
     .nav-toggle{ display:flex; }
     .nav-links{
       position:fixed; top:0; left:0; right:0; bottom:0;
+      z-index:100;
       padding:88px 22px 30px; margin:0;
       flex-direction:column; align-items:stretch; gap:0;
       background:var(--navy-950);
@@ -1061,6 +1061,11 @@
   cargarProductos();
 })();
 </script>
+
+<script src="/cart.js" data-whatsapp="5493834000000" defer></script>
+
+</body>
+</html>
 
 <script src="/cart.js" data-whatsapp="5493834000000" defer></script>
 
