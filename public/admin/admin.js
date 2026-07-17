@@ -1,5 +1,6 @@
 (function () {
   let productos = [];
+  let pedidos = [];
   let editandoId = null;
   let imagenRemovida = false;
 
@@ -20,11 +21,27 @@
   const imagePreviewPlaceholder = document.getElementById('image-preview-placeholder');
   const imagenInput = document.getElementById('imagen');
 
+  // -------- Pedidos / Estadísticas --------
+  const pedidosTablaBody = document.getElementById('pedidos-tabla-body');
+  const pedidosEmptyState = document.getElementById('pedidos-empty-state');
+  const filtroPedidoEstado = document.getElementById('filtro-pedido-estado');
+  const refrescarPedidosBtn = document.getElementById('refrescar-pedidos-btn');
+  const topProductosBody = document.getElementById('top-productos-body');
+  const topProductosEmpty = document.getElementById('top-productos-empty');
+
   function formatearPrecio(valor) {
     try {
       return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(valor);
     } catch (e) {
       return '$' + valor;
+    }
+  }
+
+  function formatearFecha(iso) {
+    try {
+      return new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+    } catch (e) {
+      return iso;
     }
   }
 
@@ -56,7 +73,45 @@
     window.location.href = 'login.html';
   });
 
-  // -------- Cargar productos --------
+  // ====================================================
+  // -------- Tabs --------
+  // ====================================================
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabPanels = {
+    productos: document.getElementById('tab-productos'),
+    pedidos: document.getElementById('tab-pedidos'),
+    stats: document.getElementById('tab-stats'),
+  };
+
+  let pedidosCargados = false;
+  let statsCargadas = false;
+
+  tabBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute('data-tab');
+      tabBtns.forEach((b) => b.classList.toggle('active', b === btn));
+      Object.entries(tabPanels).forEach(([key, panel]) => {
+        panel.classList.toggle('active', key === tab);
+      });
+
+      if (tab === 'pedidos' && !pedidosCargados) {
+        pedidosCargados = true;
+        cargarPedidos();
+      }
+      if (tab === 'stats' && !statsCargadas) {
+        statsCargadas = true;
+        cargarStats();
+      }
+      // Si ya se cargaron antes, igual refrescamos al volver a la pestaña
+      // para no mostrar datos viejos si pasó tiempo:
+      if (tab === 'pedidos' && pedidosCargados) cargarPedidos();
+      if (tab === 'stats' && statsCargadas) cargarStats();
+    });
+  });
+
+  // ====================================================
+  // -------- PRODUCTOS --------
+  // ====================================================
   async function cargarProductos() {
     try {
       const res = await fetch('/api/admin/products');
@@ -290,6 +345,169 @@
     } catch (err) {
       alert('Error de conexión con el servidor');
     }
+  }
+
+  // ====================================================
+  // -------- PEDIDOS / VENTAS --------
+  // ====================================================
+  async function cargarPedidos() {
+    try {
+      const estado = filtroPedidoEstado.value;
+      const url = '/api/admin/orders' + (estado ? '?status=' + encodeURIComponent(estado) : '');
+      const res = await fetch(url);
+      if (res.status === 401) {
+        window.location.href = 'login.html';
+        return;
+      }
+      pedidos = await res.json();
+      renderPedidos();
+    } catch (e) {
+      pedidosTablaBody.innerHTML = '<tr><td colspan="8">Error al cargar los pedidos.</td></tr>';
+    }
+  }
+
+  function renderPedidos() {
+    if (!pedidos.length) {
+      pedidosTablaBody.innerHTML = '';
+      pedidosEmptyState.style.display = 'block';
+      return;
+    }
+    pedidosEmptyState.style.display = 'none';
+
+    pedidosTablaBody.innerHTML = pedidos
+      .map((p) => {
+        const itemsResumen = p.items.length + (p.items.length === 1 ? ' producto' : ' productos');
+        const itemsDetalle = p.items
+          .map((it) => '<li>' + it.qty + 'x ' + it.name + ' — ' + formatearPrecio(it.price) + '</li>')
+          .join('');
+
+        return (
+          '<tr>' +
+          '<td>#' + String(p.orderNumber).padStart(4, '0') + '</td>' +
+          '<td><strong>' + p.customerName + '</strong></td>' +
+          '<td>' + p.customerPhone + '</td>' +
+          '<td>' +
+            '<button type="button" class="pedido-items-toggle" data-toggle-items="' + p.id + '">' + itemsResumen + '</button>' +
+            '<div class="pedido-items-detalle" id="items-detalle-' + p.id + '"><ul>' + itemsDetalle + '</ul></div>' +
+          '</td>' +
+          '<td>' + formatearPrecio(p.total) + '</td>' +
+          '<td><span class="estado-badge ' + p.status + '">' + p.status + '</span></td>' +
+          '<td>' + formatearFecha(p.createdAt) + '</td>' +
+          '<td>' +
+            '<div class="pedido-actions">' +
+              '<select data-cambiar-estado="' + p.id + '">' +
+                '<option value="pendiente"' + (p.status === 'pendiente' ? ' selected' : '') + '>Pendiente</option>' +
+                '<option value="confirmado"' + (p.status === 'confirmado' ? ' selected' : '') + '>Confirmado</option>' +
+                '<option value="cancelado"' + (p.status === 'cancelado' ? ' selected' : '') + '>Cancelado</option>' +
+              '</select>' +
+              '<button type="button" class="icon-btn danger" data-borrar-pedido="' + p.id + '" title="Eliminar">' + iconoBorrar() + '</button>' +
+            '</div>' +
+          '</td>' +
+          '</tr>'
+        );
+      })
+      .join('');
+
+    pedidosTablaBody.querySelectorAll('[data-toggle-items]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-toggle-items');
+        document.getElementById('items-detalle-' + id).classList.toggle('visible');
+      });
+    });
+    pedidosTablaBody.querySelectorAll('[data-cambiar-estado]').forEach((select) => {
+      select.addEventListener('change', () => cambiarEstadoPedido(select.getAttribute('data-cambiar-estado'), select.value));
+    });
+    pedidosTablaBody.querySelectorAll('[data-borrar-pedido]').forEach((btn) => {
+      btn.addEventListener('click', () => borrarPedido(btn.getAttribute('data-borrar-pedido')));
+    });
+  }
+
+  async function cambiarEstadoPedido(id, status) {
+    try {
+      const res = await fetch('/api/admin/orders/' + id + '/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'No se pudo actualizar el estado');
+        await cargarPedidos();
+        return;
+      }
+      await cargarPedidos();
+      // Si estaban viendo estadísticas, las próximas veces que entren se van
+      // a recalcular; forzamos que se vuelvan a pedir la próxima vez que se abra la pestaña.
+      statsCargadas = false;
+    } catch (e) {
+      alert('Error de conexión con el servidor');
+    }
+  }
+
+  async function borrarPedido(id) {
+    const confirmado = window.confirm('¿Eliminar este pedido? Esta acción no se puede deshacer.');
+    if (!confirmado) return;
+    try {
+      const res = await fetch('/api/admin/orders/' + id, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'No se pudo eliminar el pedido');
+        return;
+      }
+      await cargarPedidos();
+      statsCargadas = false;
+    } catch (e) {
+      alert('Error de conexión con el servidor');
+    }
+  }
+
+  filtroPedidoEstado.addEventListener('change', cargarPedidos);
+  refrescarPedidosBtn.addEventListener('click', cargarPedidos);
+
+  // ====================================================
+  // -------- ESTADÍSTICAS --------
+  // ====================================================
+  async function cargarStats() {
+    try {
+      const res = await fetch('/api/admin/stats');
+      if (res.status === 401) {
+        window.location.href = 'login.html';
+        return;
+      }
+      const data = await res.json();
+      renderStatsGenerales(data);
+      renderTopProductos(data.topProductos || []);
+    } catch (e) {
+      topProductosBody.innerHTML = '<tr><td colspan="3">Error al cargar las estadísticas.</td></tr>';
+    }
+  }
+
+  function renderStatsGenerales(data) {
+    document.getElementById('stat2-ventas').textContent = data.ventasTotales;
+    document.getElementById('stat2-ingresos').textContent = formatearPrecio(data.ingresosTotales);
+    document.getElementById('stat2-pendientes').textContent = data.pedidosPendientes;
+    document.getElementById('stat2-mes').textContent = data.pedidosEsteMes;
+    document.getElementById('stat2-ingresos-mes').textContent = formatearPrecio(data.ingresosEsteMes);
+  }
+
+  function renderTopProductos(lista) {
+    if (!lista.length) {
+      topProductosBody.innerHTML = '';
+      topProductosEmpty.style.display = 'block';
+      return;
+    }
+    topProductosEmpty.style.display = 'none';
+
+    topProductosBody.innerHTML = lista
+      .map(
+        (p) =>
+          '<tr>' +
+          '<td><strong>' + p.name + '</strong></td>' +
+          '<td>' + p.unidadesPedidas + '</td>' +
+          '<td>' + formatearPrecio(p.ingresos) + '</td>' +
+          '</tr>'
+      )
+      .join('');
   }
 
   verificarSesion();
