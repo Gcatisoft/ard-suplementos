@@ -34,8 +34,9 @@ button{font-family:inherit;cursor:pointer;border:none;}
 input, select, textarea{font-family:inherit;}
 
 /* -------- Login -------- */
+.login-page{display:flex; flex-direction:column; min-height:100vh;}
 .login-wrap{
-  min-height:100vh;
+  flex:1;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -449,3 +450,118 @@ table.productos-tabla{
   .form-grid{grid-template-columns:1fr;}
   .stats-row{grid-template-columns:repeat(2,1fr);}
 }
+
+/* -------- Login: header y footer del sitio -------- */
+.login-page-header{
+  background:var(--navy-950);
+  border-bottom:1px solid rgba(255,255,255,0.08);
+}
+.login-page-header-inner{
+  max-width:1100px;
+  margin:0 auto;
+  padding:16px 24px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+}
+.login-page-brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.login-page-brand .badge-icon-sm{
+  width:34px;height:34px;
+  border-radius:9px;
+  background:linear-gradient(135deg,var(--accent-light),var(--accent));
+  display:flex;align-items:center;justify-content:center;
+  color:var(--white);
+  flex:0 0 auto;
+}
+.login-page-brand .brand-name{
+  font-family:var(--font-cond);
+  font-weight:700;
+  font-size:15px;
+  letter-spacing:0.02em;
+  text-transform:uppercase;
+  color:var(--white);
+}
+.login-back-link{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-family:var(--font-cond);
+  font-weight:600;
+  font-size:13px;
+  letter-spacing:0.02em;
+  text-transform:uppercase;
+  color:var(--steel-300);
+  padding:8px 14px;
+  border-radius:8px;
+  border:1.5px solid rgba(255,255,255,0.15);
+  transition:background .15s ease, color .15s ease, border-color .15s ease;
+  white-space:nowrap;
+}
+.login-back-link:hover{
+  background:rgba(255,255,255,0.08);
+  color:var(--white);
+  border-color:rgba(255,255,255,0.3);
+}
+.login-back-link svg{width:15px;height:15px;flex:0 0 auto;}
+
+.login-page-footer{
+  background:var(--navy-950);
+  color:var(--steel-300);
+  text-align:center;
+  font-size:12.5px;
+  padding:18px 20px;
+  border-top:1px solid rgba(255,255,255,0.08);
+}
+.login-page-footer a{color:var(--steel-100); font-weight:600;}
+.login-page-footer a:hover{color:var(--white);}
+
+/* -------- Login: campo de contraseña con mostrar/ocultar -------- */
+.password-field{position:relative;}
+.password-field input{padding-right:44px;}
+.password-toggle{
+  position:absolute;
+  right:6px;
+  top:50%;
+  transform:translateY(-50%);
+  background:transparent;
+  padding:8px;
+  color:#8a9bb2;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:6px;
+  transition:color .15s ease;
+}
+.password-toggle:hover{color:var(--accent);}
+.password-toggle svg{width:18px;height:18px;}
+.password-toggle .icon-eye-off{display:none;}
+.password-toggle.showing .icon-eye{display:none;}
+.password-toggle.showing .icon-eye-off{display:block;}
+
+.login-security-note{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:22px;
+  font-size:12px;
+  color:#8a9bb2;
+  justify-content:center;
+  text-align:center;
+}
+.login-security-note svg{width:14px;height:14px;flex:0 0 auto;}
+
+/* -------- Spinner de carga en botones -------- */
+.spinner{
+  width:15px;height:15px;
+  border:2px solid rgba(255,255,255,0.45);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:spin .6s linear infinite;
+  flex:0 0 auto;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
