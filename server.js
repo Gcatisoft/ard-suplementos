@@ -64,6 +64,273 @@ async function borrarImagenPorUrl(url) {
     console.error('No se pudo borrar la imagen anterior de Storage:', err.message);
   }
 }
+// ============================================================
+// PEGAR ESTE BLOQUE EN server.js, ANTES de: app.get('/admin', ...)
+// ============================================================
+
+// ---------- Mapeo de pedidos (snake_case -> camelCase) ----------
+function mapOrder(row) {
+  return {
+    id: row.id,
+    orderNumber: row.order_number,
+    customerName: row.customer_name,
+    customerPhone: row.customer_phone,
+    customerId: row.customer_id,
+    items: row.items || [],
+    total: Number(row.total),
+    status: row.status,
+    notes: row.notes || '',
+    sentVia: row.sent_via,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+// ---------- Pedidos: API pública ----------
+// El storefront pega acá justo antes (o al mismo tiempo) de abrir el link de WhatsApp,
+// así queda registrado en el panel aunque el cliente no confirme nada más.
+app.post('/api/orders', async (req, res) => {
+  try {
+    const { customerName, customerPhone, customerId, items, notes } = req.body || {};
+
+    if (!customerName || !customerPhone || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Faltan datos del pedido (nombre, teléfono o items)' });
+    }
+
+    const total = items.reduce((acc, it) => acc + (Number(it.price) || 0) * (Number(it.qty) || 0), 0);
+
+    const nuevo = {
+      customer_name: String(customerName).trim(),
+      customer_phone: String(customerPhone).trim(),
+      customer_id: customerId || null,
+      items,
+      total,
+      notes: notes ? String(notes).trim() : '',
+      status: 'pendiente',
+      sent_via: 'whatsapp',
+    };
+
+    const { data, error } = await supabase.from('orders').insert(nuevo).select().single();
+    if (error) throw error;
+
+    res.status(201).json(mapOrder(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al registrar el pedido' });
+  }
+});
+
+// ---------- Pedidos: API de administración (protegida) ----------
+app.get('/api/admin/orders', requireAuth, async (req, res) => {
+  try {
+    const { status } = req.query;
+    let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
+    if (status) query = query.eq('status', status);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json((data || []).map(mapOrder));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener los pedidos' });
+  }
+});
+
+app.patch('/api/admin/orders/:id/status', requireAuth, async (req, res) => {
+  try {
+    const { status } = req.body || {};
+    if (!['pendiente', 'confirmado', 'cancelado'].includes(status)) {
+      return res.status(400).json({ error: 'Estado inválido' });
+    }
+
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ status })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Pedido no encontrado' });
+
+    res.json(mapOrder(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar el estado del pedido' });
+  }
+});
+
+app.delete('/api/admin/orders/:id', requireAuth, async (req, res) => {
+  try {
+    const { error } = await supabase.from('orders').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar el pedido' });
+  }
+});
+
+// ---------- Estadísticas (protegida) ----------
+app.get('/api/admin/stats', requireAuth, async (req, res) => {
+  try {
+    const [{ data: resumen, error: errResumen }, { data: topProductos, error: errTop }] = await Promise.all([
+      supabase.from('stats_resumen').select('*').maybeSingle(),
+      supabase.from('stats_productos_top').select('*'),
+    ]);
+    if (errResumen) throw errResumen;
+    if (errTop) throw errTop;
+
+    res.json({
+      ventasTotales: Number(resumen?.ventas_totales || 0),
+      ingresosTotales: Number(resumen?.ingresos_totales || 0),
+      pedidosPendientes: Number(resumen?.pedidos_pendientes || 0),
+      pedidosEsteMes: Number(resumen?.pedidos_este_mes || 0),
+      ingresosEsteMes: Number(resumen?.ingresos_este_mes || 0),
+      topProductos: (topProductos || []).map((r) => ({
+        productId: r.product_id,
+        name: r.name,
+        unidadesPedidas: Number(r.unidades_pedidas),
+        ingresos: Number(r.ingresos),
+      })),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las estadísticas' });
+  }
+});// ============================================================
+// PEGAR ESTE BLOQUE EN server.js, ANTES de: app.get('/admin', ...)
+// ============================================================
+
+// ---------- Mapeo de pedidos (snake_case -> camelCase) ----------
+function mapOrder(row) {
+  return {
+    id: row.id,
+    orderNumber: row.order_number,
+    customerName: row.customer_name,
+    customerPhone: row.customer_phone,
+    customerId: row.customer_id,
+    items: row.items || [],
+    total: Number(row.total),
+    status: row.status,
+    notes: row.notes || '',
+    sentVia: row.sent_via,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+// ---------- Pedidos: API pública ----------
+// El storefront pega acá justo antes (o al mismo tiempo) de abrir el link de WhatsApp,
+// así queda registrado en el panel aunque el cliente no confirme nada más.
+app.post('/api/orders', async (req, res) => {
+  try {
+    const { customerName, customerPhone, customerId, items, notes } = req.body || {};
+
+    if (!customerName || !customerPhone || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Faltan datos del pedido (nombre, teléfono o items)' });
+    }
+
+    const total = items.reduce((acc, it) => acc + (Number(it.price) || 0) * (Number(it.qty) || 0), 0);
+
+    const nuevo = {
+      customer_name: String(customerName).trim(),
+      customer_phone: String(customerPhone).trim(),
+      customer_id: customerId || null,
+      items,
+      total,
+      notes: notes ? String(notes).trim() : '',
+      status: 'pendiente',
+      sent_via: 'whatsapp',
+    };
+
+    const { data, error } = await supabase.from('orders').insert(nuevo).select().single();
+    if (error) throw error;
+
+    res.status(201).json(mapOrder(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al registrar el pedido' });
+  }
+});
+
+// ---------- Pedidos: API de administración (protegida) ----------
+app.get('/api/admin/orders', requireAuth, async (req, res) => {
+  try {
+    const { status } = req.query;
+    let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
+    if (status) query = query.eq('status', status);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json((data || []).map(mapOrder));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener los pedidos' });
+  }
+});
+
+app.patch('/api/admin/orders/:id/status', requireAuth, async (req, res) => {
+  try {
+    const { status } = req.body || {};
+    if (!['pendiente', 'confirmado', 'cancelado'].includes(status)) {
+      return res.status(400).json({ error: 'Estado inválido' });
+    }
+
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ status })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Pedido no encontrado' });
+
+    res.json(mapOrder(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar el estado del pedido' });
+  }
+});
+
+app.delete('/api/admin/orders/:id', requireAuth, async (req, res) => {
+  try {
+    const { error } = await supabase.from('orders').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar el pedido' });
+  }
+});
+
+// ---------- Estadísticas (protegida) ----------
+app.get('/api/admin/stats', requireAuth, async (req, res) => {
+  try {
+    const [{ data: resumen, error: errResumen }, { data: topProductos, error: errTop }] = await Promise.all([
+      supabase.from('stats_resumen').select('*').maybeSingle(),
+      supabase.from('stats_productos_top').select('*'),
+    ]);
+    if (errResumen) throw errResumen;
+    if (errTop) throw errTop;
+
+    res.json({
+      ventasTotales: Number(resumen?.ventas_totales || 0),
+      ingresosTotales: Number(resumen?.ingresos_totales || 0),
+      pedidosPendientes: Number(resumen?.pedidos_pendientes || 0),
+      pedidosEsteMes: Number(resumen?.pedidos_este_mes || 0),
+      ingresosEsteMes: Number(resumen?.ingresos_este_mes || 0),
+      topProductos: (topProductos || []).map((r) => ({
+        productId: r.product_id,
+        name: r.name,
+        unidadesPedidas: Number(r.unidades_pedidas),
+        ingresos: Number(r.ingresos),
+      })),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las estadísticas' });
+  }
+});
 
 // ---------- Mapeo de filas de la base (snake_case) al formato que usa el frontend (camelCase) ----------
 function mapProducto(row) {
