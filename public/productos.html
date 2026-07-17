@@ -37,6 +37,7 @@
     background:var(--white);
     color:var(--ink);
     -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
   }
   img{max-width:100%;display:block;}
   a{text-decoration:none;color:inherit;}
@@ -57,10 +58,12 @@
     display:flex; align-items:center; justify-content:space-between;
     padding:12px 0;
     position:relative;
+    gap:10px;
   }
-  .nav-brand{display:flex;align-items:center;gap:12px;}
+  .nav-brand{display:flex;align-items:center;gap:12px;min-width:0;flex:1 1 auto;overflow:hidden;}
   .nav-brand .logo-img{
     height:68px;width:auto;display:block;
+    max-width:100%;
   }
   .nav-links{display:flex;gap:22px;align-items:center;}
   .nav-links a{
@@ -99,6 +102,13 @@
   .nav-toggle[aria-expanded="true"] span:nth-child(1){ transform:translateY(7px) rotate(45deg); }
   .nav-toggle[aria-expanded="true"] span:nth-child(2){ opacity:0; }
   .nav-toggle[aria-expanded="true"] span:nth-child(3){ transform:translateY(-7px) rotate(-45deg); }
+
+  @media (max-width:480px){
+    .nav-brand .logo-img{ height:50px; }
+  }
+  @media (max-width:360px){
+    .nav-brand .logo-img{ height:42px; }
+  }
 
   /* -------- Menú "Marcas" con buscador -------- */
   .nav-item-marcas{ position:relative; }
@@ -399,6 +409,12 @@
           '<span class="producto-stock' + (sinStock ? ' sin-stock' : '') + '">' +
             (sinStock ? 'Sin stock' : ('Stock: ' + p.stock)) +
           '</span>' +
+          (sinStock ? '' :
+            '<button type="button" class="ard-add-to-cart" data-id="' + p.id + '">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' +
+              'Agregar al carrito' +
+            '</button>'
+          ) +
           '<a class="producto-cta" href="' + linkWhatsapp + '" target="_blank" rel="noopener">' +
             '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.4 1.26 4.83L2 22l5.42-1.42a9.85 9.85 0 0 0 4.62 1.17h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.13-2.9-7C17.17 3.03 14.7 2 12.04 2zm0 18.13a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.11.81.83-3.03-.2-.31a8.2 8.2 0 0 1-1.26-4.37c0-4.54 3.7-8.24 8.24-8.24 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.21-8.26 8.21z"/></svg>' +
             'Consultar' +
@@ -407,6 +423,14 @@
       '</article>'
     );
   }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.ard-add-to-cart');
+    if (!btn) return;
+    const p = TODOS.find(x => x.id === btn.getAttribute('data-id'));
+    if (!p || !window.ARDCart) return;
+    window.ARDCart.add({ id: p.id, name: p.name, brand: p.brand, price: p.price, image: p.image });
+  });
 
   function cargarCategorias(productos){
     const select = document.getElementById('filtro-categoria');
@@ -595,6 +619,8 @@
   })();
 })();
 </script>
+
+<script src="/cart.js" data-whatsapp="5493834000000" defer></script>
 
 </body>
 </html>
