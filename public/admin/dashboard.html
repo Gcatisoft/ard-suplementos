@@ -8,6 +8,148 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="admin.css">
+<style>
+  /* ===== Estilos agregados para pestañas / pedidos / estadísticas =====
+     Autocontenido para no depender de admin.css. Si querés, después lo
+     movemos adentro de admin.css para tenerlo todo junto. */
+
+  .tabs-nav {
+    display: flex;
+    gap: 4px;
+    margin: 20px 0 18px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+  }
+  .tab-btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    padding: 10px 18px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #6b7686;
+    cursor: pointer;
+    transition: color .15s ease, border-color .15s ease;
+  }
+  .tab-btn:hover { color: #1a2233; }
+  .tab-btn.active {
+    color: #1a2233;
+    border-bottom-color: #1a2233;
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .stats-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  .stat-card-2 {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .stat-card-2 .num {
+    font-family: 'Anton', sans-serif;
+    font-size: 28px;
+    color: #1a2233;
+    line-height: 1;
+  }
+  .stat-card-2 .label {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #6b7686;
+  }
+
+  .section-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #1a2233;
+    margin: 26px 0 12px;
+  }
+
+  .top-productos-tabla, .pedidos-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .top-productos-tabla th, .pedidos-tabla th {
+    text-align: left;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #6b7686;
+    background: #f7f8fa;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .top-productos-tabla td, .pedidos-tabla td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    font-size: 14px;
+    color: #1a2233;
+    vertical-align: top;
+  }
+  .top-productos-tabla tr:last-child td, .pedidos-tabla tr:last-child td { border-bottom: none; }
+
+  .estado-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .estado-badge.pendiente { background: #fff4d6; color: #93701a; }
+  .estado-badge.confirmado { background: #d9f2e3; color: #1a7a44; }
+  .estado-badge.cancelado { background: #fde2e2; color: #a12c2c; }
+
+  .pedido-items-toggle {
+    background: none;
+    border: none;
+    color: #3159c9;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+  }
+  .pedido-items-detalle {
+    display: none;
+    margin-top: 8px;
+    font-size: 13px;
+    color: #4a5568;
+  }
+  .pedido-items-detalle.visible { display: block; }
+  .pedido-items-detalle ul { margin: 0; padding-left: 18px; }
+
+  .pedido-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pedido-actions select {
+    font-size: 13px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(0,0,0,0.15);
+  }
+
+  .pedidos-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+</style>
 </head>
 <body>
 
@@ -29,50 +171,131 @@
 
 <main class="dash-main">
 
-  <div class="stats-row" id="stats-row">
-    <div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">Productos totales</div></div>
-    <div class="stat-card"><div class="num" id="stat-activos">0</div><div class="label">Publicados en el sitio</div></div>
-    <div class="stat-card"><div class="num" id="stat-sinstock">0</div><div class="label">Sin stock</div></div>
-    <div class="stat-card"><div class="num" id="stat-destacados">0</div><div class="label">Destacados</div></div>
-  </div>
+  <nav class="tabs-nav">
+    <button type="button" class="tab-btn active" data-tab="productos">Productos</button>
+    <button type="button" class="tab-btn" data-tab="pedidos">Pedidos y ventas</button>
+    <button type="button" class="tab-btn" data-tab="stats">Estadísticas</button>
+  </nav>
 
-  <div class="dash-toolbar">
-    <div class="filters">
-      <input type="search" id="buscador" placeholder="Buscar por nombre o marca…">
-      <select id="filtro-categoria">
-        <option value="">Todas las categorías</option>
-      </select>
-      <select id="filtro-estado">
-        <option value="">Todos los estados</option>
-        <option value="activo">Publicados</option>
-        <option value="inactivo">Ocultos</option>
-      </select>
-    </div>
-    <button class="btn btn-primary" id="nuevo-btn" style="width:auto;">+ Nuevo producto</button>
-  </div>
+  <!-- ================= TAB: PRODUCTOS ================= -->
+  <section class="tab-panel active" id="tab-productos">
 
-  <div class="tabla-wrap">
-    <table class="productos-tabla">
-      <thead>
-        <tr>
-          <th></th>
-          <th>Producto</th>
-          <th>Marca</th>
-          <th>Categoría</th>
-          <th>Precio</th>
-          <th>Stock</th>
-          <th>Estado</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="tabla-body">
-        <!-- filas dinámicas -->
-      </tbody>
-    </table>
-    <div class="empty-state" id="empty-state" style="display:none;">
-      Todavía no cargaste ningún producto. Hacé clic en "Nuevo producto" para empezar.
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">Productos totales</div></div>
+      <div class="stat-card"><div class="num" id="stat-activos">0</div><div class="label">Publicados en el sitio</div></div>
+      <div class="stat-card"><div class="num" id="stat-sinstock">0</div><div class="label">Sin stock</div></div>
+      <div class="stat-card"><div class="num" id="stat-destacados">0</div><div class="label">Destacados</div></div>
     </div>
-  </div>
+
+    <div class="dash-toolbar">
+      <div class="filters">
+        <input type="search" id="buscador" placeholder="Buscar por nombre o marca…">
+        <select id="filtro-categoria">
+          <option value="">Todas las categorías</option>
+        </select>
+        <select id="filtro-estado">
+          <option value="">Todos los estados</option>
+          <option value="activo">Publicados</option>
+          <option value="inactivo">Ocultos</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="nuevo-btn" style="width:auto;">+ Nuevo producto</button>
+    </div>
+
+    <div class="tabla-wrap">
+      <table class="productos-tabla">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Producto</th>
+            <th>Marca</th>
+            <th>Categoría</th>
+            <th>Precio</th>
+            <th>Stock</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tabla-body">
+          <!-- filas dinámicas -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="empty-state" style="display:none;">
+        Todavía no cargaste ningún producto. Hacé clic en "Nuevo producto" para empezar.
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: PEDIDOS Y VENTAS ================= -->
+  <section class="tab-panel" id="tab-pedidos">
+
+    <div class="pedidos-toolbar">
+      <div class="filters">
+        <select id="filtro-pedido-estado">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendientes</option>
+          <option value="confirmado">Confirmados (ventas)</option>
+          <option value="cancelado">Cancelados</option>
+        </select>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="refrescar-pedidos-btn">Actualizar</button>
+    </div>
+
+    <div class="tabla-wrap">
+      <table class="pedidos-tabla">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Cliente</th>
+            <th>Teléfono</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="pedidos-tabla-body">
+          <!-- filas dinámicas -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="pedidos-empty-state" style="display:none;">
+        Todavía no hay pedidos registrados.
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: ESTADÍSTICAS ================= -->
+  <section class="tab-panel" id="tab-stats">
+
+    <div class="stats-grid-2">
+      <div class="stat-card-2"><div class="num" id="stat2-ventas">0</div><div class="label">Ventas confirmadas</div></div>
+      <div class="stat-card-2"><div class="num" id="stat2-ingresos">$0</div><div class="label">Ingresos totales</div></div>
+      <div class="stat-card-2"><div class="num" id="stat2-pendientes">0</div><div class="label">Pedidos pendientes</div></div>
+      <div class="stat-card-2"><div class="num" id="stat2-mes">0</div><div class="label">Pedidos este mes</div></div>
+      <div class="stat-card-2"><div class="num" id="stat2-ingresos-mes">$0</div><div class="label">Ingresos este mes</div></div>
+    </div>
+
+    <div class="section-title">Productos más pedidos</div>
+    <div class="tabla-wrap">
+      <table class="top-productos-tabla">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Unidades pedidas</th>
+            <th>Ingresos generados</th>
+          </tr>
+        </thead>
+        <tbody id="top-productos-body">
+          <!-- filas dinámicas -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="top-productos-empty" style="display:none;">
+        Todavía no hay ventas confirmadas para mostrar estadísticas.
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <!-- ============ MODAL PRODUCTO ============ -->
