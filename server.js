@@ -4,6 +4,7 @@ const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
+const sharp = require('sharp');
 const { createClient } = require('@supabase/supabase-js');
 
 const PORT = process.env.PORT || 3000;
@@ -11,6 +12,16 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'ard-suplementos-secret-cam
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'productos';
+
+// ---------- Configuración de compresión de imágenes ----------
+// Todas las imágenes de producto se re-procesan acá antes de subirse a Storage,
+// sin importar si ya vinieron comprimidas desde el navegador (admin.js) o no.
+// Esto garantiza que nunca se guarde un archivo pesado en el bucket.
+const IMG_MAX_ANCHO = 1000;
+const IMG_MAX_ALTO = 1000;
+const IMG_CALIDAD = 75; // 0-100, para webp
+const IMG_MIME = 'image/webp';
+const IMG_EXT = '.webp';
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error(
@@ -31,24 +42,45 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 // ---------- Multer en memoria (subimos el buffer directo a Supabase Storage) ----------
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB de entrada como máximo (luego se comprime)
   fileFilter: (req, file, cb) => {
     if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) cb(null, true);
     else cb(new Error('Formato de imagen no permitido'));
   },
 });
 
+/**
+ * Redimensiona y comprime el buffer de la imagen a webp antes de subirla.
+ * Mantiene la proporción original y nunca agranda una imagen chica.
+ */
+async function comprimirBuffer(buffer) {
+  return sharp(buffer)
+    .rotate() // respeta la orientación EXIF (fotos de celular) antes de redimensionar
+    .resize({
+      width: IMG_MAX_ANCHO,
+      height: IMG_MAX_ALTO,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .webp({ quality: IMG_CALIDAD })
+    .toBuffer();
+}
+
 async function subirImagen(file) {
-  const ext = (path.extname(file.originalname) || '.jpg').toLowerCase();
-  const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext) ? ext : '.jpg';
-  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`;
+  const bufferComprimido = await comprimirBuffer(file.buffer);
+  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${IMG_EXT}`;
 
   const { error } = await supabase.storage
     .from(STORAGE_BUCKET)
-    .upload(filename, file.buffer, { contentType: file.mimetype, upsert: false });
+    .upload(filename, bufferComprimido, { contentType: IMG_MIME, upsert: false });
   if (error) throw error;
 
   const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filename);
+
+  console.log(
+    `Imagen subida: ${filename} — ${(file.buffer.length / 1024).toFixed(0)}KB → ${(bufferComprimido.length / 1024).toFixed(0)}KB`
+  );
+
   return { url: data.publicUrl, path: filename };
 }
 
