@@ -1,0 +1,371 @@
+require('dotenv').config();
+const path = require('path');
+const express = require('express');
+const session = require('express-session');
+const bcrypt = require('bcryptjs');
+const multer = require('multer');
+const { createClient } = require('@supabase/supabase-js');
+
+const PORT = process.env.PORT || 3000;
+const SESSION_SECRET = process.env.SESSION_SECRET || 'ard-suplementos-secret-cambiar';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'productos';
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error(
+    '\n❌ Faltan variables de entorno de Supabase.\n' +
+      '   Configurá SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en tu archivo .env\n' +
+      '   (mirá .env.example para el detalle).\n'
+  );
+  process.exit(1);
+}
+
+// Cliente con la Service Role Key: SOLO se usa en el backend, nunca en el navegador.
+// Esta key bypassea RLS, por eso todo el control de acceso (login, requireAuth)
+// tiene que vivir acá, en el servidor.
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false },
+});
+
+// ---------- Multer en memoria (subimos el buffer directo a Supabase Storage) ----------
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Formato de imagen no permitido'));
+  },
+});
+
+async function subirImagen(file) {
+  const ext = (path.extname(file.originalname) || '.jpg').toLowerCase();
+  const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext) ? ext : '.jpg';
+  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`;
+
+  const { error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(filename, file.buffer, { contentType: file.mimetype, upsert: false });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filename);
+  return { url: data.publicUrl, path: filename };
+}
+
+async function borrarImagenPorUrl(url) {
+  if (!url) return;
+  try {
+    const marker = `/storage/v1/object/public/${STORAGE_BUCKET}/`;
+    const idx = url.indexOf(marker);
+    if (idx === -1) return; // no es una imagen guardada en nuestro bucket (ej: URL externa)
+    const filename = url.slice(idx + marker.length);
+    if (filename) await supabase.storage.from(STORAGE_BUCKET).remove([filename]);
+  } catch (err) {
+    console.error('No se pudo borrar la imagen anterior de Storage:', err.message);
+  }
+}
+
+// ---------- Mapeo de filas de la base (snake_case) al formato que usa el frontend (camelCase) ----------
+function mapProducto(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    brand: row.brand || '',
+    category: row.category,
+    price: Number(row.price),
+    oldPrice: row.old_price !== null && row.old_price !== undefined ? Number(row.old_price) : null,
+    stock: row.stock,
+    description: row.description || '',
+    image: row.image || '',
+    featured: row.featured,
+    active: row.active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+// ---------- App ----------
+const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(
+  session({
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      maxAge: 1000 * 60 * 60 * 8, // 8 horas
+    },
+  })
+);
+app.use(express.static(path.join(__dirname, 'public')));
+
+function requireAuth(req, res, next) {
+  if (req.session && req.session.isAdmin) return next();
+  return res.status(401).json({ error: 'No autorizado' });
+}
+
+// ---------- Auth ----------
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Usuario y contraseña son obligatorios' });
+    }
+
+    const { data: admin, error } = await supabase
+      .from('admin_users')
+      .select('id, username, password_hash')
+      .eq('username', username)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!admin) return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+
+    const ok = bcrypt.compareSync(password, admin.password_hash);
+    if (!ok) return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+
+    req.session.isAdmin = true;
+    req.session.username = admin.username;
+    res.json({ ok: true, username: admin.username });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al iniciar sesión' });
+  }
+});
+
+app.post('/api/admin/logout', (req, res) => {
+  req.session.destroy(() => res.json({ ok: true }));
+});
+
+app.get('/api/admin/session', (req, res) => {
+  res.json({ isAdmin: !!(req.session && req.session.isAdmin), username: req.session?.username || null });
+});
+
+app.post('/api/admin/change-password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Completá ambos campos' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+    }
+
+    const { data: admin, error } = await supabase
+      .from('admin_users')
+      .select('id, password_hash')
+      .eq('username', req.session.username)
+      .maybeSingle();
+    if (error) throw error;
+    if (!admin) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const ok = bcrypt.compareSync(currentPassword, admin.password_hash);
+    if (!ok) return res.status(401).json({ error: 'La contraseña actual no es correcta' });
+
+    const newHash = bcrypt.hashSync(newPassword, 10);
+    const { error: updateError } = await supabase
+      .from('admin_users')
+      .update({ password_hash: newHash })
+      .eq('id', admin.id);
+    if (updateError) throw updateError;
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al cambiar la contraseña' });
+  }
+});
+
+// ---------- Productos: API pública (para el index) ----------
+app.get('/api/products', async (req, res) => {
+  try {
+    const { category, featured, q } = req.query;
+    let query = supabase.from('products').select('*').eq('active', true);
+
+    if (category) query = query.ilike('category', category);
+    if (featured === 'true') query = query.eq('featured', true);
+    if (q) query = query.or(`name.ilike.%${q}%,brand.ilike.%${q}%`);
+
+    query = query.order('created_at', { ascending: false });
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json((data || []).map(mapProducto));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener los productos' });
+  }
+});
+
+app.get('/api/products/categories', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('products').select('category').eq('active', true);
+    if (error) throw error;
+    const categorias = [...new Set((data || []).map((r) => r.category))];
+    res.json(categorias);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las categorías' });
+  }
+});
+
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('active', true)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Producto no encontrado' });
+    res.json(mapProducto(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener el producto' });
+  }
+});
+
+// ---------- Productos: API de administración (protegida) ----------
+app.get('/api/admin/products', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json((data || []).map(mapProducto));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener los productos' });
+  }
+});
+
+app.get('/api/admin/products/:id', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('products').select('*').eq('id', req.params.id).maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Producto no encontrado' });
+    res.json(mapProducto(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener el producto' });
+  }
+});
+
+app.post('/api/admin/products', requireAuth, upload.single('image'), async (req, res) => {
+  try {
+    const { name, brand, category, price, oldPrice, stock, description, featured, active, imageUrl } = req.body;
+    if (!name || !category || price === undefined || price === '') {
+      return res.status(400).json({ error: 'Nombre, categoría y precio son obligatorios' });
+    }
+
+    let image = imageUrl || '';
+    if (req.file) {
+      const subida = await subirImagen(req.file);
+      image = subida.url;
+    }
+
+    const nuevo = {
+      name: String(name).trim(),
+      brand: brand ? String(brand).trim() : '',
+      category: String(category).trim(),
+      price: Number(price) || 0,
+      old_price: oldPrice ? Number(oldPrice) : null,
+      stock: stock !== undefined && stock !== '' ? Number(stock) : 0,
+      description: description ? String(description).trim() : '',
+      image,
+      featured: featured === 'true' || featured === true,
+      active: active === undefined ? true : active === 'true' || active === true,
+    };
+
+    const { data, error } = await supabase.from('products').insert(nuevo).select().single();
+    if (error) throw error;
+
+    res.status(201).json(mapProducto(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear el producto' });
+  }
+});
+
+app.put('/api/admin/products/:id', requireAuth, upload.single('image'), async (req, res) => {
+  try {
+    const { data: existing, error: findError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (findError) throw findError;
+    if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
+
+    const { name, brand, category, price, oldPrice, stock, description, featured, active, imageUrl, removeImage } =
+      req.body;
+
+    const cambios = {};
+    if (name !== undefined) cambios.name = String(name).trim();
+    if (brand !== undefined) cambios.brand = String(brand).trim();
+    if (category !== undefined) cambios.category = String(category).trim();
+    if (price !== undefined && price !== '') cambios.price = Number(price);
+    if (oldPrice !== undefined) cambios.old_price = oldPrice === '' ? null : Number(oldPrice);
+    if (stock !== undefined && stock !== '') cambios.stock = Number(stock);
+    if (description !== undefined) cambios.description = String(description).trim();
+    if (featured !== undefined) cambios.featured = featured === 'true' || featured === true;
+    if (active !== undefined) cambios.active = active === 'true' || active === true;
+
+    if (req.file) {
+      const subida = await subirImagen(req.file);
+      cambios.image = subida.url;
+      await borrarImagenPorUrl(existing.image);
+    } else if (removeImage === 'true') {
+      await borrarImagenPorUrl(existing.image);
+      cambios.image = '';
+    } else if (imageUrl !== undefined) {
+      cambios.image = imageUrl;
+    }
+
+    const { data, error } = await supabase
+      .from('products')
+      .update(cambios)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+
+    res.json(mapProducto(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar el producto' });
+  }
+});
+
+app.delete('/api/admin/products/:id', requireAuth, async (req, res) => {
+  try {
+    const { data: existing, error: findError } = await supabase
+      .from('products')
+      .select('image')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (findError) throw findError;
+    if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
+
+    const { error } = await supabase.from('products').delete().eq('id', req.params.id);
+    if (error) throw error;
+
+    await borrarImagenPorUrl(existing.image);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar el producto' });
+  }
+});
+
+// Ruta directa al panel admin
+app.get('/admin', (req, res) => {
+  res.redirect('/admin/login.html');
+});
+
+app.listen(PORT, () => {
+  console.log(`\nARD Suplementos corriendo en http://localhost:${PORT}`);
+  console.log(`Panel de administración: http://localhost:${PORT}/admin/login.html`);
+  console.log(`Conectado a Supabase: ${SUPABASE_URL}`);
+});

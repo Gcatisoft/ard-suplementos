@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Todos los productos — ARD Suplementos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --white:#ffffff;
+    --bg-soft:#f5f8fc;
+    --ink:#0e1c30;
+    --navy-950:#0a1626;
+    --navy-900:#11223c;
+    --navy-800:#1a3357;
+    --steel-600:#4f76a8;
+    --steel-500:#6f93c1;
+    --steel-300:#a9c3de;
+    --steel-100:#e7eef7;
+    --line:#e3e9f2;
+    --accent:#2f6fb0;
+    --accent-light:#4886c9;
+    --flame:#e0563f;
+    --flame-dark:#c73f2a;
+
+    --font-display:'Poppins', sans-serif;
+    --font-cond:'Poppins', sans-serif;
+    --font-body:'Inter', sans-serif;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:var(--font-body);
+    background:var(--white);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  img{max-width:100%;display:block;}
+  a{text-decoration:none;color:inherit;}
+  button, input, select{font-family:inherit;}
+  button{cursor:pointer;}
+
+  .wrap{max-width:1220px;margin:0 auto;padding:0 24px;}
+
+  /* -------- Header -------- */
+  header.nav{
+    position:sticky; top:0; z-index:60;
+    background:rgba(255,255,255,0.94);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 0;
+  }
+  .nav-brand{
+    font-family:var(--font-display); font-weight:800; font-size:19px;
+    color:var(--navy-900); letter-spacing:0.01em;
+  }
+  .nav-brand span{color:var(--accent);}
+  .nav-links{display:flex;gap:26px;align-items:center;}
+  .nav-links a{
+    font-family:var(--font-cond); font-weight:600; font-size:14px;
+    letter-spacing:0.02em; text-transform:uppercase; color:var(--navy-800);
+    transition:color .18s ease;
+  }
+  .nav-links a:hover{color:var(--accent);}
+  .nav-links a.active{color:var(--accent);}
+  .nav-cta{
+    background:var(--flame);
+    color:#fff !important;
+    padding:10px 20px;
+    border-radius:999px;
+    font-weight:700;
+    box-shadow:0 8px 18px rgba(224,86,63,0.35);
+  }
+  .nav-cta:hover{background:var(--flame-dark);}
+  @media (max-width:820px){ .nav-links a:not(.nav-cta){display:none;} }
+
+  /* -------- Page head -------- */
+  .page-head{
+    background:var(--bg-soft);
+    padding:36px 0 28px;
+    border-bottom:1px solid var(--line);
+  }
+  .page-head span{
+    font-family:var(--font-cond); font-weight:600; letter-spacing:0.08em;
+    text-transform:uppercase; font-size:12.5px; color:var(--accent);
+    display:block; margin-bottom:8px;
+  }
+  .page-head h1{
+    font-family:var(--font-display); font-weight:700; font-size:clamp(26px,4vw,38px);
+    text-transform:uppercase; color:var(--navy-900);
+  }
+  .page-head p{color:var(--steel-600); margin-top:8px; font-size:14.5px;}
+
+  /* -------- Filtros -------- */
+  .filtros{
+    display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+    padding:24px 0 6px;
+  }
+  .filtros input[type="search"], .filtros select{
+    border:1px solid var(--line); border-radius:10px; padding:11px 14px;
+    font-size:14px; color:var(--ink); background:#fff;
+  }
+  .filtros input[type="search"]{flex:1 1 240px; min-width:200px;}
+  .filtros select{flex:0 0 auto; min-width:170px;}
+  .filtros input:focus, .filtros select:focus{outline:2px solid var(--accent-light); outline-offset:1px;}
+  .filtros .contador{
+    font-family:var(--font-cond); font-size:13px; color:var(--steel-600);
+    text-transform:uppercase; letter-spacing:0.02em; margin-left:auto;
+  }
+
+  /* -------- Grid de productos -------- */
+  .productos-section{padding:24px 0 60px;}
+  .productos-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+    gap:18px;
+  }
+
+  .producto-card{
+    background:#fff; border:1px solid var(--line); border-radius:16px; overflow:hidden;
+    display:flex; flex-direction:column; position:relative;
+    transition:transform .18s ease, box-shadow .18s ease;
+  }
+  .producto-card:hover{transform:translateY(-4px); box-shadow:0 16px 30px rgba(17,34,60,0.12);}
+  .producto-badge{
+    position:absolute; top:10px; left:10px; z-index:2;
+    font-family:var(--font-cond); font-weight:600; font-size:10.5px;
+    letter-spacing:0.02em; text-transform:uppercase;
+    background:var(--navy-900); color:#fff; padding:4px 9px; border-radius:999px;
+  }
+  .producto-badge.oferta{background:var(--flame);}
+  .producto-img{
+    width:100%; aspect-ratio:1/1; background:var(--bg-soft);
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    padding:6px;
+  }
+  .producto-img img{width:100%;height:100%;object-fit:contain;border-radius:8px;}
+  .placeholder-icon{width:46px;height:46px;color:var(--steel-500);}
+  .producto-body{padding:14px 14px 16px; display:flex; flex-direction:column; gap:5px; flex:1;}
+  .producto-marca{font-family:var(--font-cond); font-size:11px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--accent);}
+  .producto-nombre{font-family:var(--font-body); font-size:15px; font-weight:600; color:var(--navy-900); line-height:1.3; min-height:38px;}
+  .producto-precios{display:flex; align-items:baseline; gap:7px; margin-top:4px;}
+  .producto-precio{font-family:var(--font-display); font-size:18px; font-weight:700; color:var(--navy-900);}
+  .producto-precio-anterior{font-size:12.5px; color:#9aa8bb; text-decoration:line-through;}
+  .producto-stock{font-size:11.5px; color:#7488a0; font-family:var(--font-body);}
+  .producto-stock.sin-stock{color:var(--flame-dark); font-weight:700;}
+  .producto-cta{
+    margin-top:8px; display:flex; align-items:center; justify-content:center; gap:7px;
+    font-family:var(--font-cond); font-weight:600; font-size:12.5px; letter-spacing:0.02em;
+    text-transform:uppercase; padding:9px 14px; border-radius:8px;
+    background:var(--navy-900); color:#fff !important;
+    transition:background .16s ease;
+  }
+  .producto-cta:hover{background:var(--accent);}
+  .producto-cta svg{width:14px;height:14px;}
+
+  .estado-lista{
+    font-family:var(--font-body); color:var(--steel-600); padding:60px 4px; text-align:center;
+    grid-column:1/-1;
+  }
+
+  footer.pie{
+    background:var(--navy-950); color:var(--steel-100);
+    padding:28px 0; text-align:center; font-size:13px;
+  }
+  footer.pie a{color:var(--steel-100); font-weight:600;}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="nav-brand" href="/">ARD <span>Suplementos</span></a>
+    <nav class="nav-links">
+      <a href="/#novedades">Novedades</a>
+      <a href="/#ofertas">Ofertas</a>
+      <a href="/#marcas">Marcas</a>
+      <a href="/productos.html" class="active">Productos</a>
+      <a class="nav-cta" href="https://wa.me/5493834000000" target="_blank" rel="noopener">Escribinos</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-head">
+  <div class="wrap">
+    <span>Catálogo completo</span>
+    <h1>Todos nuestros productos</h1>
+    <p>Buscá por nombre o marca, o filtrá por categoría.</p>
+  </div>
+</section>
+
+<section class="productos-section">
+  <div class="wrap">
+    <div class="filtros">
+      <input type="search" id="buscador" placeholder="Buscar por nombre o marca…">
+      <select id="filtro-categoria">
+        <option value="">Todas las categorías</option>
+      </select>
+      <span class="contador" id="contador"></span>
+    </div>
+
+    <div class="productos-grid" id="grid-productos">
+      <div class="estado-lista">Cargando productos…</div>
+    </div>
+  </div>
+</section>
+
+<footer class="pie">
+  <div class="wrap">
+    ARD Suplementos · Sarmiento 722, Catamarca · <a href="https://wa.me/5493834000000" target="_blank" rel="noopener">Escribinos por WhatsApp</a>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const WHATSAPP_NUMBER = "5493834000000";
+
+  let TODOS = [];
+
+  function formatearPrecio(valor){
+    try{ return new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS', maximumFractionDigits:0 }).format(valor); }
+    catch(e){ return '$' + valor; }
+  }
+
+  function iconoPlaceholder(){
+    return '<svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">' +
+      '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3"/><path d="M9 12h6M9 16h6"/></svg>';
+  }
+
+  function crearTarjeta(p){
+    const tieneOferta = p.oldPrice && Number(p.oldPrice) > Number(p.price);
+    const sinStock = Number(p.stock) <= 0;
+    const mensaje = encodeURIComponent('Hola! Quiero consultar por "' + p.name + '"' + (p.brand ? (' de ' + p.brand) : '') + '.');
+    const linkWhatsapp = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + mensaje;
+    const imagenHtml = p.image ? '<img src="' + p.image + '" alt="' + p.name.replace(/"/g,'') + '" loading="lazy">' : iconoPlaceholder();
+    let badgeHtml = '';
+    if (p.featured) badgeHtml = '<span class="producto-badge">Destacado</span>';
+    else if (tieneOferta) badgeHtml = '<span class="producto-badge oferta">Oferta</span>';
+
+    return (
+      '<article class="producto-card">' + badgeHtml +
+        '<div class="producto-img">' + imagenHtml + '</div>' +
+        '<div class="producto-body">' +
+          (p.brand ? '<span class="producto-marca">' + p.brand + '</span>' : '') +
+          '<h3 class="producto-nombre">' + p.name + '</h3>' +
+          '<div class="producto-precios">' +
+            '<span class="producto-precio">' + formatearPrecio(p.price) + '</span>' +
+            (tieneOferta ? '<span class="producto-precio-anterior">' + formatearPrecio(p.oldPrice) + '</span>' : '') +
+          '</div>' +
+          '<span class="producto-stock' + (sinStock ? ' sin-stock' : '') + '">' +
+            (sinStock ? 'Sin stock' : ('Stock: ' + p.stock)) +
+          '</span>' +
+          '<a class="producto-cta" href="' + linkWhatsapp + '" target="_blank" rel="noopener">' +
+            '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.4 1.26 4.83L2 22l5.42-1.42a9.85 9.85 0 0 0 4.62 1.17h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.13-2.9-7C17.17 3.03 14.7 2 12.04 2zm0 18.13a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.11.81.83-3.03-.2-.31a8.2 8.2 0 0 1-1.26-4.37c0-4.54 3.7-8.24 8.24-8.24 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.21-8.26 8.21z"/></svg>' +
+            'Consultar' +
+          '</a>' +
+        '</div>' +
+      '</article>'
+    );
+  }
+
+  function cargarCategorias(productos){
+    const select = document.getElementById('filtro-categoria');
+    const categorias = [...new Set(productos.map(p => p.category).filter(Boolean))].sort();
+    categorias.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      select.appendChild(opt);
+    });
+  }
+
+  function pintar(){
+    const grid = document.getElementById('grid-productos');
+    const texto = document.getElementById('buscador').value.trim().toLowerCase();
+    const categoria = document.getElementById('filtro-categoria').value;
+
+    const filtrados = TODOS.filter(p => {
+      const coincideTexto = !texto || (p.name || '').toLowerCase().includes(texto) || (p.brand || '').toLowerCase().includes(texto);
+      const coincideCategoria = !categoria || p.category === categoria;
+      return coincideTexto && coincideCategoria;
+    });
+
+    document.getElementById('contador').textContent = filtrados.length + (filtrados.length === 1 ? ' producto' : ' productos');
+
+    if (!filtrados.length){
+      grid.innerHTML = '<div class="estado-lista">No encontramos productos con ese filtro.</div>';
+      return;
+    }
+    grid.innerHTML = filtrados.map(crearTarjeta).join('');
+  }
+
+  function cargarProductos(){
+    fetch('/api/products')
+      .then(res => { if (!res.ok) throw new Error('Error al obtener los productos'); return res.json(); })
+      .then(productos => {
+        TODOS = Array.isArray(productos) ? productos : [];
+        cargarCategorias(TODOS);
+
+        const categoriaUrl = new URLSearchParams(window.location.search).get('categoria');
+        if (categoriaUrl) {
+          const select = document.getElementById('filtro-categoria');
+          const existe = [...select.options].some(opt => opt.value === categoriaUrl);
+          if (existe) select.value = categoriaUrl;
+        }
+
+        const buscarUrl = new URLSearchParams(window.location.search).get('buscar');
+        if (buscarUrl) {
+          document.getElementById('buscador').value = buscarUrl;
+        }
+
+        pintar();
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('grid-productos').innerHTML =
+          '<div class="estado-lista">No pudimos cargar el catálogo. Probá recargar la página en unos segundos.</div>';
+      });
+  }
+
+  document.getElementById('buscador').addEventListener('input', pintar);
+  document.getElementById('filtro-categoria').addEventListener('change', pintar);
+
+  cargarProductos();
+})();
+</script>
+
+</body>
+</html>

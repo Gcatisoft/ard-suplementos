@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de administración · ARD Suplementos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<header class="dash-header">
+  <div class="brand">
+    <div class="badge-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" color="#fff">
+        <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+    </div>
+    ARD Suplementos · Admin
+  </div>
+  <div class="user-info">
+    <span id="username-label"></span>
+    <a class="btn btn-ghost btn-sm" href="/index.html" target="_blank" style="color:#dbe6f2;border-color:rgba(219,230,242,0.4);">Ver sitio</a>
+    <button class="btn btn-danger btn-sm" id="logout-btn">Cerrar sesión</button>
+  </div>
+</header>
+
+<main class="dash-main">
+
+  <div class="stats-row" id="stats-row">
+    <div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">Productos totales</div></div>
+    <div class="stat-card"><div class="num" id="stat-activos">0</div><div class="label">Publicados en el sitio</div></div>
+    <div class="stat-card"><div class="num" id="stat-sinstock">0</div><div class="label">Sin stock</div></div>
+    <div class="stat-card"><div class="num" id="stat-destacados">0</div><div class="label">Destacados</div></div>
+  </div>
+
+  <div class="dash-toolbar">
+    <div class="filters">
+      <input type="search" id="buscador" placeholder="Buscar por nombre o marca…">
+      <select id="filtro-categoria">
+        <option value="">Todas las categorías</option>
+      </select>
+      <select id="filtro-estado">
+        <option value="">Todos los estados</option>
+        <option value="activo">Publicados</option>
+        <option value="inactivo">Ocultos</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" id="nuevo-btn" style="width:auto;">+ Nuevo producto</button>
+  </div>
+
+  <div class="tabla-wrap">
+    <table class="productos-tabla">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Producto</th>
+          <th>Marca</th>
+          <th>Categoría</th>
+          <th>Precio</th>
+          <th>Stock</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tabla-body">
+        <!-- filas dinámicas -->
+      </tbody>
+    </table>
+    <div class="empty-state" id="empty-state" style="display:none;">
+      Todavía no cargaste ningún producto. Hacé clic en "Nuevo producto" para empezar.
+    </div>
+  </div>
+</main>
+
+<!-- ============ MODAL PRODUCTO ============ -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Nuevo producto</h2>
+      <button class="modal-close" id="modal-close" type="button">✕</button>
+    </div>
+
+    <div class="error-msg" id="form-error"></div>
+
+    <form id="producto-form">
+      <input type="hidden" id="producto-id">
+
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="nombre">Nombre del producto *</label>
+          <input type="text" id="nombre" required placeholder="Ej: Whey Protein Concentrado 2lb">
+        </div>
+
+        <div class="form-group">
+          <label for="marca">Marca</label>
+          <input type="text" id="marca" placeholder="Ej: Star Nutrition">
+        </div>
+
+        <div class="form-group">
+          <label for="categoria">Categoría *</label>
+          <input type="text" id="categoria" list="categorias-lista" required placeholder="Ej: Proteínas">
+          <datalist id="categorias-lista"></datalist>
+        </div>
+
+        <div class="form-group">
+          <label for="precio">Precio (ARS) *</label>
+          <input type="number" id="precio" min="0" step="1" required placeholder="0">
+        </div>
+
+        <div class="form-group">
+          <label for="precio-anterior">Precio anterior (opcional)</label>
+          <input type="number" id="precio-anterior" min="0" step="1" placeholder="Para mostrar oferta">
+        </div>
+
+        <div class="form-group">
+          <label for="stock">Stock disponible</label>
+          <input type="number" id="stock" min="0" step="1" placeholder="0">
+        </div>
+
+        <div class="form-group">
+          <label>Imagen del producto</label>
+          <div class="image-upload">
+            <img id="image-preview" class="image-preview" style="display:none;">
+            <div id="image-preview-placeholder" class="image-preview-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="26" height="26">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+              </svg>
+            </div>
+            <div>
+              <input type="file" id="imagen" accept="image/png,image/jpeg,image/webp,image/gif">
+              <div class="form-hint">JPG, PNG o WEBP. Máx. 5MB.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group full">
+          <label for="descripcion">Descripción</label>
+          <textarea id="descripcion" placeholder="Breve descripción del producto…"></textarea>
+        </div>
+
+        <div class="form-group full">
+          <div class="checkbox-row">
+            <label class="checkbox-item"><input type="checkbox" id="destacado"> Destacado</label>
+            <label class="checkbox-item"><input type="checkbox" id="activo" checked> Publicado en el sitio</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="guardar-btn" style="width:auto;">Guardar producto</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
