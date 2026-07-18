@@ -78,111 +78,24 @@
     border-bottom:1px solid rgba(255,255,255,0.08);
   }
   .nav-inner{
-    display:flex; align-items:center; justify-content:space-between;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+    align-items:center;
     padding:12px 0;
     position:relative;
-    gap:10px;
-  }
-  .nav-brand{display:flex;align-items:center;gap:12px;min-width:0;flex:1 1 auto;overflow:hidden;}
-  .nav-brand .logo-img{
-    height:68px;width:auto;display:block;
-    max-width:100%;
-    transition:height .18s ease;
-  }<!DOCTYPE html>
-<html lang="es-AR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ARD Suplementos · Catamarca</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --white:#ffffff;
-    --bg-soft:#f5f8fc;
-    --ink:#0e1c30;
-    --navy-950:#0a1626;
-    --navy-900:#11223c;
-    --navy-800:#1a3357;
-    --steel-600:#4f76a8;
-    --steel-500:#6f93c1;
-    --steel-300:#a9c3de;
-    --steel-100:#e7eef7;
-    --line:#e3e9f2;
-    --accent:#2f6fb0;
-    --accent-light:#4886c9;
-    --flame:#e0563f;
-    --flame-dark:#c73f2a;
-
-    --font-display:'Poppins', sans-serif;
-    --font-cond:'Poppins', sans-serif;
-    --font-body:'Inter', sans-serif;
-  }
-
-  *{margin:0;padding:0;box-sizing:border-box;}
-  html{scroll-behavior:smooth;}
-  body{
-    font-family:var(--font-body);
-    background:var(--white);
-    color:var(--ink);
-    -webkit-font-smoothing:antialiased;
-    overflow-x:hidden;
-  }
-  img{max-width:100%;display:block;}
-  a{text-decoration:none;color:inherit;}
-  ul{list-style:none;}
-  button{font-family:inherit;cursor:pointer;}
-
-  .wrap{max-width:1220px;margin:0 auto;padding:0 24px;}
-  @media (max-width:480px){ .wrap{padding:0 16px;} }
-
-  /* -------- Topbar -------- */
-  .topbar{
-    background:var(--navy-950);
-    color:var(--steel-100);
-    overflow:hidden;
-    white-space:nowrap;
-  }
-  .topbar-track{
-    display:inline-flex;
-    gap:60px;
-    padding:9px 0;
-    animation:marquee 22s linear infinite;
-    font-family:var(--font-cond);
-    font-weight:600;
-    font-size:13px;
-    letter-spacing:0.02em;
-    text-transform:uppercase;
-  }
-  .topbar-track span{display:inline-flex;align-items:center;gap:8px;}
-  @keyframes marquee{
-    0%{transform:translateX(0);}
-    100%{transform:translateX(-50%);}
-  }
-
-  /* -------- Header -------- */
-  header.nav{
-    position:sticky; top:0; z-index:60;
-    background:rgba(10,22,38,0.99);
-    border-bottom:1px solid rgba(255,255,255,0.08);
-  }
-  .nav-inner{
-    display:flex; align-items:center; justify-content:flex-end;
-    padding:12px 0;
-    position:relative;
-    gap:10px;
+    gap:8px;
   }
   .nav-brand{
+    grid-column:2;
+    justify-self:center;
     display:flex;align-items:center;gap:12px;min-width:0;overflow:hidden;
-    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
   }
   .nav-brand .logo-img{
     height:68px;width:auto;display:block;
     max-width:100%;
     transition:height .18s ease;
   }
-  .nav-links{display:flex;gap:22px;align-items:center;}
+  .nav-links{grid-column:3; justify-self:end; display:flex;gap:22px;align-items:center;min-width:0;}
   .nav-links a{
     font-family:var(--font-cond); font-weight:600; font-size:14px;
     letter-spacing:0.02em; text-transform:uppercase; color:var(--steel-100);
@@ -210,9 +123,10 @@
 
   /* -------- Nav toggle (hamburguesa, mobile) -------- */
   .nav-toggle{
+    grid-column:3; justify-self:end;
     display:none; width:40px;height:40px; border:none; background:transparent;
     color:#fff; align-items:center; justify-content:center; flex-direction:column; gap:5px;
-    flex-shrink:0;
+    flex-shrink:0; z-index:2;
   }
   .nav-toggle span{ display:block; width:24px; height:2px; background:#fff; border-radius:2px; transition:transform .2s ease, opacity .2s ease; }
   .nav-toggle[aria-expanded="true"] span:nth-child(1){ transform:translateY(7px) rotate(45deg); }
@@ -409,6 +323,10 @@
   .beneficio-card p{font-family:var(--font-body); font-weight:600; font-size:14px; color:var(--navy-900); line-height:1.35;}
   @media (max-width:900px){.beneficios-grid{grid-template-columns:repeat(2,1fr);}}
   @media (max-width:520px){.beneficios-grid{grid-template-columns:1fr;}}
+
+  .beneficios-grid-3{grid-template-columns:repeat(3,1fr);}
+  @media (max-width:760px){.beneficios-grid-3{grid-template-columns:1fr 1fr;}}
+  @media (max-width:520px){.beneficios-grid-3{grid-template-columns:1fr;}}
 
   /* -------- Product carousel sections -------- */
   .carousel-section{padding:52px 0;}
@@ -763,7 +681,7 @@
       <span>Encontranos acá</span>
       <h2>Sarmiento 722, Catamarca</h2>
     </div>
-    <div class="beneficios-grid" style="grid-template-columns:1fr 1fr 1fr;">
+    <div class="beneficios-grid beneficios-grid-3">
       <div class="beneficio-card">
         <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
         <p>Sarmiento 722, Catamarca, Argentina</p>
