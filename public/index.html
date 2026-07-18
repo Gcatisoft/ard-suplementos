@@ -76,6 +76,10 @@
     position:sticky; top:0; z-index:60;
     background:rgba(10,22,38,0.99);
     border-bottom:1px solid rgba(255,255,255,0.08);
+    transition:transform .28s ease;
+  }
+  header.nav.nav-hidden{
+    transform:translateY(-100%);
   }
   .nav-inner{
     display:flex;
@@ -475,7 +479,8 @@
 <header class="nav">
   <div class="wrap nav-inner">
     <div class="nav-brand">
-<img src="logoard.png" alt="">    </div>
+      <img class="logo-img" src="logoard.png" alt="ARD Suplementos">
+    </div>
     <div class="nav-controls">
     <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="nav-links">
       <span></span><span></span><span></span>
@@ -1079,6 +1084,44 @@
 </script>
 
 <script src="/cart.js" data-whatsapp="5493834000000" defer></script>
+
+<script>
+(function(){
+  const nav = document.querySelector('header.nav');
+  if(!nav) return;
+  let lastScroll = window.scrollY;
+  const hideAfter = 80; // px antes de empezar a ocultar
+  let ticking = false;
+
+  function onScroll(){
+    const current = window.scrollY;
+
+    // No ocultar si el menú mobile está abierto
+    const links = document.getElementById('nav-links');
+    const menuAbierto = links && links.classList.contains('open');
+
+    if(!menuAbierto){
+      if(current > lastScroll && current > hideAfter){
+        // Bajando: ocultar
+        nav.classList.add('nav-hidden');
+      } else {
+        // Subiendo o cerca del top: mostrar
+        nav.classList.remove('nav-hidden');
+      }
+    }
+
+    lastScroll = current <= 0 ? 0 : current;
+    ticking = false;
+  }
+
+  window.addEventListener('scroll', function(){
+    if(!ticking){
+      window.requestAnimationFrame(onScroll);
+      ticking = true;
+    }
+  }, { passive:true });
+})();
+</script>
 
 </body>
 </html>
