@@ -88,6 +88,99 @@
     height:68px;width:auto;display:block;
     max-width:100%;
     transition:height .18s ease;
+  }<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARD Suplementos · Catamarca</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --white:#ffffff;
+    --bg-soft:#f5f8fc;
+    --ink:#0e1c30;
+    --navy-950:#0a1626;
+    --navy-900:#11223c;
+    --navy-800:#1a3357;
+    --steel-600:#4f76a8;
+    --steel-500:#6f93c1;
+    --steel-300:#a9c3de;
+    --steel-100:#e7eef7;
+    --line:#e3e9f2;
+    --accent:#2f6fb0;
+    --accent-light:#4886c9;
+    --flame:#e0563f;
+    --flame-dark:#c73f2a;
+
+    --font-display:'Poppins', sans-serif;
+    --font-cond:'Poppins', sans-serif;
+    --font-body:'Inter', sans-serif;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:var(--font-body);
+    background:var(--white);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  img{max-width:100%;display:block;}
+  a{text-decoration:none;color:inherit;}
+  ul{list-style:none;}
+  button{font-family:inherit;cursor:pointer;}
+
+  .wrap{max-width:1220px;margin:0 auto;padding:0 24px;}
+  @media (max-width:480px){ .wrap{padding:0 16px;} }
+
+  /* -------- Topbar -------- */
+  .topbar{
+    background:var(--navy-950);
+    color:var(--steel-100);
+    overflow:hidden;
+    white-space:nowrap;
+  }
+  .topbar-track{
+    display:inline-flex;
+    gap:60px;
+    padding:9px 0;
+    animation:marquee 22s linear infinite;
+    font-family:var(--font-cond);
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:0.02em;
+    text-transform:uppercase;
+  }
+  .topbar-track span{display:inline-flex;align-items:center;gap:8px;}
+  @keyframes marquee{
+    0%{transform:translateX(0);}
+    100%{transform:translateX(-50%);}
+  }
+
+  /* -------- Header -------- */
+  header.nav{
+    position:sticky; top:0; z-index:60;
+    background:rgba(10,22,38,0.99);
+    border-bottom:1px solid rgba(255,255,255,0.08);
+  }
+  .nav-inner{
+    display:flex; align-items:center; justify-content:flex-end;
+    padding:12px 0;
+    position:relative;
+    gap:10px;
+  }
+  .nav-brand{
+    display:flex;align-items:center;gap:12px;min-width:0;overflow:hidden;
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  }
+  .nav-brand .logo-img{
+    height:68px;width:auto;display:block;
+    max-width:100%;
+    transition:height .18s ease;
   }
   .nav-links{display:flex;gap:22px;align-items:center;}
   .nav-links a{
@@ -504,7 +597,7 @@
 <section class="hero">
   <div class="wrap">
     <div class="hero-logo-panel">
-      <img src="ard.png" alt="ARD Suplementos">
+      <img src="logoard.png" alt="ARD Suplementos">
     </div>
   </div>
 </section>
