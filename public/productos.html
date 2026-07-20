@@ -224,6 +224,15 @@
     text-transform:uppercase; color:var(--navy-900);
   }
   .page-head p{color:var(--steel-600); margin-top:8px; font-size:14.5px;}
+  .volver-inicio{
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:var(--font-cond); font-weight:600; font-size:13px;
+    color:var(--steel-600); text-decoration:none; margin-bottom:14px;
+    transition:color .15s ease;
+  }
+  .volver-inicio svg{ width:15px; height:15px; transition:transform .15s ease; }
+  .volver-inicio:hover{ color:var(--accent); }
+  .volver-inicio:hover svg{ transform:translateX(-3px); }
 
   /* -------- Filtros -------- */
   .filtros{
@@ -324,6 +333,7 @@
       <span></span><span></span><span></span>
     </button>
     <nav class="nav-links" id="nav-links">
+      <a href="/">Inicio</a>
       <a href="/#novedades">Novedades</a>
       <a href="/#ofertas">Ofertas</a>
 
@@ -360,6 +370,10 @@
 
 <section class="page-head">
   <div class="wrap">
+    <a class="volver-inicio" href="/">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 4.5L7 10l5.5 5.5"/></svg>
+      Volver al inicio
+    </a>
     <span>Catálogo completo</span>
     <h1>Todos nuestros productos</h1>
     <p>Buscá por nombre o marca, o filtrá por categoría.</p>
