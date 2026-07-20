@@ -219,33 +219,21 @@
     .marcas-mega-lista a:hover{ color:#fff; }
   }
 
-  /* -------- Banner (debajo del hero) -------- */
-  .banner-ard{ padding:0 0 12px; }
-  .banner-ard img{ display:block; width:100%; height:auto; border-radius:14px; }
-  @media (max-width:600px){
-    .banner-ard{ padding:0 0 8px; }
-    .banner-ard img{ border-radius:10px; }
-  }
-
-  /* -------- Hero (logo) -------- */
+  /* -------- Hero (imagen full-screen) -------- */
   .hero{
     background:#fff;
-    padding:40px 0;
+    overflow:hidden;
   }
-  .hero-logo-panel{
-    display:flex; align-items:center; justify-content:center;
-    padding:24px;
-  }
-  .hero-logo-panel img{
-    max-width:360px; width:100%; height:auto; display:block;
+  .hero-img{
+    display:block; width:100%;
+    height:calc(100svh - 84px);
+    object-fit:cover;
   }
   @media (max-width:760px){
-    .hero-logo-panel{ padding:16px; }
-    .hero-logo-panel img{ max-width:260px; }
+    .hero-img{ height:70vh; }
   }
   @media (max-width:480px){
-    .hero-logo-panel{ padding:12px; }
-    .hero-logo-panel img{ max-width:200px; }
+    .hero-img{ height:60vh; }
   }
 
   /* -------- Buscador del home -------- */
@@ -516,6 +504,7 @@
       <span></span><span></span><span></span>
     </button>
     <nav class="nav-links" id="nav-links">
+      <a href="/">Inicio</a>
       <a href="#destacados">Destacados</a>
 
       <div class="nav-item-marcas" id="nav-item-marcas">
@@ -553,11 +542,7 @@
 </header>
 
 <section class="hero">
-  <div class="wrap">
-    <div class="hero-logo-panel">
-      <img src="12.PNG" alt="ARD Suplementos">
-    </div>
-  </div>
+  <img class="hero-img" src="12.PNG" alt="ARD Suplementos">
 </section>
 
 <section class="buscador-home">
