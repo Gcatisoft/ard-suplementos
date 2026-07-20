@@ -219,21 +219,35 @@
     .marcas-mega-lista a:hover{ color:#fff; }
   }
 
-  /* -------- Hero (imagen full-screen) -------- */
+  /* -------- Hero (imagen full-screen, responsive) -------- */
   .hero{
     background:#fff;
     overflow:hidden;
+    width:100%;
   }
   .hero-img{
-    display:block; width:100%;
-    height:calc(100svh - 84px);
+    display:block;
+    width:100%;
+    height:56vw;
+    max-height:640px;
+    min-height:260px;
     object-fit:cover;
+    object-position:center;
+  }
+  @media (max-width:900px){
+    .hero-img{ height:60vw; min-height:240px; }
   }
   @media (max-width:760px){
-    .hero-img{ height:70vh; }
+    .hero-img{ height:75vw; min-height:220px; }
   }
   @media (max-width:480px){
-    .hero-img{ height:60vh; }
+    .hero-img{ height:95vw; min-height:200px; }
+  }
+  @media (max-width:360px){
+    .hero-img{ min-height:180px; }
+  }
+  @media (orientation:landscape) and (max-height:500px){
+    .hero-img{ height:65vh; min-height:180px; max-height:480px; }
   }
 
   /* -------- Buscador del home -------- */
