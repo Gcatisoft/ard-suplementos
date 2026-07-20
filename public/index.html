@@ -151,8 +151,7 @@
   .nav-item-marcas{ position:relative; }
   .nav-marcas-trigger{ display:flex !important; align-items:center; gap:5px; cursor:pointer; background:none; border:none; }
   .nav-marcas-trigger svg{ width:11px;height:11px; transition:transform .18s ease; }
-  .nav-item-marcas.open .nav-marcas-trigger svg,
-  .nav-item-marcas:hover .nav-marcas-trigger svg{ transform:rotate(180deg); }
+  .nav-item-marcas.open .nav-marcas-trigger svg{ transform:rotate(180deg); }
 
   .marcas-mega{
     position:absolute; top:calc(100% + 16px); left:50%;
@@ -164,7 +163,6 @@
     opacity:0; visibility:hidden; pointer-events:none;
     transition:opacity .18s ease, transform .18s ease, visibility .18s;
   }
-  .nav-item-marcas:hover .marcas-mega,
   .nav-item-marcas.open .marcas-mega{
     opacity:1; visibility:visible; pointer-events:auto; transform:translateX(-50%) translateY(0);
   }
@@ -217,6 +215,14 @@
     .nav-item-marcas.open .marcas-mega{ display:block; }
     .marcas-mega-lista a{ color:var(--steel-100); border-bottom:1px solid rgba(255,255,255,0.1); }
     .marcas-mega-lista a:hover{ color:#fff; }
+  }
+
+  /* -------- Banner (debajo del hero) -------- */
+  .banner-ard{ padding:0 0 12px; }
+  .banner-ard img{ display:block; width:100%; height:auto; border-radius:14px; }
+  @media (max-width:600px){
+    .banner-ard{ padding:0 0 8px; }
+    .banner-ard img{ border-radius:10px; }
   }
 
   /* -------- Hero (logo) -------- */
@@ -549,6 +555,12 @@
     <div class="hero-logo-panel">
       <img src="logoard.png" alt="ARD Suplementos">
     </div>
+  </div>
+</section>
+
+<section class="banner-ard">
+  <div class="wrap">
+    <img src="bannerard.png" alt="ARD Suplementos">
   </div>
 </section>
 
