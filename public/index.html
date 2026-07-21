@@ -152,8 +152,7 @@
   .nav-item-marcas{ position:relative; padding-bottom:16px; margin-bottom:-16px; }
   .nav-marcas-trigger{ display:flex !important; align-items:center; gap:5px; cursor:pointer; background:none; border:none; }
   .nav-marcas-trigger svg{ width:11px;height:11px; transition:transform .18s ease; }
-  .nav-item-marcas.open .nav-marcas-trigger svg,
-  .nav-item-marcas:hover .nav-marcas-trigger svg{ transform:rotate(180deg); }
+  .nav-item-marcas.open .nav-marcas-trigger svg{ transform:rotate(180deg); }
 
   .marcas-mega{
     position:absolute; top:calc(100% + 16px); left:50%;
@@ -165,7 +164,6 @@
     opacity:0; visibility:hidden; pointer-events:none;
     transition:opacity .18s ease, transform .18s ease, visibility .18s;
   }
-  .nav-item-marcas:hover .marcas-mega,
   .nav-item-marcas.open .marcas-mega{
     opacity:1; visibility:visible; pointer-events:auto; transform:translateX(-50%) translateY(0);
   }
@@ -474,11 +472,11 @@
 
 <div class="topbar">
   <div class="topbar-track">
-    <span>🔥 15% OFF PAGANDO CON TRANSFERENCIA</span>
+    <span>🔥 DESCUENTOS PAGANDO CON TRANSFERENCIA</span>
     <span>💳 3 CUOTAS SIN INTERÉS</span>
-    <span>📦 ENVÍOS CON CADETE EN CATAMARCA</span>
+    <span>📦 ENVÍOS A DOMICILIO</span>
     <span>🇦🇷 RETIRÁS EN SARMIENTO 722</span>
-    <span>🔥 15% OFF PAGANDO CON TRANSFERENCIA</span>
+    <span>🔥 DESCUENTOS PAGANDO CON TRANSFERENCIA</span>
     <span>💳 3 CUOTAS SIN INTERÉS</span>
     <span>📦 ENVÍOS CON CADETE EN CATAMARCA</span>
     <span>🇦🇷 RETIRÁS EN SARMIENTO 722</span>
@@ -827,8 +825,9 @@
     }
 
     trigger.addEventListener('click', (e) => {
-      // En mobile, o en cualquier dispositivo táctil, el click abre/cierra el menú
-      // en lugar de saltar directo a la sección.
+      // En cualquier dispositivo (mouse, touch, etc.) el click abre/cierra el menú
+      // y se mantiene abierto hasta que se haga click afuera, se presione Escape,
+      // o se elija una marca. Ya no se abre/cierra solo con el hover del mouse.
       e.preventDefault();
       item.classList.toggle('open');
       if (item.classList.contains('open')) {
