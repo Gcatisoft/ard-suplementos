@@ -299,29 +299,6 @@
     .buscador-caja button{padding:13px;}
   }
 
-  /* -------- Marcas slider -------- */
-  .marcas-strip{padding:34px 0 6px; overflow:hidden;}
-  .marcas-track{
-    display:flex; align-items:center; gap:56px; width:max-content;
-    animation:marcas-marquee 26s linear infinite;
-  }
-  .marcas-strip:hover .marcas-track{animation-play-state:paused;}
-  .marca-item{
-    flex:0 0 auto; display:flex; align-items:center; justify-content:center;
-    height:64px; width:130px;
-  }
-  .marca-item img{
-    max-height:100%; max-width:100%; object-fit:contain;
-  }
-  @keyframes marcas-marquee{
-    0%{transform:translateX(0);}
-    100%{transform:translateX(-50%);}
-  }
-  @media (max-width:480px){
-    .marca-item{height:48px; width:96px;}
-    .marcas-track{gap:36px;}
-  }
-
   /* -------- Benefit strip -------- */
   .beneficios{padding:26px 0 8px;}
   .beneficios-grid{
@@ -570,26 +547,6 @@
   </div>
 </section>
 
-<section class="marcas-strip">
-  <div class="wrap">
-    <div class="marcas-track">
-      <div class="marca-item"><img src="/1.png" alt="Marca 1" loading="lazy"></div>
-      <div class="marca-item"><img src="/2.png" alt="Marca 2" loading="lazy"></div>
-      <div class="marca-item"><img src="/3.png" alt="Marca 3" loading="lazy"></div>
-      <div class="marca-item"><img src="/4.png" alt="Marca 4" loading="lazy"></div>
-      <div class="marca-item"><img src="/5.png" alt="Marca 5" loading="lazy"></div>
-      <div class="marca-item"><img src="/6.png" alt="Marca 6" loading="lazy"></div>
-      <!-- Duplicado para el loop continuo del slider: no borrar -->
-      <div class="marca-item" aria-hidden="true"><img src="/1.png" alt="" loading="lazy"></div>
-      <div class="marca-item" aria-hidden="true"><img src="/2.png" alt="" loading="lazy"></div>
-      <div class="marca-item" aria-hidden="true"><img src="/3.png" alt="" loading="lazy"></div>
-      <div class="marca-item" aria-hidden="true"><img src="/4.png" alt="" loading="lazy"></div>
-      <div class="marca-item" aria-hidden="true"><img src="/5.png" alt="" loading="lazy"></div>
-      <div class="marca-item" aria-hidden="true"><img src="/6.png" alt="" loading="lazy"></div>
-    </div>
-  </div>
-</section>
-
 <section class="beneficios">
   <div class="wrap beneficios-grid">
     <div class="beneficio-card">
@@ -639,35 +596,35 @@
     </div>
     <div class="marcas-grid">
       <div class="marca-card">
-        <img src="/1.png" alt="Star Nutrition" loading="lazy">
+        <img src="/7.png" alt="Star Nutrition" loading="lazy">
         <p class="tag">Proteínas · Vitaminas</p><h3>Star Nutrition</h3>
       </div>
       <div class="marca-card">
-        <img src="/2.png" alt="One Fit" loading="lazy">
+        <img src="/8.png" alt="One Fit" loading="lazy">
         <p class="tag">Whey · Naturales</p><h3>One Fit</h3>
       </div>
       <div class="marca-card">
-        <img src="/3.png" alt="Gold" loading="lazy">
+        <img src="/9.png" alt="Gold" loading="lazy">
         <p class="tag">Línea Gold</p><h3>Gold</h3>
       </div>
       <div class="marca-card">
-        <img src="/4.png" alt="Ena" loading="lazy">
+        <img src="/10.png" alt="Ena" loading="lazy">
         <p class="tag">Whey · Creatina</p><h3>Ena</h3>
       </div>
       <div class="marca-card">
-        <img src="/5.png" alt="Granger" loading="lazy">
+        <img src="/11.png" alt="Granger" loading="lazy">
         <p class="tag">Proteína de huevo</p><h3>Granger</h3>
       </div>
       <div class="marca-card">
-        <img src="/6.png" alt="Gentech" loading="lazy">
+        <img src="/12.png" alt="Gentech" loading="lazy">
         <p class="tag">Whey · Quemadores</p><h3>Gentech</h3>
       </div>
       <div class="marca-card">
-        <img src="/1.png" alt="Mervick" loading="lazy">
+        <img src="/13.png" alt="Mervick" loading="lazy">
         <p class="tag">Whey · Barras</p><h3>Mervick</h3>
       </div>
       <div class="marca-card">
-        <img src="/2.png" alt="Everlast" loading="lazy">
+        <img src="/14.png" alt="Everlast" loading="lazy">
         <p class="tag">Barras · Proteína</p><h3>Everlast</h3>
       </div>
     </div>
