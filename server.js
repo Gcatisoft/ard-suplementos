@@ -78,6 +78,7 @@ function mapProducto(row) {
     stock: row.stock,
     description: row.description || '',
     image: row.image || '',
+    images: Array.isArray(row.images) ? row.images : (row.image ? [row.image] : []),
     featured: row.featured,
     active: row.active,
     createdAt: row.created_at,
@@ -253,17 +254,19 @@ app.get('/api/admin/products/:id', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/admin/products', requireAuth, upload.single('image'), async (req, res) => {
+app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), async (req, res) => {
   try {
     const { name, brand, category, price, oldPrice, cardPrice, stock, description, featured, active, imageUrl } = req.body;
     if (!name || !category || price === undefined || price === '') {
       return res.status(400).json({ error: 'Nombre, categoría y precio son obligatorios' });
     }
 
-    let image = imageUrl || '';
-    if (req.file) {
-      const subida = await subirImagen(req.file);
-      image = subida.url;
+    let images = [];
+    if (req.files && req.files.length) {
+      const subidas = await Promise.all(req.files.map(subirImagen));
+      images = subidas.map((s) => s.url);
+    } else if (imageUrl) {
+      images = [imageUrl];
     }
 
     const nuevo = {
@@ -275,7 +278,8 @@ app.post('/api/admin/products', requireAuth, upload.single('image'), async (req,
       card_price: cardPrice ? Number(cardPrice) : null,
       stock: stock !== undefined && stock !== '' ? Number(stock) : 0,
       description: description ? String(description).trim() : '',
-      image,
+      image: images[0] || '',
+      images,
       featured: featured === 'true' || featured === true,
       active: active === undefined ? true : active === 'true' || active === true,
     };
@@ -290,7 +294,7 @@ app.post('/api/admin/products', requireAuth, upload.single('image'), async (req,
   }
 });
 
-app.put('/api/admin/products/:id', requireAuth, upload.single('image'), async (req, res) => {
+app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), async (req, res) => {
   try {
     const { data: existing, error: findError } = await supabase
       .from('products')
@@ -300,7 +304,7 @@ app.put('/api/admin/products/:id', requireAuth, upload.single('image'), async (r
     if (findError) throw findError;
     if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
 
-    const { name, brand, category, price, oldPrice, cardPrice, stock, description, featured, active, imageUrl, removeImage } =
+    const { name, brand, category, price, oldPrice, cardPrice, stock, description, featured, active, imagenesExistentes } =
       req.body;
 
     const cambios = {};
@@ -315,15 +319,33 @@ app.put('/api/admin/products/:id', requireAuth, upload.single('image'), async (r
     if (featured !== undefined) cambios.featured = featured === 'true' || featured === true;
     if (active !== undefined) cambios.active = active === 'true' || active === true;
 
-    if (req.file) {
-      const subida = await subirImagen(req.file);
-      cambios.image = subida.url;
-      await borrarImagenPorUrl(existing.image);
-    } else if (removeImage === 'true') {
-      await borrarImagenPorUrl(existing.image);
-      cambios.image = '';
-    } else if (imageUrl !== undefined) {
-      cambios.image = imageUrl;
+    // -------- Galería de imágenes --------
+    // El frontend manda en `imagenesExistentes` (JSON) las URLs que el admin
+    // decidió conservar (pudo haber sacado alguna), y en los archivos subidos
+    // (`req.files`) las imágenes nuevas que agregó. Acá las combinamos y
+    // borramos del storage las que ya no quedaron en ningún lado.
+    if (imagenesExistentes !== undefined) {
+      let conservadas = [];
+      try {
+        conservadas = JSON.parse(imagenesExistentes);
+        if (!Array.isArray(conservadas)) conservadas = [];
+      } catch (e) {
+        conservadas = [];
+      }
+
+      let nuevasUrls = [];
+      if (req.files && req.files.length) {
+        const subidas = await Promise.all(req.files.map(subirImagen));
+        nuevasUrls = subidas.map((s) => s.url);
+      }
+
+      const imagenesFinales = [...conservadas, ...nuevasUrls];
+      const imagenesPrevias = Array.isArray(existing.images) ? existing.images : (existing.image ? [existing.image] : []);
+      const eliminadas = imagenesPrevias.filter((url) => !imagenesFinales.includes(url));
+      await Promise.all(eliminadas.map(borrarImagenPorUrl));
+
+      cambios.images = imagenesFinales;
+      cambios.image = imagenesFinales[0] || '';
     }
 
     const { data, error } = await supabase
