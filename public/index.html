@@ -74,8 +74,9 @@
   /* -------- Header -------- */
   header.nav{
     position:sticky; top:0; z-index:60;
-    background:rgba(10,22,38,0.99);
-    border-bottom:1px solid rgba(255,255,255,0.08);
+    background:rgba(255,255,255,0.99);
+    border-bottom:1px solid var(--line);
+    box-shadow:0 2px 14px rgba(10,22,38,0.08);
     transition:transform .28s ease;
   }
   header.nav.nav-hidden{
@@ -99,17 +100,17 @@
     justify-content:center;
   }
   .nav-brand .logo-img{
-    height:68px;width:auto;display:block;
+    height:96px;width:auto;display:block;
     max-width:100%;
     transition:height .18s ease;
   }
   .nav-links{display:flex;gap:22px;align-items:center;justify-content:center;flex-wrap:wrap;min-width:0;}
   .nav-links a{
     font-family:var(--font-cond); font-weight:600; font-size:14px;
-    letter-spacing:0.02em; text-transform:uppercase; color:var(--steel-100);
+    letter-spacing:0.02em; text-transform:uppercase; color:var(--navy-900);
     transition:color .18s ease;
   }
-  .nav-links a:hover{color:#fff;}
+  .nav-links a:hover{color:var(--accent);}
   .nav-cta{
     background:var(--flame);
     color:#fff !important;
@@ -121,30 +122,30 @@
   .nav-cta:hover{background:var(--flame-dark);}
   .nav-login{
     display:flex; align-items:center; gap:6px;
-    border:1.5px solid rgba(255,255,255,0.45);
+    border:1.5px solid var(--navy-900);
     padding:8px 16px;
     border-radius:999px;
-    color:#fff;
+    color:var(--navy-900);
     transition:background .18s ease, color .18s ease;
   }
-  .nav-login:hover{background:#fff; color:var(--navy-900) !important;}
+  .nav-login:hover{background:var(--navy-900); color:#fff !important;}
 
   /* -------- Nav toggle (hamburguesa, mobile) -------- */
   .nav-toggle{
     display:none; width:40px;height:40px; border:none; background:transparent;
-    color:#fff; align-items:center; justify-content:center; flex-direction:column; gap:5px;
+    color:var(--navy-900); align-items:center; justify-content:center; flex-direction:column; gap:5px;
     flex-shrink:0; z-index:2;
   }
-  .nav-toggle span{ display:block; width:24px; height:2px; background:#fff; border-radius:2px; transition:transform .2s ease, opacity .2s ease; }
+  .nav-toggle span{ display:block; width:24px; height:2px; background:var(--navy-900); border-radius:2px; transition:transform .2s ease, opacity .2s ease; }
   .nav-toggle[aria-expanded="true"] span:nth-child(1){ transform:translateY(7px) rotate(45deg); }
   .nav-toggle[aria-expanded="true"] span:nth-child(2){ opacity:0; }
   .nav-toggle[aria-expanded="true"] span:nth-child(3){ transform:translateY(-7px) rotate(-45deg); }
 
   @media (max-width:480px){
-    .nav-brand .logo-img{ height:50px; }
+    .nav-brand .logo-img{ height:70px; }
   }
   @media (max-width:360px){
-    .nav-brand .logo-img{ height:42px; }
+    .nav-brand .logo-img{ height:58px; }
   }
 
   /* -------- Menú "Marcas" con buscador -------- */
@@ -487,7 +488,7 @@
 <header class="nav">
   <div class="wrap nav-inner">
     <div class="nav-brand">
-      <img class="logo-img" src="logoblanco.png" alt="ARD Suplementos">
+      <img class="logo-img" src="logogrande.jpeg" alt="ARD Suplementos">
     </div>
     <div class="nav-controls">
     <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="nav-links">
