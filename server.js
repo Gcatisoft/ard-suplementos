@@ -74,6 +74,7 @@ function mapProducto(row) {
     category: row.category,
     price: Number(row.price),
     oldPrice: row.old_price !== null && row.old_price !== undefined ? Number(row.old_price) : null,
+    cardPrice: row.card_price !== null && row.card_price !== undefined ? Number(row.card_price) : null,
     stock: row.stock,
     description: row.description || '',
     image: row.image || '',
@@ -254,7 +255,7 @@ app.get('/api/admin/products/:id', requireAuth, async (req, res) => {
 
 app.post('/api/admin/products', requireAuth, upload.single('image'), async (req, res) => {
   try {
-    const { name, brand, category, price, oldPrice, stock, description, featured, active, imageUrl } = req.body;
+    const { name, brand, category, price, oldPrice, cardPrice, stock, description, featured, active, imageUrl } = req.body;
     if (!name || !category || price === undefined || price === '') {
       return res.status(400).json({ error: 'Nombre, categoría y precio son obligatorios' });
     }
@@ -271,6 +272,7 @@ app.post('/api/admin/products', requireAuth, upload.single('image'), async (req,
       category: String(category).trim(),
       price: Number(price) || 0,
       old_price: oldPrice ? Number(oldPrice) : null,
+      card_price: cardPrice ? Number(cardPrice) : null,
       stock: stock !== undefined && stock !== '' ? Number(stock) : 0,
       description: description ? String(description).trim() : '',
       image,
@@ -298,7 +300,7 @@ app.put('/api/admin/products/:id', requireAuth, upload.single('image'), async (r
     if (findError) throw findError;
     if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
 
-    const { name, brand, category, price, oldPrice, stock, description, featured, active, imageUrl, removeImage } =
+    const { name, brand, category, price, oldPrice, cardPrice, stock, description, featured, active, imageUrl, removeImage } =
       req.body;
 
     const cambios = {};
@@ -307,6 +309,7 @@ app.put('/api/admin/products/:id', requireAuth, upload.single('image'), async (r
     if (category !== undefined) cambios.category = String(category).trim();
     if (price !== undefined && price !== '') cambios.price = Number(price);
     if (oldPrice !== undefined) cambios.old_price = oldPrice === '' ? null : Number(oldPrice);
+    if (cardPrice !== undefined) cambios.card_price = cardPrice === '' ? null : Number(cardPrice);
     if (stock !== undefined && stock !== '') cambios.stock = Number(stock);
     if (description !== undefined) cambios.description = String(description).trim();
     if (featured !== undefined) cambios.featured = featured === 'true' || featured === true;
