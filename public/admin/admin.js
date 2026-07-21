@@ -179,13 +179,18 @@
         if (p.featured) chips.push('<span class="chip destacado">Destacado</span>');
         if (Number(p.stock) <= 0) chips.push('<span class="chip sin-stock">Sin stock</span>');
 
+        const precioEfectivoHtml = formatearPrecio(p.price) + (p.oldPrice ? ' <span style="text-decoration:line-through;color:#9aa8bb;font-size:12px;">' + formatearPrecio(p.oldPrice) + '</span>' : '');
+        const precioHtml = p.cardPrice
+          ? '<div>' + precioEfectivoHtml + '</div><div style="font-size:12px;color:#6b7686;">' + formatearPrecio(p.cardPrice) + ' tarjeta</div>'
+          : precioEfectivoHtml;
+
         return (
           '<tr>' +
           '<td>' + imagenHtml + '</td>' +
           '<td><strong>' + p.name + '</strong></td>' +
           '<td>' + (p.brand || '—') + '</td>' +
           '<td>' + p.category + '</td>' +
-          '<td>' + formatearPrecio(p.price) + (p.oldPrice ? ' <span style="text-decoration:line-through;color:#9aa8bb;font-size:12px;">' + formatearPrecio(p.oldPrice) + '</span>' : '') + '</td>' +
+          '<td>' + precioHtml + '</td>' +
           '<td>' + p.stock + '</td>' +
           '<td>' + chips.join(' ') + '</td>' +
           '<td>' +
@@ -241,6 +246,7 @@
     document.getElementById('marca').value = p.brand || '';
     document.getElementById('categoria').value = p.category;
     document.getElementById('precio').value = p.price;
+    document.getElementById('precio-tarjeta').value = p.cardPrice || '';
     document.getElementById('precio-anterior').value = p.oldPrice || '';
     document.getElementById('stock').value = p.stock;
     document.getElementById('descripcion').value = p.description || '';
@@ -293,6 +299,7 @@
     formData.append('brand', document.getElementById('marca').value.trim());
     formData.append('category', document.getElementById('categoria').value.trim());
     formData.append('price', document.getElementById('precio').value);
+    formData.append('cardPrice', document.getElementById('precio-tarjeta').value);
     formData.append('oldPrice', document.getElementById('precio-anterior').value);
     formData.append('stock', document.getElementById('stock').value || '0');
     formData.append('description', document.getElementById('descripcion').value.trim());
