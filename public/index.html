@@ -445,11 +445,12 @@
     transition:transform .18s ease, box-shadow .18s ease;
   }
   .marca-card:hover{transform:translateY(-4px); box-shadow:0 14px 26px rgba(17,34,60,0.1);}
-  .marca-card svg{width:46px;height:56px; margin-bottom:12px;}
+  .marca-card img{max-width:100px; max-height:64px; width:auto; height:auto; object-fit:contain; margin-bottom:14px;}
   .marca-card p.tag{font-family:var(--font-body); font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--steel-600); margin-bottom:3px;}
   .marca-card h3{font-family:var(--font-cond); font-size:16px; font-weight:700; text-transform:uppercase; color:var(--navy-900);}
   @media (max-width:900px){.marcas-grid{grid-template-columns:repeat(2,1fr);}}
-  @media (max-width:520px){.marcas-grid{grid-template-columns:1fr 1fr;}}
+  @media (max-width:520px){.marcas-grid{grid-template-columns:1fr 1fr; gap:12px;} .marca-card{padding:18px 10px;} .marca-card img{max-width:80px; max-height:52px;}}
+  @media (max-width:360px){.marcas-grid{grid-template-columns:1fr;}}
 
   /* -------- Como comprar -------- */
   .como-comprar{padding:56px 0;}
@@ -638,35 +639,35 @@
     </div>
     <div class="marcas-grid">
       <div class="marca-card">
-        <svg viewBox="0 0 64 78"><rect x="14" y="6" width="36" height="10" rx="2" fill="#a9c3de"/><path d="M12 18h40l-4 54a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4L12 18z" fill="#e7eef7"/><rect x="12" y="30" width="40" height="14" fill="#4f76a8"/><path d="M32 32l1.8 3.7 4 .6-3 2.8.7 4-3.5-1.9-3.5 1.9.7-4-3-2.8 4-.6z" fill="#e7eef7"/></svg>
+        <img src="/1.png" alt="Star Nutrition" loading="lazy">
         <p class="tag">Proteínas · Vitaminas</p><h3>Star Nutrition</h3>
       </div>
       <div class="marca-card">
-        <svg viewBox="0 0 64 78"><rect x="14" y="6" width="36" height="10" rx="2" fill="#a9c3de"/><path d="M12 18h40l-4 54a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4L12 18z" fill="#e7eef7"/><rect x="12" y="30" width="40" height="14" fill="#2f6fb0"/><text x="32" y="40" text-anchor="middle" font-family="Poppins, sans-serif" font-weight="700" font-size="10" fill="#e7eef7">1</text></svg>
+        <img src="/2.png" alt="One Fit" loading="lazy">
         <p class="tag">Whey · Naturales</p><h3>One Fit</h3>
       </div>
       <div class="marca-card">
-        <svg viewBox="0 0 64 78"><rect x="14" y="6" width="36" height="10" rx="2" fill="#a9c3de"/><path d="M12 18h40l-4 54a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4L12 18z" fill="#e7eef7"/><rect x="12" y="30" width="40" height="14" fill="#6f93c1"/><circle cx="32" cy="37" r="5.5" fill="none" stroke="#e7eef7" stroke-width="2"/></svg>
+        <img src="/3.png" alt="Gold" loading="lazy">
         <p class="tag">Línea Gold</p><h3>Gold</h3>
       </div>
       <div class="marca-card">
-        <svg viewBox="0 0 64 78"><rect x="14" y="6" width="36" height="10" rx="2" fill="#a9c3de"/><path d="M12 18h40l-4 54a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4L12 18z" fill="#e7eef7"/><rect x="12" y="30" width="40" height="14" fill="#4f76a8"/><path d="M24 40l8-10 8 10" fill="none" stroke="#e7eef7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <img src="/4.png" alt="Ena" loading="lazy">
         <p class="tag">Whey · Creatina</p><h3>Ena</h3>
       </div>
       <div class="marca-card">
-        <svg viewBox="0 0 64 78"><rect x="14" y="6" width="36" height="10" rx="2" fill="#a9c3de"/><path d="M12 18h40l-4 54a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4L12 18z" fill="#e7eef7"/><rect x="12" y="30" width="40" height="14" fill="#2f6fb0"/><ellipse cx="32" cy="37" rx="7" ry="5" fill="none" stroke="#e7eef7" stroke-width="2"/></svg>
+        <img src="/5.png" alt="Granger" loading="lazy">
         <p class="tag">Proteína de huevo</p><h3>Granger</h3>
       </div>
       <div class="marca-card">
-        <svg viewBox="0 0 64 78"><rect x="14" y="6" width="36" height="10" rx="2" fill="#a9c3de"/><path d="M12 18h40l-4 54a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4L12 18z" fill="#e7eef7"/><rect x="12" y="30" width="40" height="14" fill="#6f93c1"/><rect x="26" y="32" width="12" height="10" rx="2" fill="none" stroke="#e7eef7" stroke-width="2"/></svg>
+        <img src="/6.png" alt="Gentech" loading="lazy">
         <p class="tag">Whey · Quemadores</p><h3>Gentech</h3>
       </div>
       <div class="marca-card">
-        <svg viewBox="0 0 64 78"><rect x="14" y="6" width="36" height="10" rx="2" fill="#a9c3de"/><path d="M12 18h40l-4 54a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4L12 18z" fill="#e7eef7"/><rect x="12" y="30" width="40" height="14" fill="#4f76a8"/><path d="M25 40l4-8 4 8 4-8" fill="none" stroke="#e7eef7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <img src="/1.png" alt="Mervick" loading="lazy">
         <p class="tag">Whey · Barras</p><h3>Mervick</h3>
       </div>
       <div class="marca-card">
-        <svg viewBox="0 0 64 78"><rect x="14" y="6" width="36" height="10" rx="2" fill="#a9c3de"/><path d="M12 18h40l-4 54a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4L12 18z" fill="#e7eef7"/><rect x="12" y="30" width="40" height="14" fill="#2f6fb0"/><path d="M26 33h12v10a6 6 0 0 1-12 0z" fill="none" stroke="#e7eef7" stroke-width="2"/></svg>
+        <img src="/2.png" alt="Everlast" loading="lazy">
         <p class="tag">Barras · Proteína</p><h3>Everlast</h3>
       </div>
     </div>
