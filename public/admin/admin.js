@@ -219,6 +219,7 @@
 
   // -------- Galería de imágenes (existentes + nuevas) --------
   function renderImagenesGrid() {
+    if (!imagenesGrid) return; // el HTML no tiene la nueva galería cargada
     const totalPrevias = imagenesExistentes.length;
     let html = '';
 
@@ -253,7 +254,8 @@
 
     imagenesGrid.innerHTML = html;
 
-    imagenesGrid.querySelector('#imagen-agregar-btn').addEventListener('click', () => imagenesInput.click());
+    const btnAgregar = imagenesGrid.querySelector('#imagen-agregar-btn');
+    if (btnAgregar && imagenesInput) btnAgregar.addEventListener('click', () => imagenesInput.click());
     imagenesGrid.querySelectorAll('[data-quitar-existente]').forEach((btn) => {
       btn.addEventListener('click', () => {
         imagenesExistentes.splice(Number(btn.getAttribute('data-quitar-existente')), 1);
@@ -268,19 +270,21 @@
     });
   }
 
-  imagenesInput.addEventListener('change', () => {
-    const LIMITE = 8;
-    const disponibles = LIMITE - imagenesExistentes.length - imagenesNuevas.length;
-    if (disponibles <= 0) {
-      alert('Ya llegaste al máximo de ' + LIMITE + ' imágenes por producto.');
-      imagenesInput.value = '';
-      return;
-    }
-    const nuevos = Array.from(imagenesInput.files).slice(0, disponibles);
-    imagenesNuevas.push(...nuevos);
-    imagenesInput.value = ''; // permite volver a elegir el mismo archivo si lo saca y lo agrega de nuevo
-    renderImagenesGrid();
-  });
+  if (imagenesInput) {
+    imagenesInput.addEventListener('change', () => {
+      const LIMITE = 8;
+      const disponibles = LIMITE - imagenesExistentes.length - imagenesNuevas.length;
+      if (disponibles <= 0) {
+        alert('Ya llegaste al máximo de ' + LIMITE + ' imágenes por producto.');
+        imagenesInput.value = '';
+        return;
+      }
+      const nuevos = Array.from(imagenesInput.files).slice(0, disponibles);
+      imagenesNuevas.push(...nuevos);
+      imagenesInput.value = ''; // permite volver a elegir el mismo archivo si lo saca y lo agrega de nuevo
+      renderImagenesGrid();
+    });
+  }
 
   // -------- Modal: abrir / cerrar --------
   function limpiarFormulario() {
