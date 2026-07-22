@@ -30,6 +30,14 @@
   const topProductosBody = document.getElementById('top-productos-body');
   const topProductosEmpty = document.getElementById('top-productos-empty');
 
+  // -------- Reseñas --------
+  const resenasTablaBody = document.getElementById('resenas-tabla-body');
+  const resenasEmptyState = document.getElementById('resenas-empty-state');
+  const filtroResenaEstado = document.getElementById('filtro-resena-estado');
+  const refrescarResenasBtn = document.getElementById('refrescar-resenas-btn');
+  const resenasBadge = document.getElementById('resenas-badge');
+  let resenas = [];
+
   function formatearPrecio(valor) {
     try {
       return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(valor);
@@ -64,6 +72,7 @@
       }
       usernameLabel.textContent = data.username ? ('Hola, ' + data.username) : '';
       cargarProductos();
+      actualizarBadgeResenas();
     } catch (e) {
       window.location.href = 'login.html';
     }
@@ -81,11 +90,13 @@
   const tabPanels = {
     productos: document.getElementById('tab-productos'),
     pedidos: document.getElementById('tab-pedidos'),
+    resenas: document.getElementById('tab-resenas'),
     stats: document.getElementById('tab-stats'),
   };
 
   let pedidosCargados = false;
   let statsCargadas = false;
+  let resenasCargadas = false;
 
   tabBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -103,10 +114,15 @@
         statsCargadas = true;
         cargarStats();
       }
+      if (tab === 'resenas' && !resenasCargadas) {
+        resenasCargadas = true;
+        cargarResenas();
+      }
       // Si ya se cargaron antes, igual refrescamos al volver a la pestaña
       // para no mostrar datos viejos si pasó tiempo:
       if (tab === 'pedidos' && pedidosCargados) cargarPedidos();
       if (tab === 'stats' && statsCargadas) cargarStats();
+      if (tab === 'resenas' && resenasCargadas) cargarResenas();
     });
   });
 
@@ -527,6 +543,141 @@
 
   filtroPedidoEstado.addEventListener('change', cargarPedidos);
   refrescarPedidosBtn.addEventListener('click', cargarPedidos);
+
+  // ====================================================
+  // -------- RESEÑAS --------
+  // ====================================================
+  async function cargarResenas() {
+    try {
+      const estado = filtroResenaEstado.value; // '' | 'pendiente' | 'publicada'
+      const url = '/api/admin/reviews' + (estado ? '?status=' + encodeURIComponent(estado) : '');
+      const res = await fetch(url);
+      if (res.status === 401) {
+        window.location.href = 'login.html';
+        return;
+      }
+      resenas = await res.json();
+      renderResenas();
+      actualizarBadgeResenas();
+    } catch (e) {
+      resenasTablaBody.innerHTML = '<tr><td colspan="6">Error al cargar las reseñas.</td></tr>';
+    }
+  }
+
+  // Consulta liviana para mostrar el número de reseñas pendientes en la
+  // pestaña, sin necesidad de tener la tabla de reseñas abierta.
+  async function actualizarBadgeResenas() {
+    try {
+      const res = await fetch('/api/admin/reviews?status=pendiente');
+      if (!res.ok) return;
+      const pendientes = await res.json();
+      const cantidad = Array.isArray(pendientes) ? pendientes.length : 0;
+      if (cantidad > 0) {
+        resenasBadge.textContent = cantidad > 99 ? '99+' : cantidad;
+        resenasBadge.style.display = 'inline-flex';
+      } else {
+        resenasBadge.style.display = 'none';
+      }
+    } catch (e) {
+      // Si falla, simplemente no mostramos el badge; no bloqueamos el resto del panel.
+    }
+  }
+
+  function estrellasHtml(calificacion) {
+    const n = Math.max(0, Math.min(5, Number(calificacion) || 0));
+    return '★'.repeat(n) + '☆'.repeat(5 - n);
+  }
+
+  function renderResenas() {
+    if (!resenas.length) {
+      resenasTablaBody.innerHTML = '';
+      resenasEmptyState.style.display = 'block';
+      return;
+    }
+    resenasEmptyState.style.display = 'none';
+
+    resenasTablaBody.innerHTML = resenas
+      .map((r) => {
+        const comentarioLargo = (r.comentario || '').length > 80;
+        const comentarioCorto = comentarioLargo ? r.comentario.slice(0, 80) + '…' : (r.comentario || '');
+        const comentarioHtml = comentarioLargo
+          ? '<span class="resena-comentario-corto">' + comentarioCorto + '</span>' +
+            '<button type="button" class="resena-comentario-toggle" data-toggle-comentario="' + r.id + '">Ver más</button>' +
+            '<div class="resena-comentario-completo" id="comentario-' + r.id + '">' + r.comentario + '</div>'
+          : '<span class="resena-comentario-corto">' + comentarioCorto + '</span>';
+
+        const publicada = !!r.aprobada;
+
+        return (
+          '<tr>' +
+          '<td><strong>' + (r.nombre || 'Anónimo') + '</strong></td>' +
+          '<td><span class="resena-stars">' + estrellasHtml(r.calificacion) + '</span></td>' +
+          '<td>' + comentarioHtml + '</td>' +
+          '<td><span class="estado-badge ' + (publicada ? 'confirmado' : 'pendiente') + '">' + (publicada ? 'Publicada' : 'Pendiente') + '</span></td>' +
+          '<td>' + formatearFecha(r.fecha) + '</td>' +
+          '<td>' +
+            '<div class="pedido-actions">' +
+              '<select data-cambiar-estado-resena="' + r.id + '">' +
+                '<option value="pendiente"' + (!publicada ? ' selected' : '') + '>Pendiente</option>' +
+                '<option value="publicada"' + (publicada ? ' selected' : '') + '>Publicada</option>' +
+              '</select>' +
+              '<button type="button" class="icon-btn danger" data-borrar-resena="' + r.id + '" title="Eliminar">' + iconoBorrar() + '</button>' +
+            '</div>' +
+          '</td>' +
+          '</tr>'
+        );
+      })
+      .join('');
+
+    resenasTablaBody.querySelectorAll('[data-toggle-comentario]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-toggle-comentario');
+        document.getElementById('comentario-' + id).classList.toggle('visible');
+      });
+    });
+    resenasTablaBody.querySelectorAll('[data-cambiar-estado-resena]').forEach((select) => {
+      select.addEventListener('change', () => cambiarEstadoResena(select.getAttribute('data-cambiar-estado-resena'), select.value));
+    });
+    resenasTablaBody.querySelectorAll('[data-borrar-resena]').forEach((btn) => {
+      btn.addEventListener('click', () => borrarResena(btn.getAttribute('data-borrar-resena')));
+    });
+  }
+
+  async function cambiarEstadoResena(id, valor) {
+    try {
+      const res = await fetch('/api/admin/reviews/' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aprobada: valor === 'publicada' }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'No se pudo actualizar la reseña');
+      }
+      await cargarResenas();
+    } catch (e) {
+      alert('Error de conexión con el servidor');
+    }
+  }
+
+  async function borrarResena(id) {
+    const confirmado = window.confirm('¿Eliminar esta reseña? Esta acción no se puede deshacer.');
+    if (!confirmado) return;
+    try {
+      const res = await fetch('/api/admin/reviews/' + id, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'No se pudo eliminar la reseña');
+        return;
+      }
+      await cargarResenas();
+    } catch (e) {
+      alert('Error de conexión con el servidor');
+    }
+  }
+
+  filtroResenaEstado.addEventListener('change', cargarResenas);
+  refrescarResenasBtn.addEventListener('click', cargarResenas);
 
   // ====================================================
   // -------- ESTADÍSTICAS --------
