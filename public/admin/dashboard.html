@@ -38,6 +38,21 @@
     color: #1a2233;
     border-bottom-color: #1a2233;
   }
+  .tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    margin-left: 6px;
+    border-radius: 999px;
+    background: #a12c2c;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    vertical-align: middle;
+  }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
@@ -75,7 +90,7 @@
     margin: 26px 0 12px;
   }
 
-  .top-productos-tabla, .pedidos-tabla {
+  .top-productos-tabla, .pedidos-tabla, .resenas-tabla {
     width: 100%;
     border-collapse: collapse;
     background: #fff;
@@ -83,7 +98,7 @@
     border-radius: 10px;
     overflow: hidden;
   }
-  .top-productos-tabla th, .pedidos-tabla th {
+  .top-productos-tabla th, .pedidos-tabla th, .resenas-tabla th {
     text-align: left;
     font-size: 12px;
     text-transform: uppercase;
@@ -93,14 +108,14 @@
     padding: 10px 14px;
     border-bottom: 1px solid rgba(0,0,0,0.06);
   }
-  .top-productos-tabla td, .pedidos-tabla td {
+  .top-productos-tabla td, .pedidos-tabla td, .resenas-tabla td {
     padding: 12px 14px;
     border-bottom: 1px solid rgba(0,0,0,0.06);
     font-size: 14px;
     color: #1a2233;
     vertical-align: top;
   }
-  .top-productos-tabla tr:last-child td, .pedidos-tabla tr:last-child td { border-bottom: none; }
+  .top-productos-tabla tr:last-child td, .pedidos-tabla tr:last-child td, .resenas-tabla tr:last-child td { border-bottom: none; }
 
   .estado-badge {
     display: inline-block;
@@ -149,6 +164,29 @@
     margin-bottom: 14px;
     flex-wrap: wrap;
   }
+
+  /* ===== Reseñas ===== */
+  .resena-stars { color: #d98c1f; letter-spacing: 1px; white-space: nowrap; }
+  .resena-comentario-corto { color: #1a2233; }
+  .resena-comentario-toggle {
+    background: none;
+    border: none;
+    color: #3159c9;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 4px;
+    text-decoration: underline;
+    white-space: nowrap;
+  }
+  .resena-comentario-completo {
+    display: none;
+    margin-top: 6px;
+    color: #4a5568;
+    font-size: 13px;
+  }
+  .resena-comentario-completo.visible { display: block; }
+  .resenas-tabla td { max-width: 320px; }
 
   /* ===== Galería de imágenes del producto (múltiples imágenes) ===== */
   .imagenes-grid {
@@ -243,6 +281,7 @@
   <nav class="tabs-nav">
     <button type="button" class="tab-btn active" data-tab="productos">Productos</button>
     <button type="button" class="tab-btn" data-tab="pedidos">Pedidos y ventas</button>
+    <button type="button" class="tab-btn" data-tab="resenas">Reseñas <span class="tab-badge" id="resenas-badge" style="display:none;"></span></button>
     <button type="button" class="tab-btn" data-tab="stats">Estadísticas</button>
   </nav>
 
@@ -330,6 +369,42 @@
       </table>
       <div class="empty-state" id="pedidos-empty-state" style="display:none;">
         Todavía no hay pedidos registrados.
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: RESEÑAS ================= -->
+  <section class="tab-panel" id="tab-resenas">
+
+    <div class="pedidos-toolbar">
+      <div class="filters">
+        <select id="filtro-resena-estado">
+          <option value="">Todas</option>
+          <option value="pendiente">Pendientes de aprobar</option>
+          <option value="publicada">Publicadas</option>
+        </select>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="refrescar-resenas-btn">Actualizar</button>
+    </div>
+
+    <div class="tabla-wrap">
+      <table class="resenas-tabla">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Calificación</th>
+            <th>Comentario</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="resenas-tabla-body">
+          <!-- filas dinámicas -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="resenas-empty-state" style="display:none;">
+        Todavía no hay reseñas para mostrar.
       </div>
     </div>
   </section>
