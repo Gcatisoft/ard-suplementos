@@ -518,6 +518,108 @@ app.get('/api/admin/stats', requireAuth, async (req, res) => {
   }
 });
 
+// ============================================================
+// ---------- Reseñas: API pública (formulario del index) ----------
+// ============================================================
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('resenas')
+      .select('id, nombre, calificacion, comentario, fecha')
+      .eq('aprobada', true)
+      .order('fecha', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    res.json(data || []);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las reseñas' });
+  }
+});
+
+app.post('/api/reviews', async (req, res) => {
+  try {
+    const { nombre, calificacion, comentario } = req.body || {};
+
+    if (!nombre || !comentario) {
+      return res.status(400).json({ error: 'Faltan datos de la reseña (nombre o comentario)' });
+    }
+
+    const calificacionNum = Number(calificacion);
+    if (!Number.isInteger(calificacionNum) || calificacionNum < 1 || calificacionNum > 5) {
+      return res.status(400).json({ error: 'La calificación debe ser un número entero entre 1 y 5' });
+    }
+
+    const nueva = {
+      nombre: String(nombre).trim().slice(0, 60),
+      calificacion: calificacionNum,
+      comentario: String(comentario).trim().slice(0, 500),
+      // Queda pendiente hasta que se apruebe desde el panel de administración.
+      aprobada: false,
+    };
+
+    const { data, error } = await supabase.from('resenas').insert(nueva).select().single();
+    if (error) throw error;
+
+    res.status(201).json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al guardar la reseña' });
+  }
+});
+
+// ---------- Reseñas: API de administración (protegida) ----------
+app.get('/api/admin/reviews', requireAuth, async (req, res) => {
+  try {
+    const { status } = req.query; // '' | 'pendiente' | 'publicada'
+    let query = supabase.from('resenas').select('*').order('fecha', { ascending: false });
+
+    if (status === 'pendiente') query = query.eq('aprobada', false);
+    if (status === 'publicada') query = query.eq('aprobada', true);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json(data || []);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las reseñas' });
+  }
+});
+
+app.patch('/api/admin/reviews/:id', requireAuth, async (req, res) => {
+  try {
+    const { aprobada } = req.body || {};
+    if (typeof aprobada !== 'boolean') {
+      return res.status(400).json({ error: 'Falta el campo "aprobada" (true o false)' });
+    }
+
+    const { data, error } = await supabase
+      .from('resenas')
+      .update({ aprobada })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Reseña no encontrada' });
+
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar la reseña' });
+  }
+});
+
+app.delete('/api/admin/reviews/:id', requireAuth, async (req, res) => {
+  try {
+    const { error } = await supabase.from('resenas').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar la reseña' });
+  }
+});
+
 // Ruta directa al panel admin
 app.get('/admin', (req, res) => {
   res.redirect('/admin/login.html');
