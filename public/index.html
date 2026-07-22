@@ -325,19 +325,6 @@
   @media (max-width:760px){.beneficios-grid-3{grid-template-columns:1fr 1fr;}}
   @media (max-width:520px){.beneficios-grid-3{grid-template-columns:1fr;}}
 
-  /* -------- Benefit slider -------- */
-  .beneficios-viewport{overflow:hidden;}
-  .beneficios-track{
-    display:flex; gap:16px; overflow-x:auto; scroll-snap-type:x mandatory;
-    padding-bottom:6px; scrollbar-width:none;
-  }
-  .beneficios-track::-webkit-scrollbar{display:none;}
-  .beneficios-track .beneficio-card{
-    scroll-snap-align:start; flex:0 0 auto; width:300px; max-width:82vw;
-  }
-  .beneficios-nav{display:flex; justify-content:flex-end; gap:8px; margin-top:14px;}
-  @media (max-width:680px){.beneficios-nav{display:none;}}
-
   /* -------- Product carousel sections -------- */
   .carousel-section{padding:52px 0;}
   .carousel-section.alt{background:var(--bg-soft);}
@@ -565,30 +552,22 @@
 </section>
 
 <section class="beneficios">
-  <div class="wrap">
-    <div class="beneficios-viewport">
-      <div class="beneficios-track" id="track-beneficios">
-        <div class="beneficio-card">
-          <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-          <p>DESCUENTOS PAGANDO CON EFECTIVO O TRANSFERENCIA</p>
-        </div>
-        <div class="beneficio-card">
-          <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
-          <p>3 CUOTAS CON TARJETAS</p>
-        </div>
-        <div class="beneficio-card">
-          <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="18" r="2.5"/><circle cx="17" cy="18" r="2.5"/><path d="M2 18h1.5L6 8h9l2 6h4.5M15 8V5h-3"/></svg></div>
-          <p>ENVÍOS A DOMICILIO</p>
-        </div>
-        <div class="beneficio-card">
-          <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
-          <p>RETIRÁS EN SARMIENTO 722</p>
-        </div>
-      </div>
+  <div class="wrap beneficios-grid">
+    <div class="beneficio-card">
+      <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+      <p>DESCUENTOS PAGANDO CON EFECTIVO O TRANSFERENCIA</p>
     </div>
-    <div class="carousel-nav beneficios-nav" data-target="track-beneficios">
-      <button class="prev-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
-      <button class="next-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+    <div class="beneficio-card">
+      <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
+      <p>3 CUOTAS CON TARJETAS</p>
+    </div>
+    <div class="beneficio-card">
+      <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="18" r="2.5"/><circle cx="17" cy="18" r="2.5"/><path d="M2 18h1.5L6 8h9l2 6h4.5M15 8V5h-3"/></svg></div>
+      <p>ENVÍOS A DOMICILIO</p>
+    </div>
+    <div class="beneficio-card">
+      <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+      <p>RETIRÁS EN SARMIENTO 722</p>
     </div>
   </div>
 </section>
@@ -710,7 +689,8 @@
     <div class="foot-grid">
       <div>
         <div class="foot-brand">
-          <img class="foot-logo-img" src=""
+          <img class="foot-logo-img" src=""/>
+        <div class="pay-icons">
           <span class="pay-chip">VISA</span>
           <span class="pay-chip">MASTERCARD</span>
           <span class="pay-chip">NARANJA</span>
