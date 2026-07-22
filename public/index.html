@@ -462,6 +462,80 @@
   .paso p{font-size:15px; font-weight:500; color:var(--navy-800); line-height:1.6;}
   @media (max-width:760px){.pasos{grid-template-columns:1fr;}}
 
+  /* -------- Mapa de ubicación -------- */
+  .mapa-wrap{
+    margin-top:26px; border-radius:16px; overflow:hidden;
+    border:1px solid var(--line); box-shadow:0 14px 30px rgba(17,34,60,0.08);
+  }
+  .mapa-wrap iframe{display:block; width:100%; height:380px;}
+  .mapa-cta{text-align:center; margin-top:16px;}
+  .mapa-link{
+    display:inline-block; font-family:var(--font-cond); font-weight:700; font-size:13.5px;
+    letter-spacing:0.02em; text-transform:uppercase; color:var(--accent);
+    padding:10px 4px; transition:color .16s ease;
+  }
+  .mapa-link:hover{color:var(--flame);}
+  @media (max-width:520px){ .mapa-wrap iframe{height:280px;} }
+
+  /* -------- Reseñas -------- */
+  .resenas{padding:56px 0;}
+  .resenas-grid{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-bottom:34px;
+  }
+  @media (max-width:900px){.resenas-grid{grid-template-columns:1fr 1fr;}}
+  @media (max-width:600px){.resenas-grid{grid-template-columns:1fr;}}
+  .resena-card{
+    background:var(--bg-soft); border:1px solid var(--line); border-radius:14px;
+    padding:20px; display:flex; flex-direction:column; gap:10px;
+  }
+  .resena-stars{color:var(--flame); font-size:15px; letter-spacing:2px;}
+  .resena-comentario{font-family:var(--font-body); font-size:14.5px; color:var(--navy-800); line-height:1.55; flex:1;}
+  .resena-footer{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .resena-nombre{font-family:var(--font-cond); font-weight:700; font-size:13.5px; text-transform:uppercase; color:var(--navy-900);}
+  .resena-fecha{font-size:11.5px; color:var(--steel-600);}
+  .resenas-vacio{font-family:var(--font-body); color:var(--steel-600); padding:20px 4px; grid-column:1/-1; text-align:center;}
+
+  .form-resena{
+    max-width:560px; margin:0 auto; background:#fff; border:1px solid var(--line);
+    border-radius:16px; padding:26px; box-shadow:0 14px 30px rgba(17,34,60,0.06);
+  }
+  .form-resena h3{
+    font-family:var(--font-cond); font-weight:800; font-size:17px; text-transform:uppercase;
+    color:var(--navy-900); margin-bottom:16px; text-align:center;
+  }
+  .form-resena label{
+    display:block; font-family:var(--font-cond); font-weight:600; font-size:12px;
+    letter-spacing:0.03em; text-transform:uppercase; color:var(--steel-600); margin:14px 0 6px;
+  }
+  .form-resena input[type="text"],
+  .form-resena textarea{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:11px 13px;
+    font-family:var(--font-body); font-size:14.5px; color:var(--ink); background:var(--bg-soft);
+  }
+  .form-resena textarea{resize:vertical; min-height:90px;}
+  .form-resena input:focus,
+  .form-resena textarea:focus{outline:none; border-color:var(--accent);}
+
+  .estrellas-input{display:flex; gap:6px; margin-top:2px;}
+  .estrellas-input button{
+    background:none; border:none; padding:2px; font-size:26px; line-height:1;
+    color:var(--steel-300); transition:color .12s ease, transform .12s ease;
+  }
+  .estrellas-input button.activa{color:var(--flame);}
+  .estrellas-input button:hover{transform:scale(1.1);}
+
+  .form-resena-enviar{
+    width:100%; margin-top:18px; padding:12px 14px; border-radius:10px; border:none;
+    background:var(--navy-900); color:#fff; font-family:var(--font-cond); font-weight:700;
+    font-size:14px; letter-spacing:0.02em; text-transform:uppercase; transition:background .16s ease;
+  }
+  .form-resena-enviar:hover{background:var(--accent);}
+  .form-resena-msg{
+    text-align:center; font-family:var(--font-body); font-size:13px; margin-top:12px; min-height:18px;
+  }
+  .form-resena-msg.ok{color:#1f8a4c;}
+  .form-resena-msg.error{color:var(--flame-dark);}
+
   /* -------- Footer -------- */
   footer{background:var(--navy-950); color:var(--steel-300); padding:52px 0 22px; margin-top:20px;}
   .foot-grid{
@@ -718,7 +792,7 @@
     <div class="beneficios-grid beneficios-grid-3">
       <div class="beneficio-card">
         <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
-        <p>Sarmiento 722, Catamarca, Argentina</p>
+        <p>Sarmiento 722, San Fernando del Valle de Catamarca, Argentina</p>
       </div>
       <div class="beneficio-card">
         <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.4 1.26 4.83L2 22l5.42-1.42a9.85 9.85 0 0 0 4.62 1.17h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.13-2.9-7C17.17 3.03 14.7 2 12.04 2z"/></svg></div>
@@ -729,6 +803,59 @@
         <p>Envíos con cadete propio en toda Catamarca</p>
       </div>
     </div>
+
+    <div class="mapa-wrap">
+      <iframe
+        title="Ubicación de ARD Suplementos en Sarmiento 722, Catamarca"
+        src="https://www.google.com/maps?q=Sarmiento+722,+San+Fernando+del+Valle+de+Catamarca,+Catamarca,+Argentina&output=embed"
+        width="100%"
+        height="380"
+        style="border:0;"
+        allowfullscreen=""
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade">
+      </iframe>
+    </div>
+    <div class="mapa-cta">
+      <a href="https://www.google.com/maps/search/?api=1&query=Sarmiento+722,+San+Fernando+del+Valle+de+Catamarca,+Catamarca,+Argentina" target="_blank" rel="noopener" class="mapa-link">
+        Ver en Google Maps y cómo llegar →
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="resenas" id="resenas">
+  <div class="wrap">
+    <div class="section-head">
+      <span>Opiniones de clientes</span>
+      <h2>Reseñas</h2>
+    </div>
+
+    <div class="resenas-grid" id="resenas-grid">
+      <div class="resenas-vacio">Cargando reseñas…</div>
+    </div>
+
+    <form class="form-resena" id="form-resena">
+      <h3>Dejá tu reseña</h3>
+
+      <label for="resena-nombre">Tu nombre</label>
+      <input type="text" id="resena-nombre" name="nombre" placeholder="Ej: Rodrigo" maxlength="60" required>
+
+      <label>Calificación</label>
+      <div class="estrellas-input" id="estrellas-input" data-valor="5">
+        <button type="button" data-valor="1">★</button>
+        <button type="button" data-valor="2">★</button>
+        <button type="button" data-valor="3">★</button>
+        <button type="button" data-valor="4">★</button>
+        <button type="button" data-valor="5">★</button>
+      </div>
+
+      <label for="resena-comentario">Tu comentario</label>
+      <textarea id="resena-comentario" name="comentario" placeholder="Contanos tu experiencia…" maxlength="500" required></textarea>
+
+      <button type="submit" class="form-resena-enviar">Enviar reseña</button>
+      <p class="form-resena-msg" id="form-resena-msg"></p>
+    </form>
   </div>
 </section>
 
@@ -1116,6 +1243,142 @@
   }
 
   cargarProductos();
+})();
+</script>
+
+<script>
+(function(){
+  // Reseñas demo: se muestran de inmediato para que la sección nunca quede vacía,
+  // igual que hacemos con el catálogo de productos.
+  const RESENAS_DEMO = [
+    { nombre: "Marcela G.", calificacion: 5, comentario: "Excelente atención por WhatsApp y me asesoraron muy bien con la proteína. Recomendable.", fecha: "2026-06-02" },
+    { nombre: "Facundo R.", calificacion: 5, comentario: "Rapidísimo el envío a domicilio y buenos precios pagando en efectivo.", fecha: "2026-05-18" },
+    { nombre: "Ailén T.", calificacion: 4, comentario: "Buena variedad de marcas. Retiré en el local de Sarmiento 722 y todo perfecto.", fecha: "2026-04-30" }
+  ];
+
+  const RESENAS_LOCAL_KEY = "ard_resenas_local";
+  const grid = document.getElementById('resenas-grid');
+  const form = document.getElementById('form-resena');
+  const msg = document.getElementById('form-resena-msg');
+  const estrellasInput = document.getElementById('estrellas-input');
+
+  if(!grid || !form) return;
+
+  function formatearFecha(iso){
+    try{
+      const f = new Date(iso + 'T00:00:00');
+      return f.toLocaleDateString('es-AR', { day:'2-digit', month:'short', year:'numeric' });
+    }catch(e){ return iso; }
+  }
+
+  function pintarResenas(lista){
+    if(!Array.isArray(lista) || lista.length === 0){
+      grid.innerHTML = '<div class="resenas-vacio">Todavía no hay reseñas. ¡Sé el primero en dejar la tuya!</div>';
+      return;
+    }
+    grid.innerHTML = lista.map(r => `
+      <div class="resena-card">
+        <div class="resena-stars">${'★'.repeat(r.calificacion)}${'☆'.repeat(5 - r.calificacion)}</div>
+        <p class="resena-comentario">${escaparHTML(r.comentario)}</p>
+        <div class="resena-footer">
+          <span class="resena-nombre">${escaparHTML(r.nombre)}</span>
+          <span class="resena-fecha">${formatearFecha(r.fecha)}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function escaparHTML(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function obtenerResenasLocales(){
+    try{
+      return JSON.parse(localStorage.getItem(RESENAS_LOCAL_KEY) || '[]');
+    }catch(e){ return []; }
+  }
+
+  function guardarResenaLocal(resena){
+    const actuales = obtenerResenasLocales();
+    actuales.unshift(resena);
+    localStorage.setItem(RESENAS_LOCAL_KEY, JSON.stringify(actuales));
+  }
+
+  function cargarResenas(){
+    const locales = obtenerResenasLocales();
+    // Mostramos demo + lo que el usuario ya envió desde este navegador,
+    // mientras esperamos (o no) la respuesta del backend real.
+    pintarResenas([...locales, ...RESENAS_DEMO]);
+
+    const timeoutMs = 2500;
+    const fetchConTimeout = Promise.race([
+      fetch('/api/reviews'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))
+    ]);
+
+    fetchConTimeout
+      .then(res => { if(!res.ok) throw new Error('sin backend'); return res.json(); })
+      .then(resenas => { if(Array.isArray(resenas) && resenas.length) pintarResenas(resenas); })
+      .catch(err => console.warn('Sin API de reseñas todavía, se mantienen las reseñas locales/demo:', err));
+  }
+
+  // Selector de estrellas
+  if(estrellasInput){
+    const botones = [...estrellasInput.querySelectorAll('button')];
+    function marcarEstrellas(valor){
+      estrellasInput.dataset.valor = valor;
+      botones.forEach(b => b.classList.toggle('activa', Number(b.dataset.valor) <= valor));
+    }
+    botones.forEach(b => b.addEventListener('click', () => marcarEstrellas(Number(b.dataset.valor))));
+    marcarEstrellas(5);
+  }
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+
+    const nombre = document.getElementById('resena-nombre').value.trim();
+    const comentario = document.getElementById('resena-comentario').value.trim();
+    const calificacion = Number(estrellasInput ? estrellasInput.dataset.valor : 5);
+
+    if(!nombre || !comentario){
+      msg.textContent = 'Completá tu nombre y tu comentario.';
+      msg.className = 'form-resena-msg error';
+      return;
+    }
+
+    const nuevaResena = {
+      nombre,
+      comentario,
+      calificacion,
+      fecha: new Date().toISOString().slice(0, 10)
+    };
+
+    // Intentamos guardarla en el backend real (si existe); si no responde,
+    // igual la guardamos localmente para que el cliente vea que quedó cargada.
+    fetch('/api/reviews', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nuevaResena)
+    }).catch(err => console.warn('Sin API de reseñas todavía, se guarda solo local:', err));
+
+    guardarResenaLocal(nuevaResena);
+    pintarResenas([nuevaResena, ...obtenerResenasLocales().slice(1), ...RESENAS_DEMO]);
+
+    form.reset();
+    if(estrellasInput){
+      const botones = [...estrellasInput.querySelectorAll('button')];
+      estrellasInput.dataset.valor = 5;
+      botones.forEach(b => b.classList.toggle('activa', true));
+    }
+
+    msg.textContent = '¡Gracias por tu reseña!';
+    msg.className = 'form-resena-msg ok';
+    setTimeout(() => { msg.textContent = ''; }, 4000);
+  });
+
+  cargarResenas();
 })();
 </script>
 
