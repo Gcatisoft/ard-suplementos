@@ -1248,15 +1248,16 @@
 
 <script>
 (function(){
-  // Reseñas demo: se muestran de inmediato para que la sección nunca quede vacía,
-  // igual que hacemos con el catálogo de productos.
+  // Reseñas demo: solo se usan como resguardo mientras esperamos la respuesta
+  // del backend (o si por algún motivo no responde). El listado real que se
+  // ve acá siempre viene del servidor, y el servidor solo devuelve las
+  // reseñas que el administrador ya aprobó desde el panel.
   const RESENAS_DEMO = [
     { nombre: "Marcela G.", calificacion: 5, comentario: "Excelente atención por WhatsApp y me asesoraron muy bien con la proteína. Recomendable.", fecha: "2026-06-02" },
     { nombre: "Facundo R.", calificacion: 5, comentario: "Rapidísimo el envío a domicilio y buenos precios pagando en efectivo.", fecha: "2026-05-18" },
     { nombre: "Ailén T.", calificacion: 4, comentario: "Buena variedad de marcas. Retiré en el local de Sarmiento 722 y todo perfecto.", fecha: "2026-04-30" }
   ];
 
-  const RESENAS_LOCAL_KEY = "ard_resenas_local";
   const grid = document.getElementById('resenas-grid');
   const form = document.getElementById('form-resena');
   const msg = document.getElementById('form-resena-msg');
@@ -1266,14 +1267,20 @@
 
   function formatearFecha(iso){
     try{
-      const f = new Date(iso + 'T00:00:00');
+      const f = new Date(String(iso).length === 10 ? iso + 'T00:00:00' : iso);
       return f.toLocaleDateString('es-AR', { day:'2-digit', month:'short', year:'numeric' });
     }catch(e){ return iso; }
   }
 
+  function escaparHTML(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   function pintarResenas(lista){
     if(!Array.isArray(lista) || lista.length === 0){
-      grid.innerHTML = '<div class="resenas-vacio">Todavía no hay reseñas. ¡Sé el primero en dejar la tuya!</div>';
+      grid.innerHTML = '<div class="resenas-vacio">Todavía no hay reseñas aprobadas. ¡Sé el primero en dejar la tuya!</div>';
       return;
     }
     grid.innerHTML = lista.map(r => `
@@ -1288,29 +1295,10 @@
     `).join('');
   }
 
-  function escaparHTML(str){
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
-  function obtenerResenasLocales(){
-    try{
-      return JSON.parse(localStorage.getItem(RESENAS_LOCAL_KEY) || '[]');
-    }catch(e){ return []; }
-  }
-
-  function guardarResenaLocal(resena){
-    const actuales = obtenerResenasLocales();
-    actuales.unshift(resena);
-    localStorage.setItem(RESENAS_LOCAL_KEY, JSON.stringify(actuales));
-  }
-
   function cargarResenas(){
-    const locales = obtenerResenasLocales();
-    // Mostramos demo + lo que el usuario ya envió desde este navegador,
-    // mientras esperamos (o no) la respuesta del backend real.
-    pintarResenas([...locales, ...RESENAS_DEMO]);
+    // Mostramos el demo de inmediato para que la sección nunca quede vacía
+    // mientras esperamos la respuesta del backend.
+    pintarResenas(RESENAS_DEMO);
 
     const timeoutMs = 2500;
     const fetchConTimeout = Promise.race([
@@ -1320,8 +1308,12 @@
 
     fetchConTimeout
       .then(res => { if(!res.ok) throw new Error('sin backend'); return res.json(); })
-      .then(resenas => { if(Array.isArray(resenas) && resenas.length) pintarResenas(resenas); })
-      .catch(err => console.warn('Sin API de reseñas todavía, se mantienen las reseñas locales/demo:', err));
+      .then(resenas => {
+        // El backend ya filtra solo las aprobadas, así que pintamos
+        // exactamente lo que llega (incluso vacío: reemplaza el demo).
+        if(Array.isArray(resenas)) pintarResenas(resenas);
+      })
+      .catch(err => console.warn('Sin API de reseñas todavía, se muestran reseñas de ejemplo:', err));
   }
 
   // Selector de estrellas
@@ -1341,6 +1333,7 @@
     const nombre = document.getElementById('resena-nombre').value.trim();
     const comentario = document.getElementById('resena-comentario').value.trim();
     const calificacion = Number(estrellasInput ? estrellasInput.dataset.valor : 5);
+    const enviarBtn = form.querySelector('.form-resena-enviar');
 
     if(!nombre || !comentario){
       msg.textContent = 'Completá tu nombre y tu comentario.';
@@ -1348,34 +1341,35 @@
       return;
     }
 
-    const nuevaResena = {
-      nombre,
-      comentario,
-      calificacion,
-      fecha: new Date().toISOString().slice(0, 10)
-    };
+    if(enviarBtn) enviarBtn.disabled = true;
 
-    // Intentamos guardarla en el backend real (si existe); si no responde,
-    // igual la guardamos localmente para que el cliente vea que quedó cargada.
+    // Ya NO la mostramos en la grilla al instante: queda pendiente de
+    // aprobación en el panel y recién va a aparecer acá una vez publicada.
     fetch('/api/reviews', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nuevaResena)
-    }).catch(err => console.warn('Sin API de reseñas todavía, se guarda solo local:', err));
-
-    guardarResenaLocal(nuevaResena);
-    pintarResenas([nuevaResena, ...obtenerResenasLocales().slice(1), ...RESENAS_DEMO]);
-
-    form.reset();
-    if(estrellasInput){
-      const botones = [...estrellasInput.querySelectorAll('button')];
-      estrellasInput.dataset.valor = 5;
-      botones.forEach(b => b.classList.toggle('activa', true));
-    }
-
-    msg.textContent = '¡Gracias por tu reseña!';
-    msg.className = 'form-resena-msg ok';
-    setTimeout(() => { msg.textContent = ''; }, 4000);
+      body: JSON.stringify({ nombre, comentario, calificacion })
+    })
+      .then(res => { if(!res.ok) throw new Error('No se pudo enviar la reseña'); return res.json(); })
+      .then(() => {
+        form.reset();
+        if(estrellasInput){
+          const botonesReset = [...estrellasInput.querySelectorAll('button')];
+          estrellasInput.dataset.valor = 5;
+          botonesReset.forEach(b => b.classList.add('activa'));
+        }
+        msg.textContent = '¡Gracias por tu reseña! Se va a publicar apenas la aprobemos.';
+        msg.className = 'form-resena-msg ok';
+      })
+      .catch(err => {
+        console.warn('Error al enviar la reseña:', err);
+        msg.textContent = 'No pudimos enviar tu reseña. Probá de nuevo en unos minutos.';
+        msg.className = 'form-resena-msg error';
+      })
+      .finally(() => {
+        if(enviarBtn) enviarBtn.disabled = false;
+        setTimeout(() => { msg.textContent = ''; }, 5000);
+      });
   });
 
   cargarResenas();
