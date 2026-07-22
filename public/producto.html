@@ -343,7 +343,7 @@
       </div>
 
       <a href="/productos.html">Productos</a>
-      <a class="nav-cta" href="https://wa.me/5493834000000" target="_blank" rel="noopener">Escribinos</a>
+      <a class="nav-cta" href="https://wa.me/5493834993955" target="_blank" rel="noopener">Escribinos</a>
     </nav>
   </div>
 </header>
@@ -363,13 +363,13 @@
 
 <footer class="pie">
   <div class="wrap">
-    ARD Suplementos · Sarmiento 722, Catamarca · <a href="https://wa.me/5493834000000" target="_blank" rel="noopener">Escribinos por WhatsApp</a>
+    ARD Suplementos · Sarmiento 722, Catamarca · <a href="https://wa.me/5493834993955" target="_blank" rel="noopener">Escribinos por WhatsApp</a>
   </div>
 </footer>
 
 <script>
 (function(){
-  const WHATSAPP_NUMBER = "5493834000000";
+  const WHATSAPP_NUMBER = "5493834993955";
 
   function formatearPrecio(valor){
     try{ return new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS', maximumFractionDigits:0 }).format(valor); }
@@ -430,9 +430,57 @@
 
     const btnCarrito = document.getElementById('detalle-add-carrito');
     if (btnCarrito && !sinStock){
+      const textoOriginal = btnCarrito.innerHTML;
+
+      // Si el usuario hace clic muy rápido (antes de que /cart.js termine
+      // de cargar), esperamos a que window.ARDCart esté disponible en vez
+      // de no hacer nada. Reintenta unas cuantas veces y recién ahí avisa
+      // si de verdad no se pudo cargar el carrito.
+      function esperarCarrito(intentos){
+        return new Promise((resolve, reject) => {
+          if (window.ARDCart && typeof window.ARDCart.add === 'function'){
+            resolve();
+            return;
+          }
+          if (intentos <= 0){
+            reject(new Error('ARDCart no disponible'));
+            return;
+          }
+          setTimeout(() => esperarCarrito(intentos - 1).then(resolve, reject), 150);
+        });
+      }
+
       btnCarrito.addEventListener('click', () => {
-        if (!window.ARDCart) return;
-        window.ARDCart.add({ id: p.id, name: p.name, brand: p.brand, price: p.price, image: p.image });
+        if (btnCarrito.disabled) return; // evita doble clic mientras se procesa
+        btnCarrito.disabled = true;
+
+        esperarCarrito(20) // hasta ~3 segundos de espera
+          .then(() => {
+            window.ARDCart.add({
+              id: p.id,
+              name: p.name,
+              brand: p.brand,
+              price: p.price,
+              cardPrice: p.cardPrice || null,
+              oldPrice: p.oldPrice || null,
+              image: p.image,
+              stock: Number(p.stock) || 0
+            });
+
+            btnCarrito.innerHTML =
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' +
+              'Agregado al carrito';
+
+            setTimeout(() => {
+              btnCarrito.innerHTML = textoOriginal;
+              btnCarrito.disabled = false;
+            }, 1300);
+          })
+          .catch((err) => {
+            console.error('No se pudo agregar al carrito:', err);
+            alert('No pudimos agregar el producto al carrito. Recargá la página e intentá de nuevo.');
+            btnCarrito.disabled = false;
+          });
       });
     }
   }
@@ -578,7 +626,7 @@
 })();
 </script>
 
-<script src="/cart.js" data-whatsapp="5493834000000" defer></script>
+<script src="/cart.js" data-whatsapp="5493834993955" defer></script>
 
 <script>
 (function(){
