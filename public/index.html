@@ -451,9 +451,15 @@
   .section-head h2{font-family:var(--font-display); font-weight:700; font-size:clamp(22px,3vw,32px); text-transform:uppercase; color:var(--navy-900);}
   .pasos{display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
   .paso{background:var(--bg-soft); border:1px solid var(--line); border-radius:14px; padding:26px;}
-  .paso .num{font-family:var(--font-display); font-weight:800; font-size:32px; color:#000; display:block; margin-bottom:10px;}
-  .paso h3{font-family:var(--font-cond); font-size:18px; font-weight:800; text-transform:uppercase; color:#000; margin-bottom:8px;}
-  .paso p{font-size:15px; font-weight:500; color:#000; line-height:1.6;}
+  .paso-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .paso .icon-box{
+    width:44px;height:44px;border-radius:12px; flex:0 0 auto;
+    background:var(--navy-900); display:flex; align-items:center; justify-content:center;
+  }
+  .paso .icon-box svg{width:22px;height:22px;color:#fff;}
+  .paso .num{font-family:var(--font-display); font-weight:800; font-size:32px; color:var(--accent); display:block;}
+  .paso h3{font-family:var(--font-cond); font-size:18px; font-weight:800; text-transform:uppercase; color:var(--navy-900); margin-bottom:8px;}
+  .paso p{font-size:15px; font-weight:500; color:var(--navy-800); line-height:1.6;}
   @media (max-width:760px){.pasos{grid-template-columns:1fr;}}
 
   /* -------- Footer -------- */
@@ -654,17 +660,26 @@
     </div>
     <div class="pasos">
       <div class="paso">
-        <span class="num">01</span>
+        <div class="paso-top">
+          <span class="num">01</span>
+          <div class="icon-box"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.4 1.26 4.83L2 22l5.42-1.42a9.85 9.85 0 0 0 4.62 1.17h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.13-2.9-7C17.17 3.03 14.7 2 12.04 2zm0 18.13a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.11.81.83-3.03-.2-.31a8.2 8.2 0 0 1-1.26-4.37c0-4.54 3.7-8.24 8.24-8.24 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.21-8.26 8.21z"/></svg></div>
+        </div>
         <h3>Escribinos</h3>
         <p>Contactanos por WhatsApp y contanos qué producto o marca estás buscando. Te asesoramos para que elijas la mejor opción.</p>
       </div>
       <div class="paso">
-        <span class="num">02</span>
+        <div class="paso-top">
+          <span class="num">02</span>
+          <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
+        </div>
         <h3>Elegí cómo pagar</h3>
         <p>Obtené descuentos pagando en efectivo o por transferencia. También podés abonar con tarjeta en hasta 3 cuotas sin interés.</p>
       </div>
       <div class="paso">
-        <span class="num">03</span>
+        <div class="paso-top">
+          <span class="num">03</span>
+          <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="18" r="2.5"/><circle cx="17" cy="18" r="2.5"/><path d="M2 18h1.5L6 8h9l2 6h4.5M15 8V5h-3"/></svg></div>
+        </div>
         <h3>Recibí tu pedido</h3>
         <p>Realizamos envíos a domicilio en San Fernando del Valle de Catamarca o, si lo preferís, podés retirar tu compra en nuestro local de Sarmiento 722.</p>
       </div>
