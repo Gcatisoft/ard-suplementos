@@ -2,7 +2,7 @@
 <html lang="es-AR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">  
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">  
 <title>ARD Suplementos · Catamarca</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,9 +25,9 @@
     --flame:#e0563f;
     --flame-dark:#c73f2a;
 
-    --font-display:'Poppins', sans-serif;
-    --font-cond:'Poppins', sans-serif;
-    --font-body:'Inter', sans-serif;
+    --font-display:'Poppins', 'Segoe UI', Roboto, sans-serif;
+    --font-cond:'Poppins', 'Segoe UI', Roboto, sans-serif;
+    --font-body:'Inter', 'Segoe UI', Roboto, sans-serif;
   }
 
   *{margin:0;padding:0;box-sizing:border-box;}
@@ -169,7 +169,7 @@
   .marcas-mega-buscador{ position:relative; margin-bottom:14px; }
   .marcas-mega-buscador input[type="search"]{
     width:100%; border:1px solid var(--line); border-radius:999px;
-    padding:12px 18px; font-size:14px; color:var(--ink); background:var(--bg-soft);
+    padding:12px 18px; font-size:16px; color:var(--ink); background:var(--bg-soft);
   }
   .marcas-mega-buscador input[type="search"]:focus{ outline:2px solid var(--accent-light); outline-offset:2px; }
   .marcas-mega-buscador .buscador-resultados{ top:calc(100% + 8px); }
@@ -196,7 +196,8 @@
     .nav-links{
       position:fixed; top:0; left:0; right:0; bottom:0;
       z-index:100;
-      padding:88px 22px 30px; margin:0;
+      padding:88px 22px calc(30px + env(safe-area-inset-bottom, 0px));
+      margin:0;
       flex-direction:column; align-items:stretch; gap:0;
       background:var(--navy-950);
       transform:translateX(100%);
@@ -264,6 +265,11 @@
   @media (orientation:landscape) and (max-height:500px){
     .hero-img{ height:65vh; min-height:180px; max-height:480px; }
   }
+  @supports (height:100dvh){
+    @media (orientation:landscape) and (max-height:500px){
+      .hero-img{ height:65dvh; }
+    }
+  }
 
   /* -------- Categorías principales (debajo del hero) -------- */
   .categorias{ padding:28px 0 8px; background:var(--white); }
@@ -311,7 +317,7 @@
   .buscador-caja form{display:flex; gap:10px;}
   .buscador-caja input[type="search"]{
     flex:1; border:1px solid var(--line); border-radius:999px;
-    padding:14px 20px; font-size:15px; color:var(--ink); background:#fff;
+    padding:14px 20px; font-size:16px; color:var(--ink); background:#fff;
   }
   .buscador-caja input[type="search"]:focus{outline:2px solid var(--accent-light); outline-offset:2px;}
   .buscador-caja button{
@@ -468,22 +474,6 @@
     .producto-cta{font-size:11.5px; padding:8px 10px;}
   }
 
-  /* -------- Marcas -------- */
-  .marcas{background:var(--bg-soft); padding:52px 0;}
-  .marcas-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px;}
-  .marca-card{
-    background:#fff; border:1px solid var(--line); border-radius:14px;
-    padding:24px 16px; display:flex; flex-direction:column; align-items:center; text-align:center;
-    transition:transform .18s ease, box-shadow .18s ease;
-  }
-  .marca-card:hover{transform:translateY(-4px); box-shadow:0 14px 26px rgba(17,34,60,0.1);}
-  .marca-card img{max-width:100px; max-height:64px; width:auto; height:auto; object-fit:contain; margin-bottom:14px;}
-  .marca-card p.tag{font-family:var(--font-body); font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--steel-600); margin-bottom:3px;}
-  .marca-card h3{font-family:var(--font-cond); font-size:16px; font-weight:700; text-transform:uppercase; color:var(--navy-900);}
-  @media (max-width:900px){.marcas-grid{grid-template-columns:repeat(2,1fr);}}
-  @media (max-width:520px){.marcas-grid{grid-template-columns:1fr 1fr; gap:12px;} .marca-card{padding:18px 10px;} .marca-card img{max-width:80px; max-height:52px;}}
-  @media (max-width:360px){.marcas-grid{grid-template-columns:1fr;}}
-
   /* -------- Como comprar -------- */
   .como-comprar{padding:56px 0;}
   .section-head{text-align:center; max-width:600px; margin:0 auto 34px;}
@@ -496,7 +486,12 @@
     width:44px;height:44px;border-radius:12px; flex:0 0 auto;
     background:var(--navy-900); display:flex; align-items:center; justify-content:center;
   }
-  .paso .icon-box svg{width:22px;height:22px;color:#fff;}
+  .paso .icon-box .emoji{
+    font-size:22px; line-height:1;
+    font-style:normal;
+    /* asegura que se vea el emoji a color (no en blanco y negro) en todos los navegadores */
+    font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji','Segoe UI Symbol', var(--font-body);
+  }
   .paso .num{font-family:var(--font-display); font-weight:800; font-size:32px; color:var(--accent); display:block;}
   .paso h3{font-family:var(--font-cond); font-size:18px; font-weight:800; text-transform:uppercase; color:var(--navy-900); margin-bottom:8px;}
   .paso p{font-size:15px; font-weight:500; color:var(--navy-800); line-height:1.6;}
@@ -550,7 +545,7 @@
   .form-resena input[type="text"],
   .form-resena textarea{
     width:100%; border:1px solid var(--line); border-radius:10px; padding:11px 13px;
-    font-family:var(--font-body); font-size:14.5px; color:var(--ink); background:var(--bg-soft);
+    font-family:var(--font-body); font-size:16px; color:var(--ink); background:var(--bg-soft);
   }
   .form-resena textarea{resize:vertical; min-height:90px;}
   .form-resena input:focus,
@@ -618,7 +613,10 @@
 
   /* -------- Whatsapp float -------- */
   .wa-float{
-    position:fixed; bottom:22px; right:22px; z-index:50;
+    position:fixed;
+    bottom:calc(22px + env(safe-area-inset-bottom, 0px));
+    right:calc(22px + env(safe-area-inset-right, 0px));
+    z-index:50;
     width:58px;height:58px;border-radius:50%;
     background:#25D366; display:flex;align-items:center;justify-content:center;
     box-shadow:0 10px 24px rgba(37,211,102,0.45);
@@ -673,7 +671,7 @@
             <a href="/productos.html?marca=Gentech">Gentech</a>
             <a href="/productos.html?marca=Mervick">Mervick</a>
             <a href="/productos.html?marca=Everlast">Everlast</a>
-            <a href="#marcas" class="marcas-mega-vertodas" id="marcas-vertodas">Ver todas las marcas →</a>
+            <a href="/productos.html" class="marcas-mega-vertodas" id="marcas-vertodas">Ver todas las marcas →</a>
           </div>
         </div>
       </div>
@@ -758,49 +756,6 @@
   </div>
 </section>
 
-<section class="marcas" id="marcas">
-  <div class="wrap">
-    <div class="section-head">
-      <span>Nuestro catálogo</span>
-      <h2>Las marcas con las que trabajamos</h2>
-    </div>
-    <div class="marcas-grid">
-      <div class="marca-card">
-        <img src="/7.png" alt="Star Nutrition" loading="lazy">
-        <p class="tag"></p><h3></h3>
-      </div>
-      <div class="marca-card">
-        <img src="/8.png" alt="One Fit" loading="lazy">
-        <p class="tag"></p><h3></h3>
-      </div>
-      <div class="marca-card">
-        <img src="/9.png" alt="Gold" loading="lazy">
-        <p class="tag"></p><h3></h3>
-      </div>
-      <div class="marca-card">
-        <img src="/10.png" alt="Ena" loading="lazy">
-        <p class="tag"></p><h3></h3>
-      </div>
-      <div class="marca-card">
-        <img src="/11.png" alt="Granger" loading="lazy">
-        <p class="tag"></p><h3></h3>
-      </div>
-      <div class="marca-card">
-        <img src="/12.png" alt="Gentech" loading="lazy">
-        <p class="tag"></p><h3></h3>
-      </div>
-      <div class="marca-card">
-        <img src="/13.png" alt="Mervick" loading="lazy">
-        <p class="tag"></p><h3></h3>
-      </div>
-      <div class="marca-card">
-        <img src="/14.png" alt="Everlast" loading="lazy">
-        <p class="tag"></p><h3></h3>
-      </div>
-    </div>
-  </div>
-</section>
-
 <section class="como-comprar">
   <div class="wrap">
     <div class="section-head">
@@ -811,7 +766,7 @@
       <div class="paso">
         <div class="paso-top">
           <span class="num">01</span>
-          <div class="icon-box"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.4 1.26 4.83L2 22l5.42-1.42a9.85 9.85 0 0 0 4.62 1.17h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.13-2.9-7C17.17 3.03 14.7 2 12.04 2zm0 18.13a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.11.81.83-3.03-.2-.31a8.2 8.2 0 0 1-1.26-4.37c0-4.54 3.7-8.24 8.24-8.24 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.21-8.26 8.21z"/></svg></div>
+          <div class="icon-box"><span class="emoji">💬</span></div>
         </div>
         <h3>Escribinos</h3>
         <p>Contactanos por WhatsApp y contanos qué producto o marca estás buscando. Te asesoramos para que elijas la mejor opción.</p>
@@ -819,7 +774,7 @@
       <div class="paso">
         <div class="paso-top">
           <span class="num">02</span>
-          <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
+          <div class="icon-box"><span class="emoji">💳</span></div>
         </div>
         <h3>Elegí cómo pagar</h3>
         <p>Obtené descuentos pagando en efectivo o por transferencia. También podés abonar con tarjeta en hasta 3 cuotas sin interés.</p>
@@ -827,7 +782,7 @@
       <div class="paso">
         <div class="paso-top">
           <span class="num">03</span>
-          <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="18" r="2.5"/><circle cx="17" cy="18" r="2.5"/><path d="M2 18h1.5L6 8h9l2 6h4.5M15 8V5h-3"/></svg></div>
+          <div class="icon-box"><span class="emoji">📦</span></div>
         </div>
         <h3>Recibí tu pedido</h3>
         <p>Realizamos envíos a domicilio en San Fernando del Valle de Catamarca o, si lo preferís, podés retirar tu compra en nuestro local de Sarmiento 722.</p>
@@ -934,7 +889,7 @@
         <h4>Tienda</h4>
         <ul>
           <li><a href="#destacados">Destacados</a></li>
-          <li><a href="#marcas">Marcas</a></li>
+          <li><a href="/productos.html">Marcas</a></li>
           <li><a href="/productos.html">Ver todo el catálogo</a></li>
         </ul>
       </div>
