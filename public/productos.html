@@ -116,10 +116,10 @@
   .marcas-mega{
     position:absolute; top:calc(100% + 16px); left:50%;
     transform:translateX(-50%) translateY(6px);
-    width:560px; max-width:min(560px, 92vw);
+    width:860px; max-width:min(860px, 94vw);
     background:#fff; border-radius:18px;
     box-shadow:0 26px 54px rgba(10,22,38,0.32);
-    padding:18px; z-index:70;
+    padding:20px 22px; z-index:70;
     opacity:0; visibility:hidden; pointer-events:none;
     transition:opacity .18s ease, transform .18s ease, visibility .18s;
   }
@@ -127,10 +127,10 @@
   .nav-item-marcas.open .marcas-mega{
     opacity:1; visibility:visible; pointer-events:auto; transform:translateX(-50%) translateY(0);
   }
-  .marcas-mega-buscador{ position:relative; margin-bottom:14px; }
+  .marcas-mega-buscador{ position:relative; margin-bottom:16px; }
   .marcas-mega-buscador input[type="search"]{
     width:100%; border:1px solid var(--line); border-radius:999px;
-    padding:12px 18px; font-size:14px; color:var(--ink); background:var(--bg-soft);
+    padding:12px 18px; font-size:16px; color:var(--ink); background:var(--bg-soft);
   }
   .marcas-mega-buscador input[type="search"]:focus{ outline:2px solid var(--accent-light); outline-offset:2px; }
   .marcas-mega-buscador .buscador-resultados{
@@ -158,20 +158,39 @@
   }
   .marcas-mega-buscador .buscador-vertodos:hover{background:var(--bg-soft);}
   .marcas-mega-buscador .buscador-vacio{padding:16px; text-align:center; color:var(--steel-600); font-size:13.5px;}
+  .marcas-mega-grid{
+    display:grid; grid-template-columns:1.25fr 1fr 1fr; gap:22px;
+  }
+  .marcas-mega-heading{
+    font-family:var(--font-cond); font-size:11.5px; font-weight:800;
+    text-transform:uppercase; letter-spacing:0.04em; color:var(--accent);
+    margin-bottom:8px; padding-bottom:8px; border-bottom:2px solid var(--line);
+  }
   .marcas-mega-lista{
-    display:grid; grid-template-columns:repeat(2,1fr); gap:6px 14px;
-    max-height:280px; overflow-y:auto;
+    display:grid; grid-template-columns:repeat(2,1fr); gap:2px 12px;
+    max-height:250px; overflow-y:auto;
+  }
+  .marcas-mega-lista.marcas-mega-lista-1col{
+    grid-template-columns:1fr; max-height:none; overflow-y:visible;
   }
   .marcas-mega-lista a{
-    display:block; padding:9px 4px; font-family:var(--font-body); font-weight:600; font-size:13.5px;
+    display:block; padding:8px 4px; font-family:var(--font-body); font-weight:600; font-size:13px;
     color:var(--navy-800); border-bottom:1px solid var(--line); text-transform:none; letter-spacing:0;
     transition:color .16s ease;
   }
   .marcas-mega-lista a:hover{ color:var(--accent); }
   .marcas-mega-vertodas{
-    grid-column:1 / -1; text-align:center; color:var(--accent) !important; font-weight:700 !important;
+    display:block; text-align:center; color:var(--accent) !important; font-weight:700 !important;
     text-transform:uppercase; letter-spacing:0.02em; border-bottom:none !important; padding-top:12px !important;
+    font-size:12px;
   }
+  .marcas-mega-reserva{
+    display:block; margin-top:14px; padding:11px 14px; background:var(--navy-900);
+    color:#fff !important; text-align:center; border-radius:10px; font-weight:700;
+    text-transform:uppercase; font-size:11.5px; letter-spacing:0.03em;
+    transition:background .16s ease;
+  }
+  .marcas-mega-reserva:hover{ background:#e8892a !important; }
 
   @media (max-width:820px){
     .nav-toggle{ display:flex; }
@@ -205,6 +224,8 @@
       display:none;
     }
     .nav-item-marcas.open .marcas-mega{ display:block; }
+    .marcas-mega-grid{ grid-template-columns:1fr; gap:18px; }
+    .marcas-mega-heading{ color:#fff; border-bottom-color:rgba(255,255,255,0.18); }
     .marcas-mega-lista{ max-height:none; overflow-y:visible; }
     .marcas-mega-lista a{ color:var(--steel-100); border-bottom:1px solid rgba(255,255,255,0.1); }
     .marcas-mega-lista a:hover{ color:#fff; }
@@ -336,11 +357,11 @@
     </button>
     <nav class="nav-links" id="nav-links">
       <a href="/">Inicio</a>
-      <a href="/#novedades">Novedades</a>
+      <a href="/#destacados">Novedades</a>
       <a href="/#ofertas">Ofertas</a>
 
       <div class="nav-item-marcas" id="nav-item-marcas">
-        <a href="/#marcas" class="nav-marcas-trigger" id="marcas-trigger">
+        <a href="/productos.html" class="nav-marcas-trigger" id="marcas-trigger">
           Marcas
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5l5 5 5-5"/></svg>
         </a>
@@ -349,16 +370,57 @@
             <input type="search" id="marcas-mega-input" placeholder="Buscar productos o marcas…" autocomplete="off">
             <div class="buscador-resultados" id="marcas-mega-resultados"></div>
           </div>
-          <div class="marcas-mega-lista">
-            <a href="/productos.html?marca=Star+Nutrition">Star Nutrition</a>
-            <a href="/productos.html?marca=One+Fit">One Fit</a>
-            <a href="/productos.html?marca=Gold">Gold</a>
-            <a href="/productos.html?marca=Ena">Ena</a>
-            <a href="/productos.html?marca=Granger">Granger</a>
-            <a href="/productos.html?marca=Gentech">Gentech</a>
-            <a href="/productos.html?marca=Mervick">Mervick</a>
-            <a href="/productos.html?marca=Everlast">Everlast</a>
-            <a href="/#marcas" class="marcas-mega-vertodas" id="marcas-vertodas">Ver todas las marcas →</a>
+          <div class="marcas-mega-grid">
+            <div class="marcas-mega-col">
+              <h4 class="marcas-mega-heading">Marcas</h4>
+              <div class="marcas-mega-lista">
+                <a href="/productos.html?marca=Star+Nutrition">Star Nutrition</a>
+                <a href="/productos.html?marca=One+Fit">One Fit</a>
+                <a href="/productos.html?marca=Gold">Gold</a>
+                <a href="/productos.html?marca=ENA">ENA</a>
+                <a href="/productos.html?marca=X-Body">X-Body</a>
+                <a href="/productos.html?marca=X-Trenght">X-Trenght</a>
+                <a href="/productos.html?marca=Nutremax">Nutremax</a>
+                <a href="/productos.html?marca=Mervick">Mervick</a>
+                <a href="/productos.html?marca=Age+Biologique">Age Biologique</a>
+                <a href="/productos.html?marca=Labs+Nutrition">Labs Nutrition</a>
+                <a href="/productos.html?marca=Cedemi">Cedemi</a>
+                <a href="/productos.html?marca=Granger">Granger</a>
+                <a href="/productos.html?marca=Mole">Mole</a>
+                <a href="/productos.html?marca=Taste">Taste</a>
+                <a href="/productos.html?marca=Integra">Integra</a>
+                <a href="/productos.html?marca=Wik">Wik!</a>
+                <a href="/productos.html?marca=Nature+Bounty">Nature Bounty</a>
+              </div>
+              <a href="/productos.html" class="marcas-mega-vertodas" id="marcas-vertodas">Ver todas las marcas →</a>
+            </div>
+            <div class="marcas-mega-col">
+              <h4 class="marcas-mega-heading">Suplementos</h4>
+              <div class="marcas-mega-lista marcas-mega-lista-1col">
+                <a href="/productos.html?categoria=Combos">Combos</a>
+                <a href="/productos.html?categoria=Creatinas">Creatina</a>
+                <a href="/productos.html?categoria=Prote%C3%ADnas">Proteína</a>
+                <a href="/productos.html?categoria=Magnesio">Magnesios y Omega 3</a>
+                <a href="/productos.html?categoria=Col%C3%A1genos">Colágenos</a>
+                <a href="/productos.html?categoria=Vitaminas">Vitaminas</a>
+                <a href="/productos.html?categoria=Preentrenos">Pre entreno</a>
+                <a href="/productos.html?categoria=Hidratantes">Hidratantes y Geles</a>
+                <a href="/productos.html?categoria=Ganadores+de+peso">Ganadores de peso</a>
+                <a href="/productos.html?categoria=Amino%C3%A1cidos+y+BCAA">Aminoácidos y BCAA</a>
+                <a href="/productos.html?categoria=Quemadores+de+Grasa">Quemadores de Grasa</a>
+                <a href="/productos.html?categoria=Hongos+Adaptogenos">Hongos Adaptógenos</a>
+                <a href="/productos.html?categoria=Importados">Importados</a>
+              </div>
+            </div>
+            <div class="marcas-mega-col">
+              <h4 class="marcas-mega-heading">Alimentos fit y Pancakes</h4>
+              <div class="marcas-mega-lista marcas-mega-lista-1col">
+                <a href="/productos.html?categoria=Alimentos">Todos los alimentos</a>
+                <a href="/productos.html?categoria=Barras+Proteicas">Barras proteicas</a>
+                <a href="/productos.html?categoria=Pancakes">Pancakes</a>
+              </div>
+              <a href="https://wa.me/5493834993955?text=Hola!%20Quiero%20reservar%20productos%20Star%20Nutrition" target="_blank" rel="noopener" class="marcas-mega-reserva">Reservá Star Nutrition →</a>
+            </div>
           </div>
         </div>
       </div>
