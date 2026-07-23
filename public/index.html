@@ -286,7 +286,7 @@
     box-shadow:0 14px 26px rgba(10,22,38,0.12);
   }
   .categoria-item .categoria-img-wrap{
-    width:72px; height:72px; border-radius:50%;
+    width:108px; height:108px; border-radius:50%;
     overflow:hidden; background:var(--steel-100);
     display:flex; align-items:center; justify-content:center;
     border:1px solid var(--line);
@@ -295,15 +295,16 @@
     width:100%; height:100%; object-fit:cover; display:block;
   }
   .categoria-item span{
-    font-family:var(--font-cond); font-weight:700; font-size:12.5px;
+    font-family:var(--font-cond); font-weight:700; font-size:13.5px;
     letter-spacing:0.02em; text-transform:uppercase; color:var(--navy-900);
   }
   @media (max-width:1024px){
     .categorias-grid{ grid-template-columns:repeat(4, 1fr); }
+    .categoria-item .categoria-img-wrap{ width:96px; height:96px; }
   }
   @media (max-width:560px){
     .categorias-grid{ grid-template-columns:repeat(3, 1fr); gap:10px; }
-    .categoria-item .categoria-img-wrap{ width:60px; height:60px; }
+    .categoria-item .categoria-img-wrap{ width:80px; height:80px; }
     .categoria-item{ padding:10px 6px; border-radius:14px; }
   }
   @media (max-width:360px){
@@ -720,7 +721,7 @@
         <span>Vitaminas</span>
       </a>
       <a class="categoria-item" href="/productos.html?categoria=Preentrenos">
-        <div class="categoria-img-wrap"><img src="pre.PNG alt="Preentrenos" loading="lazy"></div>
+        <div class="categoria-img-wrap"><img src="pre.PNG" alt="Preentrenos" loading="lazy"></div>
         <span>Pre entrenos</span>
       </a>
       <a class="categoria-item" href="/productos.html?categoria=Hidratantes">
