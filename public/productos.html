@@ -506,6 +506,10 @@
     grid.innerHTML = filtrados.map(crearTarjeta).join('');
   }
 
+  function normalizarTexto(s){
+    return (s || '').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
   function cargarProductos(){
     fetch('/api/products')
       .then(res => { if (!res.ok) throw new Error('Error al obtener los productos'); return res.json(); })
@@ -517,8 +521,9 @@
         const categoriaUrl = new URLSearchParams(window.location.search).get('categoria');
         if (categoriaUrl) {
           const select = document.getElementById('filtro-categoria');
-          const existe = [...select.options].some(opt => opt.value === categoriaUrl);
-          if (existe) select.value = categoriaUrl;
+          const objetivo = normalizarTexto(categoriaUrl);
+          const opcion = [...select.options].find(opt => normalizarTexto(opt.value) === objetivo);
+          if (opcion) select.value = opcion.value;
         }
 
         const buscarUrl = new URLSearchParams(window.location.search).get('buscar');
