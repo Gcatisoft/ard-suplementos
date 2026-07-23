@@ -86,17 +86,88 @@ function mapProducto(row) {
   };
 }
 
+// ---------- Store de sesiones persistente (Supabase) ----------
+// Por defecto express-session guarda las sesiones en RAM (MemoryStore), lo que
+// borra TODAS las sesiones activas (de los 4 usuarios, sin distinción) cada vez
+// que el proceso de Node se reinicia (redeploy, crash, hosting que "duerme" la
+// app por inactividad, etc.). Guardándolas en una tabla de Supabase, sobreviven
+// a los reinicios y cada admin mantiene su sesión hasta el maxAge configurado.
+class SupabaseSessionStore extends session.Store {
+  constructor(client) {
+    super();
+    this.client = client;
+  }
+
+  async get(sid, cb) {
+    try {
+      const { data, error } = await this.client
+        .from('sessions')
+        .select('sess, expire')
+        .eq('sid', sid)
+        .maybeSingle();
+      if (error) return cb(error);
+      if (!data) return cb(null, null);
+      if (new Date(data.expire).getTime() < Date.now()) {
+        this.destroy(sid, () => {});
+        return cb(null, null);
+      }
+      cb(null, data.sess);
+    } catch (err) {
+      cb(err);
+    }
+  }
+
+  async set(sid, sess, cb) {
+    try {
+      const maxAge = sess.cookie?.maxAge || 1000 * 60 * 60 * 8;
+      const expire = new Date(Date.now() + maxAge).toISOString();
+      const { error } = await this.client
+        .from('sessions')
+        .upsert({ sid, sess, expire }, { onConflict: 'sid' });
+      if (error) return cb(error);
+      cb(null);
+    } catch (err) {
+      cb(err);
+    }
+  }
+
+  async destroy(sid, cb) {
+    try {
+      const { error } = await this.client.from('sessions').delete().eq('sid', sid);
+      if (error) return cb(error);
+      cb(null);
+    } catch (err) {
+      cb(err);
+    }
+  }
+
+  async touch(sid, sess, cb) {
+    // Extiende el vencimiento sin reescribir todo el contenido de la sesión.
+    try {
+      const maxAge = sess.cookie?.maxAge || 1000 * 60 * 60 * 8;
+      const expire = new Date(Date.now() + maxAge).toISOString();
+      const { error } = await this.client.from('sessions').update({ expire }).eq('sid', sid);
+      if (error) return cb(error);
+      cb(null);
+    } catch (err) {
+      cb(err);
+    }
+  }
+}
+
 // ---------- App ----------
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
   session({
+    store: new SupabaseSessionStore(supabase),
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
+      sameSite: 'lax',
       maxAge: 1000 * 60 * 60 * 8, // 8 horas
     },
   })
