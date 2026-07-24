@@ -38,6 +38,24 @@
   const resenasBadge = document.getElementById('resenas-badge');
   let resenas = [];
 
+  // -------- Novedades --------
+  const novedadesGrid = document.getElementById('novedades-grid');
+  const novedadesEmptyState = document.getElementById('novedades-empty-state');
+  const filtroNovedadEstado = document.getElementById('filtro-novedad-estado');
+  const nuevaNovedadBtn = document.getElementById('nueva-novedad-btn');
+  const modalOverlayNovedad = document.getElementById('modal-overlay-novedad');
+  const modalNovedadTitle = document.getElementById('modal-novedad-title');
+  const formNovedadError = document.getElementById('form-novedad-error');
+  const novedadForm = document.getElementById('novedad-form');
+  const novedadImagenGrid = document.getElementById('novedad-imagen-grid');
+  const novedadImagenInput = document.getElementById('novedad-imagen');
+  const novedadImagenAgregarBtn = document.getElementById('novedad-imagen-agregar-btn');
+  let novedades = [];
+  let editandoNovedadId = null;
+  let novedadImagenExistente = ''; // URL que ya estaba guardada (puede quitarse)
+  let novedadImagenNueva = null; // File recién seleccionado (todavía no subido)
+  let novedadQuitarImagen = false;
+
   function formatearPrecio(valor) {
     try {
       return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(valor);
@@ -91,12 +109,14 @@
     productos: document.getElementById('tab-productos'),
     pedidos: document.getElementById('tab-pedidos'),
     resenas: document.getElementById('tab-resenas'),
+    novedades: document.getElementById('tab-novedades'),
     stats: document.getElementById('tab-stats'),
   };
 
   let pedidosCargados = false;
   let statsCargadas = false;
   let resenasCargadas = false;
+  let novedadesCargadas = false;
 
   tabBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -118,11 +138,16 @@
         resenasCargadas = true;
         cargarResenas();
       }
+      if (tab === 'novedades' && !novedadesCargadas) {
+        novedadesCargadas = true;
+        cargarNovedades();
+      }
       // Si ya se cargaron antes, igual refrescamos al volver a la pestaña
       // para no mostrar datos viejos si pasó tiempo:
       if (tab === 'pedidos' && pedidosCargados) cargarPedidos();
       if (tab === 'stats' && statsCargadas) cargarStats();
       if (tab === 'resenas' && resenasCargadas) cargarResenas();
+      if (tab === 'novedades' && novedadesCargadas) cargarNovedades();
     });
   });
 
@@ -462,7 +487,7 @@
       .map((p) => {
         const itemsResumen = p.items.length + (p.items.length === 1 ? ' producto' : ' productos');
         const itemsDetalle = p.items
-          .map((it) => '<li>' + it.qty + 'x ' + it.name + ' — ' + formatearPrecio(it.price) + '</li>')
+          .map((it) => '<li>' + it.qty + 'x ' + it.name + (it.flavor ? ' (Sabor: ' + it.flavor + ')' : '') + ' — ' + formatearPrecio(it.price) + '</li>')
           .join('');
 
         return (
@@ -682,6 +707,221 @@
 
   filtroResenaEstado.addEventListener('change', cargarResenas);
   refrescarResenasBtn.addEventListener('click', cargarResenas);
+
+  // ====================================================
+  // -------- NOVEDADES --------
+  // ====================================================
+  async function cargarNovedades() {
+    try {
+      const res = await fetch('/api/admin/news');
+      if (res.status === 401) {
+        window.location.href = 'login.html';
+        return;
+      }
+      novedades = await res.json();
+      renderNovedades();
+    } catch (e) {
+      novedadesGrid.innerHTML = '<div class="empty-state">Error al cargar las novedades.</div>';
+    }
+  }
+
+  function iconoImagenPlaceholder() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
+  }
+
+  function renderNovedades() {
+    const filtro = filtroNovedadEstado.value; // '' | 'activo' | 'inactivo'
+    const lista = novedades.filter((n) => {
+      if (filtro === 'activo') return !!n.active;
+      if (filtro === 'inactivo') return !n.active;
+      return true;
+    });
+
+    if (!lista.length) {
+      novedadesGrid.innerHTML = '';
+      novedadesEmptyState.style.display = 'block';
+      return;
+    }
+    novedadesEmptyState.style.display = 'none';
+
+    novedadesGrid.innerHTML = lista
+      .map((n) => {
+        const imagenHtml = n.image ? '<img src="' + n.image + '" alt="">' : iconoImagenPlaceholder();
+        return (
+          '<article class="novedad-card">' +
+            '<div class="novedad-card-img">' + imagenHtml + '</div>' +
+            '<div class="novedad-card-body">' +
+              (n.tag ? '<span class="novedad-tag">' + n.tag + '</span>' : '') +
+              '<div class="novedad-card-titulo">' + n.title + '</div>' +
+              (n.content ? '<div class="novedad-card-contenido">' + n.content + '</div>' : '') +
+              '<div class="novedad-card-footer">' +
+                '<div>' +
+                  '<span class="estado-badge ' + (n.active ? 'confirmado' : 'pendiente') + '">' + (n.active ? 'Publicada' : 'Oculta') + '</span> ' +
+                  '<span class="novedad-card-fecha">' + formatearFecha(n.createdAt) + '</span>' +
+                '</div>' +
+                '<div class="novedad-card-actions">' +
+                  '<button type="button" class="icon-btn" data-editar-novedad="' + n.id + '" title="Editar">' + iconoEditar() + '</button>' +
+                  '<button type="button" class="icon-btn danger" data-borrar-novedad="' + n.id + '" title="Eliminar">' + iconoBorrar() + '</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+          '</article>'
+        );
+      })
+      .join('');
+
+    novedadesGrid.querySelectorAll('[data-editar-novedad]').forEach((btn) => {
+      btn.addEventListener('click', () => abrirModalEdicionNovedad(btn.getAttribute('data-editar-novedad')));
+    });
+    novedadesGrid.querySelectorAll('[data-borrar-novedad]').forEach((btn) => {
+      btn.addEventListener('click', () => borrarNovedad(btn.getAttribute('data-borrar-novedad')));
+    });
+  }
+
+  filtroNovedadEstado.addEventListener('change', renderNovedades);
+
+  // -------- Imagen (una sola por novedad) --------
+  function renderNovedadImagenGrid() {
+    let html = '';
+
+    if (novedadImagenNueva) {
+      const src = URL.createObjectURL(novedadImagenNueva);
+      html += '<div class="imagen-tile"><img src="' + src + '" alt=""><button type="button" class="imagen-quitar" id="novedad-imagen-quitar" title="Quitar imagen">✕</button></div>';
+    } else if (novedadImagenExistente && !novedadQuitarImagen) {
+      html += '<div class="imagen-tile"><img src="' + novedadImagenExistente + '" alt=""><button type="button" class="imagen-quitar" id="novedad-imagen-quitar" title="Quitar imagen">✕</button></div>';
+    } else {
+      html +=
+        '<button type="button" class="imagen-agregar-tile" id="novedad-imagen-agregar-btn">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>' +
+          'Agregar' +
+        '</button>';
+    }
+
+    novedadImagenGrid.innerHTML = html;
+
+    const btnAgregar = novedadImagenGrid.querySelector('#novedad-imagen-agregar-btn');
+    if (btnAgregar) btnAgregar.addEventListener('click', () => novedadImagenInput.click());
+
+    const btnQuitar = novedadImagenGrid.querySelector('#novedad-imagen-quitar');
+    if (btnQuitar) {
+      btnQuitar.addEventListener('click', () => {
+        novedadImagenNueva = null;
+        novedadQuitarImagen = true;
+        novedadImagenInput.value = '';
+        renderNovedadImagenGrid();
+      });
+    }
+  }
+
+  novedadImagenInput.addEventListener('change', () => {
+    const file = novedadImagenInput.files[0];
+    if (!file) return;
+    novedadImagenNueva = file;
+    novedadQuitarImagen = false;
+    renderNovedadImagenGrid();
+  });
+
+  function limpiarFormularioNovedad() {
+    editandoNovedadId = null;
+    novedadForm.reset();
+    document.getElementById('novedad-id').value = '';
+    document.getElementById('novedad-activo').checked = true;
+    novedadImagenExistente = '';
+    novedadImagenNueva = null;
+    novedadQuitarImagen = false;
+    renderNovedadImagenGrid();
+    formNovedadError.classList.remove('visible');
+  }
+
+  function abrirModalNuevaNovedad() {
+    limpiarFormularioNovedad();
+    modalNovedadTitle.textContent = 'Nueva novedad';
+    modalOverlayNovedad.classList.add('visible');
+  }
+
+  function abrirModalEdicionNovedad(id) {
+    const n = novedades.find((x) => x.id === id);
+    if (!n) return;
+    limpiarFormularioNovedad();
+    editandoNovedadId = id;
+    modalNovedadTitle.textContent = 'Editar novedad';
+    document.getElementById('novedad-id').value = n.id;
+    document.getElementById('novedad-titulo').value = n.title;
+    document.getElementById('novedad-tag').value = n.tag || '';
+    document.getElementById('novedad-contenido').value = n.content || '';
+    document.getElementById('novedad-activo').checked = !!n.active;
+    novedadImagenExistente = n.image || '';
+    renderNovedadImagenGrid();
+    modalOverlayNovedad.classList.add('visible');
+  }
+
+  function cerrarModalNovedad() {
+    modalOverlayNovedad.classList.remove('visible');
+  }
+
+  nuevaNovedadBtn.addEventListener('click', abrirModalNuevaNovedad);
+  document.getElementById('modal-novedad-close').addEventListener('click', cerrarModalNovedad);
+  document.getElementById('cancelar-novedad-btn').addEventListener('click', cerrarModalNovedad);
+  modalOverlayNovedad.addEventListener('click', (e) => {
+    if (e.target === modalOverlayNovedad) cerrarModalNovedad();
+  });
+
+  novedadForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    formNovedadError.classList.remove('visible');
+
+    const guardarBtn = document.getElementById('guardar-novedad-btn');
+    guardarBtn.disabled = true;
+    guardarBtn.textContent = 'Guardando…';
+
+    const formData = new FormData();
+    formData.append('title', document.getElementById('novedad-titulo').value.trim());
+    formData.append('tag', document.getElementById('novedad-tag').value);
+    formData.append('content', document.getElementById('novedad-contenido').value.trim());
+    formData.append('active', document.getElementById('novedad-activo').checked);
+    if (novedadImagenNueva) formData.append('imagen', novedadImagenNueva);
+    if (novedadQuitarImagen) formData.append('quitarImagen', 'true');
+
+    try {
+      const url = editandoNovedadId ? '/api/admin/news/' + editandoNovedadId : '/api/admin/news';
+      const method = editandoNovedadId ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, body: formData });
+      const data = await res.json();
+
+      if (!res.ok) {
+        formNovedadError.textContent = data.error || 'No se pudo guardar la novedad';
+        formNovedadError.classList.add('visible');
+        guardarBtn.disabled = false;
+        guardarBtn.textContent = 'Guardar novedad';
+        return;
+      }
+
+      cerrarModalNovedad();
+      await cargarNovedades();
+    } catch (e) {
+      formNovedadError.textContent = 'Error de conexión con el servidor';
+      formNovedadError.classList.add('visible');
+    } finally {
+      guardarBtn.disabled = false;
+      guardarBtn.textContent = 'Guardar novedad';
+    }
+  });
+
+  async function borrarNovedad(id) {
+    const confirmado = window.confirm('¿Eliminar esta novedad? Se borra de la base de datos junto con su imagen y esta acción no se puede deshacer.');
+    if (!confirmado) return;
+    try {
+      const res = await fetch('/api/admin/news/' + id, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'No se pudo eliminar la novedad');
+        return;
+      }
+      await cargarNovedades();
+    } catch (e) {
+      alert('Error de conexión con el servidor');
+    }
+  }
 
   // ====================================================
   // -------- ESTADÍSTICAS --------
