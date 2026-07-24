@@ -79,6 +79,8 @@ function mapProducto(row) {
     description: row.description || '',
     image: row.image || '',
     images: Array.isArray(row.images) ? row.images : (row.image ? [row.image] : []),
+    flavors: row.flavors || '',
+    installments: row.installments !== null && row.installments !== undefined ? Number(row.installments) : null,
     featured: row.featured,
     active: row.active,
     createdAt: row.created_at,
@@ -327,7 +329,7 @@ app.get('/api/admin/products/:id', requireAuth, async (req, res) => {
 
 app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), async (req, res) => {
   try {
-    const { name, brand, category, price, oldPrice, cardPrice, stock, description, featured, active, imageUrl } = req.body;
+    const { name, brand, category, price, oldPrice, cardPrice, stock, description, featured, active, imageUrl, flavors, installments } = req.body;
     if (!name || !category || price === undefined || price === '') {
       return res.status(400).json({ error: 'Nombre, categoría y precio son obligatorios' });
     }
@@ -351,6 +353,8 @@ app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), async 
       description: description ? String(description).trim() : '',
       image: images[0] || '',
       images,
+      flavors: flavors ? String(flavors).trim() : '',
+      installments: installments ? Number(installments) : null,
       featured: featured === 'true' || featured === true,
       active: active === undefined ? true : active === 'true' || active === true,
     };
@@ -375,7 +379,7 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), asy
     if (findError) throw findError;
     if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
 
-    const { name, brand, category, price, oldPrice, cardPrice, stock, description, featured, active, imagenesExistentes } =
+    const { name, brand, category, price, oldPrice, cardPrice, stock, description, featured, active, imagenesExistentes, flavors, installments } =
       req.body;
 
     const cambios = {};
@@ -387,6 +391,8 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), asy
     if (cardPrice !== undefined) cambios.card_price = cardPrice === '' ? null : Number(cardPrice);
     if (stock !== undefined && stock !== '') cambios.stock = Number(stock);
     if (description !== undefined) cambios.description = String(description).trim();
+    if (flavors !== undefined) cambios.flavors = String(flavors).trim();
+    if (installments !== undefined) cambios.installments = installments === '' ? null : Number(installments);
     if (featured !== undefined) cambios.featured = featured === 'true' || featured === true;
     if (active !== undefined) cambios.active = active === 'true' || active === true;
 
