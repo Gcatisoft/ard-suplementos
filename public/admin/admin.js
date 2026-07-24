@@ -335,6 +335,8 @@
     document.getElementById('precio-tarjeta').value = p.cardPrice || '';
     document.getElementById('precio-anterior').value = p.oldPrice || '';
     document.getElementById('stock').value = p.stock;
+    document.getElementById('sabores').value = p.flavors || '';
+    document.getElementById('cuotas').value = p.installments || '';
     document.getElementById('descripcion').value = p.description || '';
     document.getElementById('destacado').checked = !!p.featured;
     document.getElementById('activo').checked = !!p.active;
@@ -375,6 +377,8 @@
     formData.append('cardPrice', document.getElementById('precio-tarjeta').value);
     formData.append('oldPrice', document.getElementById('precio-anterior').value);
     formData.append('stock', document.getElementById('stock').value || '0');
+    formData.append('flavors', document.getElementById('sabores').value.trim());
+    formData.append('installments', document.getElementById('cuotas').value);
     formData.append('description', document.getElementById('descripcion').value.trim());
     formData.append('featured', document.getElementById('destacado').checked);
     formData.append('active', document.getElementById('activo').checked);
