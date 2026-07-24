@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
   :root{
     --white:#ffffff;
@@ -339,11 +340,66 @@
     .filtros .contador{margin-left:0; flex:1 0 100%;}
   }
 
-  footer.pie{
-    background:var(--navy-950); color:var(--steel-100);
-    padding:28px 0; text-align:center; font-size:13px;
+  /* -------- Footer -------- */
+  footer{background:var(--navy-950); color:var(--steel-300); padding:52px 0 22px; margin-top:20px;}
+  .foot-grid{
+    display:grid;
+    grid-template-columns:1.3fr 1fr 1fr 1fr;
+    gap:32px;
+    padding-bottom:32px;
+    border-bottom:1px solid rgba(255,255,255,0.08);
   }
-  footer.pie a{color:var(--steel-100); font-weight:600;}
+  .foot-col{min-width:0;}
+  .foot-brand{display:flex; align-items:center; gap:12px; margin-bottom:14px;}
+  .foot-logo-img{height:46px;width:46px;object-fit:contain;flex-shrink:0;display:block;background:#fff;border-radius:50%;padding:4px;}
+  .foot-brand-name{font-family:var(--font-cond); font-weight:700; font-size:15px; letter-spacing:0.02em; text-transform:uppercase; color:#fff;}
+  .foot-desc{font-size:13.5px; line-height:1.6; color:var(--steel-300); margin-bottom:16px;}
+  .foot-social{display:flex; gap:10px; margin-bottom:20px;}
+  .foot-social-link{
+    width:38px; height:38px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,0.08); color:#fff; font-size:16px;
+    transition:transform .16s ease, background .16s ease;
+  }
+  .foot-social-link:hover{ transform:translateY(-3px); }
+  .foot-social-ig:hover{ background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); }
+  .foot-social-wsp:hover{ background:#25D366; }
+  .foot-col h4{font-family:var(--font-cond); font-weight:700; text-transform:uppercase; letter-spacing:0.02em; font-size:13px; color:#fff; margin-bottom:14px;}
+  .foot-col ul li{margin-bottom:9px; font-size:13.5px;}
+  .foot-col ul li a:hover{color:#fff;}
+  .pay-icons, .ship-icons{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;}
+  .pay-chip{
+    font-family:var(--font-cond); font-size:10.5px; font-weight:600; letter-spacing:0.02em;
+    background:rgba(255,255,255,0.08); color:var(--steel-100); padding:5px 9px; border-radius:6px;
+  }
+  .foot-bottom{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;
+    gap:10px; padding-top:20px; font-size:12.5px; color:#5c7091; text-align:left;
+  }
+  .foot-bottom a{color:var(--steel-300);}
+
+  @media (max-width:980px){
+    .foot-grid{grid-template-columns:1fr 1fr; gap:30px 26px;}
+    .foot-brand-col{grid-column:1 / -1;}
+    .foot-brand-col .foot-desc{max-width:480px;}
+  }
+  @media (max-width:560px){
+    .foot-grid{grid-template-columns:1fr; gap:28px;}
+    .foot-brand-col{grid-column:auto;}
+    .foot-bottom{flex-direction:column; text-align:center; gap:8px;}
+  }
+
+  /* -------- Whatsapp float -------- */
+  .wa-float{
+    position:fixed;
+    bottom:calc(22px + env(safe-area-inset-bottom, 0px));
+    right:calc(22px + env(safe-area-inset-right, 0px));
+    z-index:50;
+    width:58px;height:58px;border-radius:50%;
+    background:#25D366; display:flex;align-items:center;justify-content:center;
+    box-shadow:0 10px 24px rgba(37,211,102,0.45);
+  }
+  .wa-float i{font-size:30px;color:#fff;line-height:1;}
 </style>
 </head>
 <body>
@@ -358,7 +414,6 @@
     <nav class="nav-links" id="nav-links">
       <a href="/">Inicio</a>
       <a href="/#destacados">Novedades</a>
-      <a href="/#ofertas">Ofertas</a>
 
       <div class="nav-item-marcas" id="nav-item-marcas">
         <a href="/productos.html" class="nav-marcas-trigger" id="marcas-trigger">
@@ -450,15 +505,66 @@
   </div>
 </section>
 
-<footer class="pie">
+<footer>
   <div class="wrap">
-    ARD Suplementos · Sarmiento 722, Catamarca · <a href="https://wa.me/5493834000000" target="_blank" rel="noopener">Escribinos por WhatsApp</a>
+    <div class="foot-grid">
+      <div class="foot-col foot-brand-col">
+        <div class="foot-brand">
+          <img class="foot-logo-img" src="logogrande.jpeg" alt="ARD Suplementos">
+          <span class="foot-brand-name">ARD Suplementos</span>
+        </div>
+        <p class="foot-desc">Suplementos deportivos en Catamarca. Asesoramiento por WhatsApp, envíos a domicilio y retiro en local.</p>
+        <div class="foot-social">
+          <a href="https://instagram.com" target="_blank" rel="noopener" aria-label="Instagram" class="foot-social-link foot-social-ig"><i class="fa-brands fa-instagram"></i></a>
+          <a href="https://wa.me/5493834993955" target="_blank" rel="noopener" aria-label="WhatsApp" class="foot-social-link foot-social-wsp"><i class="fa-brands fa-whatsapp"></i></a>
+        </div>
+        <div class="pay-icons">
+          <span class="pay-chip">VISA</span>
+          <span class="pay-chip">MASTERCARD</span>
+          <span class="pay-chip">NARANJA</span>
+          <span class="pay-chip">CABAL</span>
+          <span class="pay-chip">TRANSFERENCIA</span>
+          <span class="pay-chip">EFECTIVO</span>
+        </div>
+      </div>
+      <div class="foot-col">
+        <h4>Tienda</h4>
+        <ul>
+          <li><a href="/#destacados">Destacados</a></li>
+          <li><a href="/productos.html">Marcas</a></li>
+          <li><a href="/productos.html">Ver todo el catálogo</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Medios de envío</h4>
+        <div class="ship-icons">
+          <span class="pay-chip">CADETE PROPIO</span>
+          <span class="pay-chip">RETIRO EN LOCAL</span>
+        </div>
+      </div>
+      <div class="foot-col">
+        <h4>Contacto</h4>
+        <ul>
+          <li>Sarmiento 722, Catamarca</li>
+          <li><a href="https://wa.me/5493834993955" target="_blank" rel="noopener">WhatsApp +54 9 383 499-3955</a></li>
+          <li><a href="https://instagram.com" target="_blank" rel="noopener">Instagram @ard.suplementos</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 ARD Suplementos — Catamarca, Argentina.</span>
+      <span>Desarrollado por <a href="https://www.devhub.com.ar/" target="_blank" rel="noopener">DevHub</a></span>
+    </div>
   </div>
 </footer>
 
+<a class="wa-float" href="https://wa.me/5493834993955" target="_blank" rel="noopener" aria-label="WhatsApp">
+  <i class="fa-brands fa-whatsapp"></i>
+</a>
+
 <script>
 (function(){
-  const WHATSAPP_NUMBER = "5493834000000";
+  const WHATSAPP_NUMBER = "5493834993955";
 
   let TODOS = [];
 
@@ -721,7 +827,7 @@
 })();
 </script>
 
-<script src="/cart.js" data-whatsapp="5493834000000" defer></script>
+<script src="/cart.js" data-whatsapp="5493834993955" defer></script>
 
 <script>
 (function(){
