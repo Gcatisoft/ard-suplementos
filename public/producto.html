@@ -289,6 +289,21 @@
     margin-top:2px;
   }
   .detalle-precio-tarjeta{ font-size:14.5px; color:var(--steel-600); margin-top:4px; }
+  .detalle-cuotas{
+    display:inline-block; margin-top:8px; padding:6px 12px; border-radius:8px;
+    background:var(--bg-soft); border:1px solid var(--line);
+    font-family:var(--font-body); font-weight:700; font-size:13.5px; color:var(--accent);
+  }
+  .detalle-sabores{ margin:14px 0; }
+  .detalle-sabores-label{
+    font-family:var(--font-cond); font-weight:700; text-transform:uppercase; letter-spacing:0.02em;
+    font-size:12px; color:var(--steel-600); margin-bottom:8px;
+  }
+  .detalle-sabores-lista{ display:flex; flex-wrap:wrap; gap:8px; }
+  .sabor-chip{
+    padding:6px 13px; border-radius:999px; background:var(--bg-soft); border:1px solid var(--line);
+    font-family:var(--font-body); font-weight:600; font-size:13px; color:var(--navy-900);
+  }
 
   .detalle-stock{
     display:inline-block; margin:14px 0 20px; font-size:13px; font-weight:600;
@@ -535,6 +550,18 @@
     catch(e){ return '$' + valor; }
   }
 
+  function textoCuotas(p){
+    const base = p.cardPrice || p.price;
+    if (!p.installments || !base) return '';
+    const valorCuota = base / p.installments;
+    return p.installments + ' cuotas de ' + formatearPrecio(valorCuota) + ' sin interés';
+  }
+
+  function listaSabores(p){
+    if (!p.flavors) return [];
+    return p.flavors.split(',').map(s => s.trim()).filter(Boolean);
+  }
+
   function iconoPlaceholder(){
     return '<svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">' +
       '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3"/><path d="M9 12h6M9 16h6"/></svg>';
@@ -553,6 +580,9 @@
     if (p.featured) badgesHtml += '<span class="detalle-badge">Destacado</span>';
     if (tieneOferta) badgesHtml += '<span class="detalle-badge oferta">Oferta</span>';
 
+    const cuotasTexto = textoCuotas(p);
+    const sabores = listaSabores(p);
+
     const wrap = document.getElementById('detalle-wrap');
     wrap.innerHTML =
       '<div class="detalle-grid">' +
@@ -569,7 +599,14 @@
             '</div>' +
             (p.cardPrice ? '<div class="detalle-precio-label">Efectivo/transferencia</div>' : '') +
             (p.cardPrice ? '<div class="detalle-precio-tarjeta">' + formatearPrecio(p.cardPrice) + ' con tarjeta</div>' : '') +
+            (cuotasTexto ? '<div class="detalle-cuotas">' + cuotasTexto + '</div>' : '') +
           '</div>' +
+          (sabores.length ?
+            '<div class="detalle-sabores">' +
+              '<div class="detalle-sabores-label">Sabores disponibles</div>' +
+              '<div class="detalle-sabores-lista">' + sabores.map(s => '<span class="sabor-chip">' + s + '</span>').join('') + '</div>' +
+            '</div>'
+          : '') +
           '<span class="detalle-stock' + (sinStock ? ' sin-stock' : '') + '">' +
             (sinStock ? 'Sin stock' : ('Stock disponible: ' + p.stock)) +
           '</span>' +
