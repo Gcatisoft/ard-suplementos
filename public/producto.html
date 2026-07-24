@@ -574,7 +574,7 @@
     const sinStock = Number(p.stock) <= 0;
     const mensaje = encodeURIComponent('Hola! Quiero consultar por "' + p.name + '"' + (p.brand ? (' de ' + p.brand) : '') + '.');
     const linkWhatsapp = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + mensaje;
-    const imagenHtml = p.image ? '<img src="' + p.image + '" alt="' + p.name.replace(/"/g,'') + '">' : iconoPlaceholder();
+    const imagenHtml = p.image ? '<img src="' + p.image + '" alt="' + p.name.replace(/"/g,'') + '" fetchpriority="high" decoding="async">' : iconoPlaceholder();
 
     let badgesHtml = '';
     if (p.featured) badgesHtml += '<span class="detalle-badge">Destacado</span>';
