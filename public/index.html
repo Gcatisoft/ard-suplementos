@@ -1267,6 +1267,14 @@
     if (!btn) return;
     const p = productosPorId[btn.getAttribute('data-id')];
     if (!p || !window.ARDCart) return;
+
+    // Si el producto tiene sabores, no podemos elegir uno "a ciegas" desde la
+    // tarjeta chica: mandamos a la ficha para que el cliente elija el sabor.
+    if (p.flavors && p.flavors.trim()){
+      window.location.href = '/producto.html?id=' + encodeURIComponent(p.id);
+      return;
+    }
+
     window.ARDCart.add({ id: p.id, name: p.name, brand: p.brand, price: p.price, image: p.image });
   });
 
