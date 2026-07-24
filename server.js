@@ -4,6 +4,8 @@ const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
+const sharp = require('sharp');
+const compression = require('compression');
 const { createClient } = require('@supabase/supabase-js');
 
 const PORT = process.env.PORT || 3000;
@@ -38,14 +40,29 @@ const upload = multer({
   },
 });
 
+// Redimensiona (máx. 1600px de lado más largo) y convierte a WebP para que
+// las imágenes de producto ocupen bastante menos espacio en Storage y carguen
+// más rápido en el sitio. Los GIF se suben tal cual (para no perder la
+// animación si el producto tuviera una imagen animada).
+async function optimizarImagen(file) {
+  if (file.mimetype === 'image/gif') {
+    return { buffer: file.buffer, contentType: file.mimetype, ext: '.gif' };
+  }
+  const buffer = await sharp(file.buffer)
+    .rotate() // respeta la orientación EXIF de fotos sacadas con el celular
+    .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: 80 })
+    .toBuffer();
+  return { buffer, contentType: 'image/webp', ext: '.webp' };
+}
+
 async function subirImagen(file) {
-  const ext = (path.extname(file.originalname) || '.jpg').toLowerCase();
-  const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext) ? ext : '.jpg';
-  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`;
+  const { buffer, contentType, ext } = await optimizarImagen(file);
+  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
 
   const { error } = await supabase.storage
     .from(STORAGE_BUCKET)
-    .upload(filename, file.buffer, { contentType: file.mimetype, upsert: false });
+    .upload(filename, buffer, { contentType, upsert: false });
   if (error) throw error;
 
   const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filename);
@@ -159,6 +176,9 @@ class SupabaseSessionStore extends session.Store {
 
 // ---------- App ----------
 const app = express();
+// Comprime (gzip) todas las respuestas de texto (HTML, CSS, JS, JSON), que
+// suelen pesar 60-80% menos comprimidas: páginas más livianas y más rápidas.
+app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
@@ -174,7 +194,20 @@ app.use(
     },
   })
 );
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(
+  express.static(path.join(__dirname, 'public'), {
+    // Los archivos con extensión (imágenes, CSS, JS, fuentes) se cachean en
+    // el navegador por 1 día: en visitas repetidas no se vuelven a descargar,
+    // así el sitio carga casi al instante. Los .html no se cachean, para que
+    // los cambios que subís se vean apenas los publicás.
+    maxAge: '1d',
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    },
+  })
+);
 
 function requireAuth(req, res, next) {
   if (req.session && req.session.isAdmin) return next();
