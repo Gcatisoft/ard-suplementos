@@ -477,7 +477,7 @@ app.delete('/api/admin/products/:id', requireAuth, async (req, res) => {
   try {
     const { data: existing, error: findError } = await supabase
       .from('products')
-      .select('image')
+      .select('image, images')
       .eq('id', req.params.id)
       .maybeSingle();
     if (findError) throw findError;
@@ -486,7 +486,13 @@ app.delete('/api/admin/products/:id', requireAuth, async (req, res) => {
     const { error } = await supabase.from('products').delete().eq('id', req.params.id);
     if (error) throw error;
 
-    await borrarImagenPorUrl(existing.image);
+    // Borra TODAS las imágenes de la galería (no solo la principal), para no
+    // dejar archivos huérfanos ocupando espacio en Storage.
+    const todasLasImagenes = Array.isArray(existing.images) && existing.images.length
+      ? existing.images
+      : (existing.image ? [existing.image] : []);
+    await Promise.all(todasLasImagenes.map(borrarImagenPorUrl));
+
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
