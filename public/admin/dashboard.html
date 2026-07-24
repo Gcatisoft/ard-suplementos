@@ -494,6 +494,18 @@
         </div>
 
         <div class="form-group full">
+          <label for="sabores">Sabores disponibles</label>
+          <input type="text" id="sabores" placeholder="Ej: Chocolate, Vainilla, Frutilla">
+          <div class="form-hint">Separá cada sabor con una coma. Dejalo vacío si el producto no tiene variantes de sabor.</div>
+        </div>
+
+        <div class="form-group full">
+          <label for="cuotas">Cuotas sin interés</label>
+          <input type="number" id="cuotas" min="0" step="1" placeholder="Ej: 3">
+          <div class="form-hint">Cantidad de cuotas. Se calcula sobre el precio con tarjeta (o el precio normal si no cargaste uno) y se muestra como "3 cuotas de $X".</div>
+        </div>
+
+        <div class="form-group full">
           <label>Imágenes del producto</label>
           <div class="imagenes-grid" id="imagenes-grid">
             <button type="button" class="imagen-agregar-tile" id="imagen-agregar-btn">
