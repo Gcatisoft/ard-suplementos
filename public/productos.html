@@ -445,16 +445,16 @@
               <h4 class="marcas-mega-heading">Suplementos</h4>
               <div class="marcas-mega-lista marcas-mega-lista-1col">
                 <a href="/productos.html?categoria=Combos">Combos</a>
-                <a href="/productos.html?categoria=Creatinas">Creatina</a>
-                <a href="/productos.html?categoria=Prote%C3%ADnas">Proteína</a>
-                <a href="/productos.html?categoria=Magnesio">Magnesios y Omega 3</a>
-                <a href="/productos.html?categoria=Col%C3%A1genos">Colágenos</a>
-                <a href="/productos.html?categoria=Vitaminas">Vitaminas</a>
-                <a href="/productos.html?categoria=Preentrenos">Pre entreno</a>
-                <a href="/productos.html?categoria=Hidratantes">Hidratantes y Geles</a>
-                <a href="/productos.html?categoria=Ganadores+de+peso">Ganadores de peso</a>
-                <a href="/productos.html?categoria=Amino%C3%A1cidos+y+BCAA">Aminoácidos y BCAA</a>
-                <a href="/productos.html?categoria=Quemadores+de+Grasa">Quemadores de Grasa</a>
+                <a href="/productos.html?categoria=Creatina">Creatina</a>
+                <a href="/productos.html?categoria=Proteinas">Proteína</a>
+                <a href="/productos.html?categoria=Citrato+de+magnesio%2COmega+3">Magnesios y Omega 3</a>
+                <a href="/productos.html?categoria=Colagenos">Colágenos</a>
+                <a href="/productos.html?categoria=Vitaminas%2CMultivitanimicos">Vitaminas</a>
+                <a href="/productos.html?categoria=Pre+entrenos">Pre entreno</a>
+                <a href="/productos.html?categoria=Bebidas+isotonicas">Hidratantes y Geles</a>
+                <a href="/productos.html?categoria=Ganador+de+peso">Ganadores de peso</a>
+                <a href="/productos.html?categoria=Aminoacidos">Aminoácidos y BCAA</a>
+                <a href="/productos.html?categoria=Quemadores">Quemadores de Grasa</a>
                 <a href="/productos.html?categoria=Importados">Importados</a>
               </div>
             </div>
@@ -567,6 +567,7 @@
   const WHATSAPP_NUMBER = "5493834993955";
 
   let TODOS = [];
+  let categoriasFiltroURL = null; // categorías reales (de la base) activas cuando se llega desde un link con ?categoria=
 
   function formatearPrecio(valor){
     try{ return new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS', maximumFractionDigits:0 }).format(valor); }
@@ -634,6 +635,21 @@
     if (id) window.location.href = '/producto.html?id=' + encodeURIComponent(id);
   });
 
+  function normalizarTexto(s){
+    return (s || '').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function coincidenCategorias(a, b){
+    const na = normalizarTexto(a);
+    const nb = normalizarTexto(b);
+    if (!na || !nb) return false;
+    // Coincidencia exacta, o que una contenga a la otra (ej: "creatina" vs
+    // "creatinas", "vitamina" vs "multivitaminico"), para tolerar singular/
+    // plural, tildes o pequeñas variaciones de cómo se cargó la categoría
+    // en el panel de administración.
+    return na === nb || na.includes(nb) || nb.includes(na);
+  }
+
   function cargarCategorias(productos){
     const select = document.getElementById('filtro-categoria');
     const categorias = [...new Set(productos.map(p => p.category).filter(Boolean))].sort();
@@ -648,11 +664,21 @@
   function pintar(){
     const grid = document.getElementById('grid-productos');
     const texto = document.getElementById('buscador').value.trim().toLowerCase();
-    const categoria = document.getElementById('filtro-categoria').value;
+    const categoriaSelect = document.getElementById('filtro-categoria').value;
 
     const filtrados = TODOS.filter(p => {
       const coincideTexto = !texto || (p.name || '').toLowerCase().includes(texto) || (p.brand || '').toLowerCase().includes(texto);
-      const coincideCategoria = !categoria || p.category === categoria;
+      let coincideCategoria;
+      if (categoriaSelect) {
+        // El usuario eligió una categoría puntual en el desplegable.
+        coincideCategoria = coincidenCategorias(p.category, categoriaSelect);
+      } else if (categoriasFiltroURL && categoriasFiltroURL.length) {
+        // Se llegó desde un link (ej: botón "Magnesio") que puede agrupar
+        // más de una categoría real de la base de datos.
+        coincideCategoria = categoriasFiltroURL.some(c => coincidenCategorias(p.category, c));
+      } else {
+        coincideCategoria = true;
+      }
       return coincideTexto && coincideCategoria;
     });
 
@@ -665,10 +691,6 @@
     grid.innerHTML = filtrados.map(crearTarjeta).join('');
   }
 
-  function normalizarTexto(s){
-    return (s || '').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  }
-
   function cargarProductos(){
     fetch('/api/products')
       .then(res => { if (!res.ok) throw new Error('Error al obtener los productos'); return res.json(); })
@@ -679,10 +701,17 @@
 
         const categoriaUrl = new URLSearchParams(window.location.search).get('categoria');
         if (categoriaUrl) {
-          const select = document.getElementById('filtro-categoria');
-          const objetivo = normalizarTexto(categoriaUrl);
-          const opcion = [...select.options].find(opt => normalizarTexto(opt.value) === objetivo);
-          if (opcion) select.value = opcion.value;
+          categoriasFiltroURL = categoriaUrl.split(',').map(s => s.trim()).filter(Boolean);
+
+          // Si es una sola categoría y coincide con una opción real del
+          // desplegable, la resaltamos ahí también (mejor feedback visual).
+          if (categoriasFiltroURL.length === 1) {
+            const select = document.getElementById('filtro-categoria');
+            const objetivo = categoriasFiltroURL[0];
+            let opcion = [...select.options].find(opt => normalizarTexto(opt.value) === normalizarTexto(objetivo));
+            if (!opcion) opcion = [...select.options].find(opt => coincidenCategorias(opt.value, objetivo));
+            if (opcion) select.value = opcion.value;
+          }
         }
 
         const buscarUrl = new URLSearchParams(window.location.search).get('buscar');
@@ -705,7 +734,12 @@
   }
 
   document.getElementById('buscador').addEventListener('input', pintar);
-  document.getElementById('filtro-categoria').addEventListener('change', pintar);
+  document.getElementById('filtro-categoria').addEventListener('change', () => {
+    // Si el usuario elige manualmente una categoría del desplegable, eso
+    // manda por sobre el filtro múltiple que pudo haber llegado por URL.
+    categoriasFiltroURL = null;
+    pintar();
+  });
 
   cargarProductos();
 
