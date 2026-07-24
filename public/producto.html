@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
   :root{
     --white:#ffffff;
@@ -116,10 +117,10 @@
   .marcas-mega{
     position:absolute; top:calc(100% + 16px); left:50%;
     transform:translateX(-50%) translateY(6px);
-    width:560px; max-width:min(560px, 92vw);
+    width:860px; max-width:min(860px, 94vw);
     background:#fff; border-radius:18px;
     box-shadow:0 26px 54px rgba(10,22,38,0.32);
-    padding:18px; z-index:70;
+    padding:20px 22px; z-index:70;
     opacity:0; visibility:hidden; pointer-events:none;
     transition:opacity .18s ease, transform .18s ease, visibility .18s;
   }
@@ -127,10 +128,10 @@
   .nav-item-marcas.open .marcas-mega{
     opacity:1; visibility:visible; pointer-events:auto; transform:translateX(-50%) translateY(0);
   }
-  .marcas-mega-buscador{ position:relative; margin-bottom:14px; }
+  .marcas-mega-buscador{ position:relative; margin-bottom:16px; }
   .marcas-mega-buscador input[type="search"]{
     width:100%; border:1px solid var(--line); border-radius:999px;
-    padding:12px 18px; font-size:14px; color:var(--ink); background:var(--bg-soft);
+    padding:12px 18px; font-size:16px; color:var(--ink); background:var(--bg-soft);
   }
   .marcas-mega-buscador input[type="search"]:focus{ outline:2px solid var(--accent-light); outline-offset:2px; }
   .marcas-mega-buscador .buscador-resultados{
@@ -158,20 +159,39 @@
   }
   .marcas-mega-buscador .buscador-vertodos:hover{background:var(--bg-soft);}
   .marcas-mega-buscador .buscador-vacio{padding:16px; text-align:center; color:var(--steel-600); font-size:13.5px;}
+  .marcas-mega-grid{
+    display:grid; grid-template-columns:1.25fr 1fr 1fr; gap:22px;
+  }
+  .marcas-mega-heading{
+    font-family:var(--font-cond); font-size:11.5px; font-weight:800;
+    text-transform:uppercase; letter-spacing:0.04em; color:var(--accent);
+    margin-bottom:8px; padding-bottom:8px; border-bottom:2px solid var(--line);
+  }
   .marcas-mega-lista{
-    display:grid; grid-template-columns:repeat(2,1fr); gap:6px 14px;
-    max-height:280px; overflow-y:auto;
+    display:grid; grid-template-columns:repeat(2,1fr); gap:2px 12px;
+    max-height:250px; overflow-y:auto;
+  }
+  .marcas-mega-lista.marcas-mega-lista-1col{
+    grid-template-columns:1fr; max-height:none; overflow-y:visible;
   }
   .marcas-mega-lista a{
-    display:block; padding:9px 4px; font-family:var(--font-body); font-weight:600; font-size:13.5px;
+    display:block; padding:8px 4px; font-family:var(--font-body); font-weight:600; font-size:13px;
     color:var(--navy-800); border-bottom:1px solid var(--line); text-transform:none; letter-spacing:0;
     transition:color .16s ease;
   }
   .marcas-mega-lista a:hover{ color:var(--accent); }
   .marcas-mega-vertodas{
-    grid-column:1 / -1; text-align:center; color:var(--accent) !important; font-weight:700 !important;
+    display:block; text-align:center; color:var(--accent) !important; font-weight:700 !important;
     text-transform:uppercase; letter-spacing:0.02em; border-bottom:none !important; padding-top:12px !important;
+    font-size:12px;
   }
+  .marcas-mega-reserva{
+    display:block; margin-top:14px; padding:11px 14px; background:var(--navy-900);
+    color:#fff !important; text-align:center; border-radius:10px; font-weight:700;
+    text-transform:uppercase; font-size:11.5px; letter-spacing:0.03em;
+    transition:background .16s ease;
+  }
+  .marcas-mega-reserva:hover{ background:#e8892a !important; }
 
   @media (max-width:820px){
     .nav-toggle{ display:flex; }
@@ -205,6 +225,8 @@
       display:none;
     }
     .nav-item-marcas.open .marcas-mega{ display:block; }
+    .marcas-mega-grid{ grid-template-columns:1fr; gap:18px; }
+    .marcas-mega-heading{ color:#fff; border-bottom-color:rgba(255,255,255,0.18); }
     .marcas-mega-lista{ max-height:none; overflow-y:visible; }
     .marcas-mega-lista a{ color:var(--steel-100); border-bottom:1px solid rgba(255,255,255,0.1); }
     .marcas-mega-lista a:hover{ color:#fff; }
@@ -297,11 +319,66 @@
     padding:80px 4px; text-align:center; color:var(--steel-600); font-size:15px;
   }
 
-  footer.pie{
-    background:var(--navy-950); color:var(--steel-100);
-    padding:28px 0; text-align:center; font-size:13px;
+  /* -------- Footer -------- */
+  footer{background:var(--navy-950); color:var(--steel-300); padding:52px 0 22px; margin-top:20px;}
+  .foot-grid{
+    display:grid;
+    grid-template-columns:1.3fr 1fr 1fr 1fr;
+    gap:32px;
+    padding-bottom:32px;
+    border-bottom:1px solid rgba(255,255,255,0.08);
   }
-  footer.pie a{color:var(--steel-100); font-weight:600;}
+  .foot-col{min-width:0;}
+  .foot-brand{display:flex; align-items:center; gap:12px; margin-bottom:14px;}
+  .foot-logo-img{height:46px;width:46px;object-fit:contain;flex-shrink:0;display:block;background:#fff;border-radius:50%;padding:4px;}
+  .foot-brand-name{font-family:var(--font-cond); font-weight:700; font-size:15px; letter-spacing:0.02em; text-transform:uppercase; color:#fff;}
+  .foot-desc{font-size:13.5px; line-height:1.6; color:var(--steel-300); margin-bottom:16px;}
+  .foot-social{display:flex; gap:10px; margin-bottom:20px;}
+  .foot-social-link{
+    width:38px; height:38px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,0.08); color:#fff; font-size:16px;
+    transition:transform .16s ease, background .16s ease;
+  }
+  .foot-social-link:hover{ transform:translateY(-3px); }
+  .foot-social-ig:hover{ background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); }
+  .foot-social-wsp:hover{ background:#25D366; }
+  .foot-col h4{font-family:var(--font-cond); font-weight:700; text-transform:uppercase; letter-spacing:0.02em; font-size:13px; color:#fff; margin-bottom:14px;}
+  .foot-col ul li{margin-bottom:9px; font-size:13.5px;}
+  .foot-col ul li a:hover{color:#fff;}
+  .pay-icons, .ship-icons{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;}
+  .pay-chip{
+    font-family:var(--font-cond); font-size:10.5px; font-weight:600; letter-spacing:0.02em;
+    background:rgba(255,255,255,0.08); color:var(--steel-100); padding:5px 9px; border-radius:6px;
+  }
+  .foot-bottom{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;
+    gap:10px; padding-top:20px; font-size:12.5px; color:#5c7091; text-align:left;
+  }
+  .foot-bottom a{color:var(--steel-300);}
+
+  @media (max-width:980px){
+    .foot-grid{grid-template-columns:1fr 1fr; gap:30px 26px;}
+    .foot-brand-col{grid-column:1 / -1;}
+    .foot-brand-col .foot-desc{max-width:480px;}
+  }
+  @media (max-width:560px){
+    .foot-grid{grid-template-columns:1fr; gap:28px;}
+    .foot-brand-col{grid-column:auto;}
+    .foot-bottom{flex-direction:column; text-align:center; gap:8px;}
+  }
+
+  /* -------- Whatsapp float -------- */
+  .wa-float{
+    position:fixed;
+    bottom:calc(22px + env(safe-area-inset-bottom, 0px));
+    right:calc(22px + env(safe-area-inset-right, 0px));
+    z-index:50;
+    width:58px;height:58px;border-radius:50%;
+    background:#25D366; display:flex;align-items:center;justify-content:center;
+    box-shadow:0 10px 24px rgba(37,211,102,0.45);
+  }
+  .wa-float i{font-size:30px;color:#fff;line-height:1;}
 </style>
 </head>
 <body>
@@ -315,11 +392,10 @@
     </button>
     <nav class="nav-links" id="nav-links">
       <a href="/">Inicio</a>
-      <a href="/#novedades">Novedades</a>
-      <a href="/#ofertas">Ofertas</a>
+      <a href="/#destacados">Novedades</a>
 
       <div class="nav-item-marcas" id="nav-item-marcas">
-        <a href="/#marcas" class="nav-marcas-trigger" id="marcas-trigger">
+        <a href="/productos.html" class="nav-marcas-trigger" id="marcas-trigger">
           Marcas
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7.5l5 5 5-5"/></svg>
         </a>
@@ -328,16 +404,48 @@
             <input type="search" id="marcas-mega-input" placeholder="Buscar productos o marcas…" autocomplete="off">
             <div class="buscador-resultados" id="marcas-mega-resultados"></div>
           </div>
-          <div class="marcas-mega-lista">
-            <a href="/productos.html?marca=Star+Nutrition">Star Nutrition</a>
-            <a href="/productos.html?marca=One+Fit">One Fit</a>
-            <a href="/productos.html?marca=Gold">Gold</a>
-            <a href="/productos.html?marca=Ena">Ena</a>
-            <a href="/productos.html?marca=Granger">Granger</a>
-            <a href="/productos.html?marca=Gentech">Gentech</a>
-            <a href="/productos.html?marca=Mervick">Mervick</a>
-            <a href="/productos.html?marca=Everlast">Everlast</a>
-            <a href="/#marcas" class="marcas-mega-vertodas" id="marcas-vertodas">Ver todas las marcas →</a>
+          <div class="marcas-mega-grid">
+            <div class="marcas-mega-col">
+              <h4 class="marcas-mega-heading">Marcas</h4>
+              <div class="marcas-mega-lista">
+                <a href="/productos.html?marca=Star+Nutrition">Star Nutrition</a>
+                <a href="/productos.html?marca=One+Fit">One Fit</a>
+                <a href="/productos.html?marca=Gold">Gold</a>
+                <a href="/productos.html?marca=ENA">ENA</a>
+                <a href="/productos.html?marca=X-Body">X-Body</a>
+                <a href="/productos.html?marca=Nutremax">Nutremax</a>
+                <a href="/productos.html?marca=Mervick">Mervick</a>
+                <a href="/productos.html?marca=Age+Biologique">Age Biologique</a>
+                <a href="/productos.html?marca=Granger">Granger</a>
+              </div>
+              <a href="/productos.html" class="marcas-mega-vertodas" id="marcas-vertodas">Ver todas las marcas →</a>
+            </div>
+            <div class="marcas-mega-col">
+              <h4 class="marcas-mega-heading">Suplementos</h4>
+              <div class="marcas-mega-lista marcas-mega-lista-1col">
+                <a href="/productos.html?categoria=Combos">Combos</a>
+                <a href="/productos.html?categoria=Creatinas">Creatina</a>
+                <a href="/productos.html?categoria=Prote%C3%ADnas">Proteína</a>
+                <a href="/productos.html?categoria=Magnesio">Magnesios y Omega 3</a>
+                <a href="/productos.html?categoria=Col%C3%A1genos">Colágenos</a>
+                <a href="/productos.html?categoria=Vitaminas">Vitaminas</a>
+                <a href="/productos.html?categoria=Preentrenos">Pre entreno</a>
+                <a href="/productos.html?categoria=Hidratantes">Hidratantes y Geles</a>
+                <a href="/productos.html?categoria=Ganadores+de+peso">Ganadores de peso</a>
+                <a href="/productos.html?categoria=Amino%C3%A1cidos+y+BCAA">Aminoácidos y BCAA</a>
+                <a href="/productos.html?categoria=Quemadores+de+Grasa">Quemadores de Grasa</a>
+                <a href="/productos.html?categoria=Importados">Importados</a>
+              </div>
+            </div>
+            <div class="marcas-mega-col">
+              <h4 class="marcas-mega-heading">Alimentos fit y Pancakes</h4>
+              <div class="marcas-mega-lista marcas-mega-lista-1col">
+                <a href="/productos.html?categoria=Alimentos">Todos los alimentos</a>
+                <a href="/productos.html?categoria=Barras+Proteicas">Barras proteicas</a>
+                <a href="/productos.html?categoria=Pancakes">Pancakes</a>
+              </div>
+              <a href="https://wa.me/5493834993955" target="_blank" rel="noopener" class="marcas-mega-reserva">Reservar tu pedido →</a>
+            </div>
           </div>
         </div>
       </div>
@@ -361,11 +469,62 @@
   </div>
 </section>
 
-<footer class="pie">
+<footer>
   <div class="wrap">
-    ARD Suplementos · Sarmiento 722, Catamarca · <a href="https://wa.me/5493834993955" target="_blank" rel="noopener">Escribinos por WhatsApp</a>
+    <div class="foot-grid">
+      <div class="foot-col foot-brand-col">
+        <div class="foot-brand">
+          <img class="foot-logo-img" src="logogrande.jpeg" alt="ARD Suplementos">
+          <span class="foot-brand-name">ARD Suplementos</span>
+        </div>
+        <p class="foot-desc">Suplementos deportivos en Catamarca. Asesoramiento por WhatsApp, envíos a domicilio y retiro en local.</p>
+        <div class="foot-social">
+          <a href="https://instagram.com" target="_blank" rel="noopener" aria-label="Instagram" class="foot-social-link foot-social-ig"><i class="fa-brands fa-instagram"></i></a>
+          <a href="https://wa.me/5493834993955" target="_blank" rel="noopener" aria-label="WhatsApp" class="foot-social-link foot-social-wsp"><i class="fa-brands fa-whatsapp"></i></a>
+        </div>
+        <div class="pay-icons">
+          <span class="pay-chip">VISA</span>
+          <span class="pay-chip">MASTERCARD</span>
+          <span class="pay-chip">NARANJA</span>
+          <span class="pay-chip">CABAL</span>
+          <span class="pay-chip">TRANSFERENCIA</span>
+          <span class="pay-chip">EFECTIVO</span>
+        </div>
+      </div>
+      <div class="foot-col">
+        <h4>Tienda</h4>
+        <ul>
+          <li><a href="/#destacados">Destacados</a></li>
+          <li><a href="/productos.html">Marcas</a></li>
+          <li><a href="/productos.html">Ver todo el catálogo</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Medios de envío</h4>
+        <div class="ship-icons">
+          <span class="pay-chip">CADETE PROPIO</span>
+          <span class="pay-chip">RETIRO EN LOCAL</span>
+        </div>
+      </div>
+      <div class="foot-col">
+        <h4>Contacto</h4>
+        <ul>
+          <li>Sarmiento 722, Catamarca</li>
+          <li><a href="https://wa.me/5493834993955" target="_blank" rel="noopener">WhatsApp +54 9 383 499-3955</a></li>
+          <li><a href="https://instagram.com" target="_blank" rel="noopener">Instagram @ard.suplementos</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 ARD Suplementos — Catamarca, Argentina.</span>
+      <span>Desarrollado por <a href="https://www.devhub.com.ar/" target="_blank" rel="noopener">DevHub</a></span>
+    </div>
   </div>
 </footer>
+
+<a class="wa-float" href="https://wa.me/5493834993955" target="_blank" rel="noopener" aria-label="WhatsApp">
+  <i class="fa-brands fa-whatsapp"></i>
+</a>
 
 <script>
 (function(){
