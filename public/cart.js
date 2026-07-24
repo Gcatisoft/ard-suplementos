@@ -12,7 +12,11 @@
  *
  * Y en cada tarjeta de producto, en vez de (o adem\u00e1s de) el link directo
  * a WhatsApp, llamar:
- *   window.ARDCart.add({ id: p.id, name: p.name, brand: p.brand, price: p.price, image: p.image })
+ *   window.ARDCart.add({ id: p.id, name: p.name, brand: p.brand, price: p.price, image: p.image, flavor: 'Chocolate' })
+ *
+ * El campo "flavor" es opcional. Si el producto tiene sabores, cada sabor
+ * queda como una línea separada del carrito (mismo producto, distinto sabor
+ * = distinta línea, cada una con su propia cantidad).
  */
 (function () {
   'use strict';
@@ -39,19 +43,28 @@
   var items = cargar();
   var listeners = [];
 
+  // Cada línea del carrito se identifica por producto + sabor (si tiene).
+  // Así, dos sabores distintos del mismo producto quedan como líneas
+  // separadas en vez de mezclarse en una sola.
+  function keyOf(it) {
+    return it.id + (it.flavor ? '::' + it.flavor : '');
+  }
+
   function notificar() {
     guardar(items);
     listeners.forEach(function (fn) { try { fn(items); } catch (e) {} });
     render();
   }
 
-  function buscar(id) {
-    return items.find(function (it) { return it.id === id; });
+  function buscar(key) {
+    return items.find(function (it) { return keyOf(it) === key; });
   }
 
   function add(producto, qty) {
     qty = Math.max(1, Number(qty) || 1);
-    var existente = buscar(producto.id);
+    var flavor = producto.flavor ? String(producto.flavor).trim() : '';
+    var key = producto.id + (flavor ? '::' + flavor : '');
+    var existente = buscar(key);
     if (existente) {
       existente.qty += qty;
     } else {
@@ -59,6 +72,7 @@
         id: producto.id,
         name: producto.name,
         brand: producto.brand || '',
+        flavor: flavor,
         price: Number(producto.price) || 0,
         image: producto.image || '',
         qty: qty
@@ -69,17 +83,17 @@
     mostrarToast((producto.name || 'Producto') + ' agregado al carrito');
   }
 
-  function setQty(id, qty) {
-    var it = buscar(id);
+  function setQty(key, qty) {
+    var it = buscar(key);
     if (!it) return;
     qty = Math.floor(Number(qty) || 0);
-    if (qty <= 0) { remove(id); return; }
+    if (qty <= 0) { remove(key); return; }
     it.qty = qty;
     notificar();
   }
 
-  function remove(id) {
-    items = items.filter(function (it) { return it.id !== id; });
+  function remove(key) {
+    items = items.filter(function (it) { return keyOf(it) !== key; });
     notificar();
   }
 
@@ -139,6 +153,7 @@
     + '.ard-cart-item-info{flex:1;min-width:0;}'
     + '.ard-cart-item-name{font-size:14px;font-weight:600;color:#0d1b2a;margin:0 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
     + '.ard-cart-item-brand{font-size:12px;color:#5c7091;margin:0 0 6px;}'
+    + '.ard-cart-item-flavor{font-size:12px;color:#e8892a;font-weight:600;margin:0 0 6px;}'
     + '.ard-cart-item-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}'
     + '.ard-cart-qty{display:flex;align-items:center;border:1px solid #ddd;border-radius:8px;overflow:hidden;}'
     + '.ard-cart-qty button{width:26px;height:26px;border:none;background:#f4f6f8;cursor:pointer;font-size:15px;color:#0d1b2a;}'
@@ -304,11 +319,12 @@
           ? '<img src="' + it.image + '" alt="">'
           : '<svg viewBox="0 0 24 24" fill="none" stroke="#9aa8bb" stroke-width="1.5" width="24" height="24"><rect x="5" y="3" width="14" height="18" rx="2"/></svg>';
         return (
-          '<div class="ard-cart-item" data-id="' + escapeHtml(it.id) + '">' +
+          '<div class="ard-cart-item" data-key="' + escapeHtml(keyOf(it)) + '">' +
             '<div class="ard-cart-item-img">' + img + '</div>' +
             '<div class="ard-cart-item-info">' +
               '<p class="ard-cart-item-name">' + escapeHtml(it.name) + '</p>' +
               (it.brand ? '<p class="ard-cart-item-brand">' + escapeHtml(it.brand) + '</p>' : '') +
+              (it.flavor ? '<p class="ard-cart-item-flavor">Sabor: ' + escapeHtml(it.flavor) + '</p>' : '') +
               '<div class="ard-cart-item-row">' +
                 '<div class="ard-cart-qty">' +
                   '<button data-action="dec">−</button>' +
@@ -333,12 +349,12 @@
     if (!btn) return;
     var itemEl = e.target.closest('.ard-cart-item');
     if (!itemEl) return;
-    var id = itemEl.getAttribute('data-id');
-    var it = buscar(id);
+    var key = itemEl.getAttribute('data-key');
+    var it = buscar(key);
     if (!it) return;
-    if (btn.dataset.action === 'inc') setQty(id, it.qty + 1);
-    else if (btn.dataset.action === 'dec') setQty(id, it.qty - 1);
-    else if (btn.dataset.action === 'remove') remove(id);
+    if (btn.dataset.action === 'inc') setQty(key, it.qty + 1);
+    else if (btn.dataset.action === 'dec') setQty(key, it.qty - 1);
+    else if (btn.dataset.action === 'remove') remove(key);
   });
 
   // ---------- Checkout ----------
@@ -362,7 +378,7 @@
     lineas.push('Hola! Soy ' + nombre + ', quiero hacer este pedido:');
     lineas.push('');
     items.forEach(function (it) {
-      lineas.push('• ' + it.qty + 'x ' + it.name + (it.brand ? ' (' + it.brand + ')' : '') + ' — ' + formatearPrecio(it.price * it.qty));
+      lineas.push('• ' + it.qty + 'x ' + it.name + (it.brand ? ' (' + it.brand + ')' : '') + (it.flavor ? ' - Sabor: ' + it.flavor : '') + ' — ' + formatearPrecio(it.price * it.qty));
     });
     lineas.push('');
     lineas.push('Total: ' + formatearPrecio(getTotal()));
@@ -394,7 +410,7 @@
       customerName: nombre,
       customerPhone: telefono,
       items: items.map(function (it) {
-        return { productId: it.id, name: it.name, brand: it.brand, price: it.price, qty: it.qty };
+        return { productId: it.id, name: it.name, brand: it.brand, flavor: it.flavor || '', price: it.price, qty: it.qty };
       }),
       notes: notas
     };
