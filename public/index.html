@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
   :root{
     --white:#ffffff;
@@ -407,7 +408,15 @@
     background:var(--navy-900); display:flex;align-items:center;justify-content:center;
   }
   .beneficio-card svg{width:20px;height:20px;color:#fff;}
+  .beneficio-card .icon-box .emoji{
+    font-size:19px; line-height:1; font-style:normal;
+    font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji','Segoe UI Symbol', var(--font-body);
+  }
+  .beneficio-card .icon-box-wsp{ background:#25D366; }
+  .beneficio-card .icon-box-wsp i{ font-size:20px; color:#fff; }
   .beneficio-card p{font-family:var(--font-body); font-weight:600; font-size:14px; color:var(--navy-900); line-height:1.35;}
+  .beneficio-card p .wsp-link{ color:inherit; transition:color .16s ease; }
+  .beneficio-card p .wsp-link:hover{ color:#25D366; }
   @media (max-width:900px){.beneficios-grid{grid-template-columns:repeat(2,1fr);}}
   @media (max-width:520px){.beneficios-grid{grid-template-columns:1fr;}}
 
@@ -654,7 +663,7 @@
     background:#25D366; display:flex;align-items:center;justify-content:center;
     box-shadow:0 10px 24px rgba(37,211,102,0.45);
   }
-  .wa-float svg{width:28px;height:28px;color:#fff;}
+  .wa-float i{font-size:30px;color:#fff;line-height:1;}
 </style>
 </head>
 <body>
@@ -865,15 +874,15 @@
     </div>
     <div class="beneficios-grid beneficios-grid-3">
       <div class="beneficio-card">
-        <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+        <div class="icon-box"><span class="emoji">📍</span></div>
         <p>Sarmiento 722, San Fernando del Valle de Catamarca, Argentina</p>
       </div>
       <div class="beneficio-card">
-        <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.4 1.26 4.83L2 22l5.42-1.42a9.85 9.85 0 0 0 4.62 1.17h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.13-2.9-7C17.17 3.03 14.7 2 12.04 2z"/></svg></div>
-        <p>+54 9 383 499-3955 por WhatsApp</p>
+        <div class="icon-box icon-box-wsp"><i class="fa-brands fa-whatsapp"></i></div>
+        <p><a href="https://wa.me/5493834993955" target="_blank" rel="noopener" class="wsp-link">+54 9 383 499-3955 por WhatsApp</a></p>
       </div>
       <div class="beneficio-card">
-        <div class="icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="18" r="2.5"/><circle cx="17" cy="18" r="2.5"/><path d="M2 18h1.5L6 8h9l2 6h4.5M15 8V5h-3"/></svg></div>
+        <div class="icon-box"><span class="emoji">🚚</span></div>
         <p>Envíos con cadete propio en toda Catamarca</p>
       </div>
     </div>  
@@ -983,7 +992,7 @@
 </footer>
 
 <a class="wa-float" href="https://wa.me/5493834993955" target="_blank" rel="noopener" aria-label="WhatsApp">
-  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.4 1.26 4.83L2 22l5.42-1.42a9.85 9.85 0 0 0 4.62 1.17h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.13-2.9-7C17.17 3.03 14.7 2 12.04 2zm0 18.13a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.11.81.83-3.03-.2-.31a8.2 8.2 0 0 1-1.26-4.37c0-4.54 3.7-8.24 8.24-8.24 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.21-8.26 8.21z"/></svg>
+  <i class="fa-brands fa-whatsapp"></i>
 </a>
 
 <script>
