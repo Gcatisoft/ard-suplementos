@@ -784,7 +784,7 @@
 </section>
 
 <section class="hero">
-  <img class="hero-img" src="ard12.png" alt="ARD Suplementos">
+  <img class="hero-img" src="ard12.png" alt="ARD Suplementos" fetchpriority="high" decoding="async">
 </section>
 
 <section class="categorias" id="categorias">
@@ -1214,7 +1214,7 @@
     const sinStock = Number(p.stock) <= 0;
     const mensaje = encodeURIComponent('Hola! Quiero consultar por "' + p.name + '"' + (p.brand ? (' de ' + p.brand) : '') + '.');
     const linkWhatsapp = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + mensaje;
-    const imagenHtml = p.image ? '<img src="' + p.image + '" alt="' + p.name.replace(/"/g,'') + '" loading="lazy">' : iconoPlaceholder();
+    const imagenHtml = p.image ? '<img src="' + p.image + '" alt="' + p.name.replace(/"/g,'') + '" loading="lazy" decoding="async">' : iconoPlaceholder();
     let badgeHtml = '';
     if (p.featured) badgeHtml = '<span class="producto-badge">Destacado</span>';
     else if (tieneOferta) badgeHtml = '<span class="producto-badge oferta">Oferta</span>';
