@@ -188,6 +188,63 @@
   .resena-comentario-completo.visible { display: block; }
   .resenas-tabla td { max-width: 320px; }
 
+  /* ===== Novedades ===== */
+  .novedades-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  .novedad-card {
+    border: 1px solid #e3e7ee;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+  .novedad-card-img {
+    width: 100%;
+    height: 140px;
+    background: #f2f4f8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .novedad-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .novedad-card-img svg { width: 32px; height: 32px; color: #b3bccb; }
+  .novedad-card-body { padding: 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .novedad-tag {
+    align-self: flex-start;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #b5540c;
+    background: #fdeee0;
+    padding: 3px 9px;
+    border-radius: 999px;
+  }
+  .novedad-card-titulo { font-weight: 700; font-size: 14.5px; color: #1a2233; }
+  .novedad-card-contenido {
+    font-size: 12.5px;
+    color: #5c6b82;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .novedad-card-footer {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 10px;
+  }
+  .novedad-card-fecha { font-size: 11.5px; color: #97a2b3; }
+  .novedad-card-actions { display: flex; gap: 6px; }
+
   /* ===== Galería de imágenes del producto (múltiples imágenes) ===== */
   .imagenes-grid {
     display: flex;
@@ -282,6 +339,7 @@
     <button type="button" class="tab-btn active" data-tab="productos">Productos</button>
     <button type="button" class="tab-btn" data-tab="pedidos">Pedidos y ventas</button>
     <button type="button" class="tab-btn" data-tab="resenas">Reseñas <span class="tab-badge" id="resenas-badge" style="display:none;"></span></button>
+    <button type="button" class="tab-btn" data-tab="novedades">Novedades</button>
     <button type="button" class="tab-btn" data-tab="stats">Estadísticas</button>
   </nav>
 
@@ -406,6 +464,28 @@
       <div class="empty-state" id="resenas-empty-state" style="display:none;">
         Todavía no hay reseñas para mostrar.
       </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: NOVEDADES ================= -->
+  <section class="tab-panel" id="tab-novedades">
+
+    <div class="dash-toolbar">
+      <div class="filters">
+        <select id="filtro-novedad-estado">
+          <option value="">Todas</option>
+          <option value="activo">Publicadas</option>
+          <option value="inactivo">Ocultas</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="nueva-novedad-btn" style="width:auto;">+ Nueva novedad</button>
+    </div>
+
+    <div class="novedades-grid" id="novedades-grid">
+      <!-- tarjetas dinámicas -->
+    </div>
+    <div class="empty-state" id="novedades-empty-state" style="display:none;">
+      Todavía no cargaste ninguna noticia, oferta o novedad.
     </div>
   </section>
 
@@ -535,6 +615,70 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" id="cancelar-btn">Cancelar</button>
         <button type="submit" class="btn btn-primary" id="guardar-btn" style="width:auto;">Guardar producto</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL NOVEDAD ============ -->
+<div class="modal-overlay" id="modal-overlay-novedad">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-novedad-title">Nueva novedad</h2>
+      <button class="modal-close" id="modal-novedad-close" type="button">✕</button>
+    </div>
+
+    <div class="error-msg" id="form-novedad-error"></div>
+
+    <form id="novedad-form">
+      <input type="hidden" id="novedad-id">
+
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="novedad-titulo">Título *</label>
+          <input type="text" id="novedad-titulo" required placeholder="Ej: Hot Sale: 20% OFF en toda la tienda">
+        </div>
+
+        <div class="form-group full">
+          <label for="novedad-tag">Etiqueta</label>
+          <select id="novedad-tag">
+            <option value="">Sin etiqueta</option>
+            <option value="Novedad">Novedad</option>
+            <option value="Oferta">Oferta</option>
+            <option value="Descuento">Descuento</option>
+            <option value="Hot Sale">Hot Sale</option>
+          </select>
+        </div>
+
+        <div class="form-group full">
+          <label for="novedad-contenido">Texto</label>
+          <textarea id="novedad-contenido" placeholder="Contanos el detalle de la novedad, oferta o descuento…"></textarea>
+        </div>
+
+        <div class="form-group full">
+          <label>Imagen</label>
+          <div class="imagenes-grid" id="novedad-imagen-grid">
+            <button type="button" class="imagen-agregar-tile" id="novedad-imagen-agregar-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+              </svg>
+              Agregar
+            </button>
+          </div>
+          <input type="file" id="novedad-imagen" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+          <div class="form-hint">Opcional. JPG, PNG o WEBP. Máx. 5MB.</div>
+        </div>
+
+        <div class="form-group full">
+          <div class="checkbox-row">
+            <label class="checkbox-item"><input type="checkbox" id="novedad-activo" checked> Publicada en el sitio</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-novedad-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="guardar-novedad-btn" style="width:auto;">Guardar novedad</button>
       </div>
     </form>
   </div>
