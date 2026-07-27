@@ -580,6 +580,13 @@
     text-transform:uppercase; letter-spacing:0.04em; color:#fff; background:#e8892a;
     padding:4px 11px; border-radius:999px;
   }
+  .novedad-precio-row{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+  .novedad-precio-actual{ font-family:var(--font-display); font-weight:700; font-size:19px; color:var(--navy-900); }
+  .novedad-precio-anterior{ font-family:var(--font-body); font-size:13.5px; color:#9aa8bb; text-decoration:line-through; }
+  .novedad-precio-descuento{
+    font-family:var(--font-cond); font-weight:700; font-size:11px; color:#fff; background:#c0392b;
+    padding:3px 9px; border-radius:999px;
+  }
   .novedad-card-home-titulo{ font-family:var(--font-display); font-weight:700; font-size:16.5px; color:var(--navy-900); }
   .novedad-card-home-texto{
     font-family:var(--font-body); font-size:13.5px; color:var(--steel-600); line-height:1.5;
@@ -1142,6 +1149,7 @@
     <div class="novedad-modal-body">
       <span class="novedad-card-home-tag" id="novedad-modal-tag" style="display:none;"></span>
       <h3 class="novedad-modal-titulo" id="novedad-modal-titulo"></h3>
+      <div id="novedad-modal-precio" style="margin-top:8px;"></div>
       <p class="novedad-modal-texto" id="novedad-modal-texto"></p>
       <div class="novedad-modal-fecha" id="novedad-modal-fecha"></div>
     </div>
@@ -1587,6 +1595,24 @@
     catch(e){ return ''; }
   }
 
+  function formatearPrecioNovedad(valor){
+    try{ return new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS', maximumFractionDigits:0 }).format(valor); }
+    catch(e){ return '$' + valor; }
+  }
+
+  function precioNovedadHtml(n){
+    if (!n.price) return '';
+    const hayDescuento = n.oldPrice && Number(n.oldPrice) > Number(n.price);
+    const pct = hayDescuento ? Math.round((1 - n.price / n.oldPrice) * 100) : 0;
+    return (
+      '<div class="novedad-precio-row">' +
+        '<span class="novedad-precio-actual">' + formatearPrecioNovedad(n.price) + '</span>' +
+        (hayDescuento ? '<span class="novedad-precio-anterior">' + formatearPrecioNovedad(n.oldPrice) + '</span>' : '') +
+        (hayDescuento ? '<span class="novedad-precio-descuento">-' + pct + '%</span>' : '') +
+      '</div>'
+    );
+  }
+
   let novedadesData = [];
 
   function crearTarjetaNovedad(n){
@@ -1605,6 +1631,7 @@
         '<div class="novedad-card-home-body">' +
           (n.tag ? '<span class="novedad-card-home-tag">' + n.tag + '</span>' : '') +
           '<h3 class="novedad-card-home-titulo">' + n.title + '</h3>' +
+          precioNovedadHtml(n) +
           (n.content ? '<p class="novedad-card-home-texto">' + n.content + '</p>' : '') +
           (n.content ? '<button type="button" class="novedad-card-home-vermas" data-novedad-id="' + n.id + '">Ver más →</button>' : '') +
           '<span class="novedad-card-home-fecha">' + formatearFechaNovedad(n.createdAt) + '</span>' +
@@ -1651,6 +1678,7 @@
     else { tagEl.style.display = 'none'; }
 
     document.getElementById('novedad-modal-titulo').textContent = n.title;
+    document.getElementById('novedad-modal-precio').innerHTML = precioNovedadHtml(n);
     document.getElementById('novedad-modal-texto').textContent = n.content || '';
     document.getElementById('novedad-modal-fecha').textContent = formatearFechaNovedad(n.createdAt);
 
