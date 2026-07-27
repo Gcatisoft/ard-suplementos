@@ -211,7 +211,7 @@
     justify-content: center;
     overflow: hidden;
   }
-  .novedad-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .novedad-card-img img, .novedad-card-img video { width: 100%; height: 100%; object-fit: cover; display: block; }
   .novedad-card-img svg { width: 32px; height: 32px; color: #b3bccb; }
   .novedad-card-body { padding: 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
   .novedad-tag {
@@ -261,7 +261,7 @@
     background: #f7f8fa;
     flex-shrink: 0;
   }
-  .imagen-tile img {
+  .imagen-tile img, .imagen-tile video {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -656,17 +656,37 @@
         </div>
 
         <div class="form-group full">
-          <label>Imagen</label>
-          <div class="imagenes-grid" id="novedad-imagen-grid">
-            <button type="button" class="imagen-agregar-tile" id="novedad-imagen-agregar-btn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
-              </svg>
-              Agregar
-            </button>
+          <label>Multimedia (opcional)</label>
+          <div class="checkbox-row" style="margin-bottom:10px;">
+            <label class="checkbox-item"><input type="radio" name="novedad-media-tipo" id="novedad-tipo-imagen" value="imagen" checked> Imagen</label>
+            <label class="checkbox-item"><input type="radio" name="novedad-media-tipo" id="novedad-tipo-video" value="video"> Video</label>
           </div>
-          <input type="file" id="novedad-imagen" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
-          <div class="form-hint">Opcional. JPG, PNG o WEBP. Máx. 5MB.</div>
+
+          <div id="novedad-bloque-imagen">
+            <div class="imagenes-grid" id="novedad-imagen-grid">
+              <button type="button" class="imagen-agregar-tile" id="novedad-imagen-agregar-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+                </svg>
+                Agregar
+              </button>
+            </div>
+            <input type="file" id="novedad-imagen" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+            <div class="form-hint">JPG, PNG o WEBP. Máx. 5MB.</div>
+          </div>
+
+          <div id="novedad-bloque-video" style="display:none;">
+            <div class="imagenes-grid" id="novedad-video-grid">
+              <button type="button" class="imagen-agregar-tile" id="novedad-video-agregar-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+                </svg>
+                Agregar video
+              </button>
+            </div>
+            <input type="file" id="novedad-video" accept="video/mp4,video/webm,video/quicktime" style="display:none;">
+            <div class="form-hint">MP4 o WEBM. Máx. 20MB. Recomendado: clips cortos (10-15s) — si el video pesa mucho, comprimilo antes de subirlo para no gastar de más en almacenamiento.</div>
+          </div>
         </div>
 
         <div class="form-group full">
