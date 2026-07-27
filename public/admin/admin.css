@@ -565,3 +565,12 @@ table.productos-tabla{
   flex:0 0 auto;
 }
 @keyframes spin{ to{ transform:rotate(360deg); } }
+
+/* -------- Responsive general (celulares) -------- */
+@media (max-width:480px){
+  .login-page-header-inner{ flex-wrap:wrap; gap:10px; padding:14px 16px; }
+  .login-back-link{ font-size:12px; padding:7px 11px; }
+  .login-wrap{ padding:16px; }
+  .login-card{ padding:28px 22px 24px; }
+  .dash-header{ flex-wrap:wrap; }
+}
