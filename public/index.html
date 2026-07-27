@@ -295,6 +295,22 @@
     background:rgba(255,255,255,0.55); cursor:pointer; transition:background .15s ease, transform .15s ease;
   }
   .hero-dots button.active{ background:#fff; transform:scale(1.2); }
+  .hero-nav-btn{
+    position:absolute; top:50%; transform:translateY(-50%); z-index:3;
+    width:42px; height:42px; border-radius:50%; border:1.5px solid #e8892a; background:#e8892a;
+    display:flex; align-items:center; justify-content:center; color:#fff;
+    box-shadow:0 6px 16px rgba(10,22,38,0.25); transition:background .16s ease;
+  }
+  .hero-nav-btn:hover{ background:#d67917; border-color:#d67917; }
+  .hero-nav-btn svg{ width:20px; height:20px; }
+  .hero-nav-prev{ left:14px; }
+  .hero-nav-next{ right:14px; }
+  @media (max-width:600px){
+    .hero-nav-btn{ width:34px; height:34px; }
+    .hero-nav-btn svg{ width:16px; height:16px; }
+    .hero-nav-prev{ left:8px; }
+    .hero-nav-next{ right:8px; }
+  }
   @media (max-width:900px){
     .hero-viewport{ height:60vw; min-height:240px; }
   }
@@ -841,6 +857,12 @@
   <div class="hero-viewport" id="hero-viewport">
     <img class="hero-img active" src="ard12.png" alt="ARD Suplementos" fetchpriority="high" decoding="async">
   </div>
+  <button type="button" class="hero-nav-btn hero-nav-prev" id="hero-prev" aria-label="Imagen anterior" style="display:none;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <button type="button" class="hero-nav-btn hero-nav-next" id="hero-next" aria-label="Imagen siguiente" style="display:none;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
   <div class="hero-dots" id="hero-dots"></div>
 </section>
 
@@ -1432,10 +1454,14 @@
 (function(){
   const viewport = document.getElementById('hero-viewport');
   const dotsWrap = document.getElementById('hero-dots');
+  const btnPrev = document.getElementById('hero-prev');
+  const btnNext = document.getElementById('hero-next');
+  const IMAGEN_FIJA = { image: 'ard12.png', link: '' }; // la de siempre, se mantiene siempre como parte del carrusel
   let indice = 0;
+  let total = 1;
   let timer = null;
 
-  function armarSlide(slide){
+  function armarSlide(slide, esPrimeraFija){
     if (slide.link){
       const a = document.createElement('a');
       a.className = 'hero-slide-link';
@@ -1444,7 +1470,7 @@
       img.className = 'hero-img';
       img.src = slide.image;
       img.alt = '';
-      img.loading = 'eager';
+      img.loading = esPrimeraFija ? 'eager' : 'lazy';
       img.decoding = 'async';
       a.appendChild(img);
       return a;
@@ -1453,6 +1479,8 @@
     img.className = 'hero-img';
     img.src = slide.image;
     img.alt = 'ARD Suplementos';
+    if (esPrimeraFija) img.setAttribute('fetchpriority', 'high');
+    img.loading = esPrimeraFija ? 'eager' : 'lazy';
     img.decoding = 'async';
     return img;
   }
@@ -1464,25 +1492,36 @@
     indice = i;
   }
 
-  function iniciarCarrusel(lista){
-    if (!lista.length) return; // no había nada cargado: se mantiene la imagen fija de siempre
+  function siguiente(){ mostrar((indice + 1) % total); }
+  function anterior(){ mostrar((indice - 1 + total) % total); }
+
+  function reiniciarAutoplay(){
+    if (timer) clearInterval(timer);
+    if (total > 1) timer = setInterval(siguiente, 5000);
+  }
+
+  function iniciarCarrusel(extras){
+    // La imagen fija de siempre queda primera, y lo que se cargue desde el
+    // panel se suma después (no la reemplaza).
+    const lista = [IMAGEN_FIJA, ...extras];
+    total = lista.length;
 
     viewport.innerHTML = '';
-    lista.forEach(slide => viewport.appendChild(armarSlide(slide)));
+    lista.forEach((slide, i) => viewport.appendChild(armarSlide(slide, i === 0)));
     mostrar(0);
 
-    if (lista.length > 1){
+    if (total > 1){
+      btnPrev.style.display = '';
+      btnNext.style.display = '';
       dotsWrap.innerHTML = lista.map((_, i) => '<button type="button" aria-label="Ir a la imagen ' + (i + 1) + '"></button>').join('');
       dotsWrap.querySelectorAll('button').forEach((btn, i) => {
         btn.addEventListener('click', () => { mostrar(i); reiniciarAutoplay(); });
       });
       dotsWrap.querySelectorAll('button')[0].classList.add('active');
 
-      function avanzar(){ mostrar((indice + 1) % lista.length); }
-      function reiniciarAutoplay(){
-        if (timer) clearInterval(timer);
-        timer = setInterval(avanzar, 5000);
-      }
+      btnPrev.addEventListener('click', () => { anterior(); reiniciarAutoplay(); });
+      btnNext.addEventListener('click', () => { siguiente(); reiniciarAutoplay(); });
+
       reiniciarAutoplay();
     }
   }
@@ -1490,7 +1529,7 @@
   fetch('/api/hero')
     .then(res => { if (!res.ok) throw new Error('sin hero'); return res.json(); })
     .then(lista => iniciarCarrusel(Array.isArray(lista) ? lista : []))
-    .catch(() => {}); // ante cualquier problema, se queda con la imagen fija
+    .catch(() => iniciarCarrusel([])); // ante cualquier problema, se queda solo con la imagen fija
 })();
 </script>
 
