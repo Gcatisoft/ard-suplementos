@@ -264,33 +264,55 @@
     overflow:hidden;
     width:100%;
   }
-  .hero-img{
-    display:block;
+  .hero{ position:relative; }
+  .hero-viewport{
+    position:relative;
     width:100%;
     height:56vw;
     max-height:640px;
     min-height:260px;
+    overflow:hidden;
+  }
+  .hero-viewport .hero-img{
+    position:absolute; inset:0;
+    display:block;
+    width:100%; height:100%;
     object-fit:cover;
     object-position:center;
+    opacity:0;
+    transition:opacity .7s ease;
   }
+  .hero-viewport .hero-img.active{ opacity:1; z-index:1; }
+  .hero-viewport a.hero-slide-link{ position:absolute; inset:0; display:block; opacity:0; transition:opacity .7s ease; z-index:0; }
+  .hero-viewport a.hero-slide-link.active{ opacity:1; z-index:1; }
+  .hero-viewport a.hero-slide-link .hero-img{ position:static; opacity:1; }
+  .hero-dots{
+    position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    display:flex; gap:7px; z-index:2;
+  }
+  .hero-dots button{
+    width:8px; height:8px; border-radius:50%; border:none; padding:0;
+    background:rgba(255,255,255,0.55); cursor:pointer; transition:background .15s ease, transform .15s ease;
+  }
+  .hero-dots button.active{ background:#fff; transform:scale(1.2); }
   @media (max-width:900px){
-    .hero-img{ height:60vw; min-height:240px; }
+    .hero-viewport{ height:60vw; min-height:240px; }
   }
   @media (max-width:760px){
-    .hero-img{ height:75vw; min-height:220px; }
+    .hero-viewport{ height:75vw; min-height:220px; }
   }
   @media (max-width:480px){
-    .hero-img{ height:95vw; min-height:200px; }
+    .hero-viewport{ height:95vw; min-height:200px; }
   }
   @media (max-width:360px){
-    .hero-img{ min-height:180px; }
+    .hero-viewport{ min-height:180px; }
   }
   @media (orientation:landscape) and (max-height:500px){
-    .hero-img{ height:65vh; min-height:180px; max-height:480px; }
+    .hero-viewport{ height:65vh; min-height:180px; max-height:480px; }
   }
   @supports (height:100dvh){
     @media (orientation:landscape) and (max-height:500px){
-      .hero-img{ height:65dvh; }
+      .hero-viewport{ height:65dvh; }
     }
   }
 
@@ -815,8 +837,11 @@
   </div>
 </section>
 
-<section class="hero">
-  <img class="hero-img" src="ard12.png" alt="ARD Suplementos" fetchpriority="high" decoding="async">
+<section class="hero" id="hero">
+  <div class="hero-viewport" id="hero-viewport">
+    <img class="hero-img active" src="ard12.png" alt="ARD Suplementos" fetchpriority="high" decoding="async">
+  </div>
+  <div class="hero-dots" id="hero-dots"></div>
 </section>
 
 <section class="categorias" id="categorias">
@@ -1400,6 +1425,72 @@
   }
 
   cargarProductos();
+})();
+</script>
+
+<script>
+(function(){
+  const viewport = document.getElementById('hero-viewport');
+  const dotsWrap = document.getElementById('hero-dots');
+  let indice = 0;
+  let timer = null;
+
+  function armarSlide(slide){
+    if (slide.link){
+      const a = document.createElement('a');
+      a.className = 'hero-slide-link';
+      a.href = slide.link;
+      const img = document.createElement('img');
+      img.className = 'hero-img';
+      img.src = slide.image;
+      img.alt = '';
+      img.loading = 'eager';
+      img.decoding = 'async';
+      a.appendChild(img);
+      return a;
+    }
+    const img = document.createElement('img');
+    img.className = 'hero-img';
+    img.src = slide.image;
+    img.alt = 'ARD Suplementos';
+    img.decoding = 'async';
+    return img;
+  }
+
+  function mostrar(i){
+    const slides = viewport.querySelectorAll('.hero-img, a.hero-slide-link');
+    slides.forEach((el, idx) => el.classList.toggle('active', idx === i));
+    dotsWrap.querySelectorAll('button').forEach((b, idx) => b.classList.toggle('active', idx === i));
+    indice = i;
+  }
+
+  function iniciarCarrusel(lista){
+    if (!lista.length) return; // no había nada cargado: se mantiene la imagen fija de siempre
+
+    viewport.innerHTML = '';
+    lista.forEach(slide => viewport.appendChild(armarSlide(slide)));
+    mostrar(0);
+
+    if (lista.length > 1){
+      dotsWrap.innerHTML = lista.map((_, i) => '<button type="button" aria-label="Ir a la imagen ' + (i + 1) + '"></button>').join('');
+      dotsWrap.querySelectorAll('button').forEach((btn, i) => {
+        btn.addEventListener('click', () => { mostrar(i); reiniciarAutoplay(); });
+      });
+      dotsWrap.querySelectorAll('button')[0].classList.add('active');
+
+      function avanzar(){ mostrar((indice + 1) % lista.length); }
+      function reiniciarAutoplay(){
+        if (timer) clearInterval(timer);
+        timer = setInterval(avanzar, 5000);
+      }
+      reiniciarAutoplay();
+    }
+  }
+
+  fetch('/api/hero')
+    .then(res => { if (!res.ok) throw new Error('sin hero'); return res.json(); })
+    .then(lista => iniciarCarrusel(Array.isArray(lista) ? lista : []))
+    .catch(() => {}); // ante cualquier problema, se queda con la imagen fija
 })();
 </script>
 
