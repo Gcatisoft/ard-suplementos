@@ -18,7 +18,11 @@
     gap: 4px;
     margin: 20px 0 18px;
     border-bottom: 1px solid rgba(0,0,0,0.08);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .tabs-nav::-webkit-scrollbar { display: none; }
   .tab-btn {
     font-family: 'Barlow Condensed', sans-serif;
     font-weight: 600;
@@ -32,6 +36,8 @@
     color: #6b7686;
     cursor: pointer;
     transition: color .15s ease, border-color .15s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .tab-btn:hover { color: #1a2233; }
   .tab-btn.active {
@@ -353,6 +359,44 @@
   }
   .imagen-agregar-tile:hover { border-color: #3159c9; color: #3159c9; }
   .imagen-agregar-tile svg { width: 20px; height: 20px; }
+
+  /* ===== Responsive (celulares y tablets chicas) ===== */
+  @media (max-width: 760px) {
+    .dash-header { padding: 12px 16px; }
+    .dash-header .brand { font-size: 13.5px; gap: 8px; }
+    .dash-header .brand .badge-icon { width: 30px; height: 30px; }
+    .dash-header .user-info { gap: 8px; font-size: 12px; }
+
+    .dash-main { padding: 18px 14px 50px; }
+
+    .tabs-nav { margin: 16px 0 14px; }
+    .tab-btn { padding: 9px 13px; font-size: 13.5px; }
+
+    .dash-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+    .dash-toolbar .filters { width: 100%; }
+    .dash-toolbar select,
+    .dash-toolbar input[type=search] { min-width: 0; width: 100%; }
+    .dash-toolbar > button { width: 100% !important; }
+
+    .modal-overlay { padding: 10px; }
+    .modal { padding: 20px 16px 18px; border-radius: 14px; max-height: 94vh; }
+    .modal-header h2 { font-size: 17px; }
+
+    .stats-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stat-card { padding: 14px 14px; }
+    .stat-card .num { font-size: 22px; }
+
+    .novedades-grid,
+    .hero-slides-grid { grid-template-columns: 1fr; }
+
+    .row-actions { flex-wrap: wrap; }
+  }
+
+  @media (max-width: 420px) {
+    .stats-row { grid-template-columns: 1fr; }
+    .imagen-tile,
+    .imagen-agregar-tile { width: 78px; height: 78px; }
+  }
 </style>
 </head>
 <body>
@@ -825,4 +869,4 @@
 
 <script src="admin.js"></script>
 </body>
-</html> 
+</html>
