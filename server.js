@@ -153,6 +153,17 @@ function mapNoticia(row) {
   };
 }
 
+function mapHeroSlide(row) {
+  return {
+    id: row.id,
+    image: row.image,
+    link: row.link || '',
+    position: row.position,
+    active: row.active,
+    createdAt: row.created_at,
+  };
+}
+
 // ---------- Store de sesiones persistente (Supabase) ----------
 // Por defecto express-session guarda las sesiones en RAM (MemoryStore), lo que
 // borra TODAS las sesiones activas (de los 4 usuarios, sin distinción) cada vez
@@ -943,6 +954,152 @@ app.delete('/api/admin/news/:id', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al eliminar la novedad' });
+  }
+});
+
+// ---------- Hero (carrusel de imágenes de arriba del home) ----------
+app.get('/api/hero', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('hero_slides')
+      .select('*')
+      .eq('active', true)
+      .order('position', { ascending: true });
+    if (error) throw error;
+    res.json((data || []).map(mapHeroSlide));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las imágenes del hero' });
+  }
+});
+
+app.get('/api/admin/hero', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('hero_slides').select('*').order('position', { ascending: true });
+    if (error) throw error;
+    res.json((data || []).map(mapHeroSlide));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las imágenes del hero' });
+  }
+});
+
+app.post('/api/admin/hero', requireAuth, upload.single('imagen'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'La imagen es obligatoria' });
+    }
+    const { link, active } = req.body;
+
+    const { data: maxRow } = await supabase
+      .from('hero_slides')
+      .select('position')
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const siguientePosicion = maxRow ? maxRow.position + 1 : 0;
+
+    const subida = await subirImagen(req.file);
+
+    const nuevo = {
+      image: subida.url,
+      link: link ? String(link).trim() : '',
+      position: siguientePosicion,
+      active: active === undefined ? true : active === 'true' || active === true,
+    };
+
+    const { data, error } = await supabase.from('hero_slides').insert(nuevo).select().single();
+    if (error) throw error;
+
+    res.status(201).json(mapHeroSlide(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear la imagen del hero' });
+  }
+});
+
+app.put('/api/admin/hero/:id', requireAuth, upload.single('imagen'), async (req, res) => {
+  try {
+    const { data: existing, error: findError } = await supabase
+      .from('hero_slides')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (findError) throw findError;
+    if (!existing) return res.status(404).json({ error: 'Imagen no encontrada' });
+
+    const { link, active } = req.body;
+    const cambios = {};
+    if (link !== undefined) cambios.link = String(link).trim();
+    if (active !== undefined) cambios.active = active === 'true' || active === true;
+
+    if (req.file) {
+      const subida = await subirImagen(req.file);
+      cambios.image = subida.url;
+      if (existing.image) await borrarImagenPorUrl(existing.image);
+    }
+
+    const { data, error } = await supabase.from('hero_slides').update(cambios).eq('id', req.params.id).select().single();
+    if (error) throw error;
+
+    res.json(mapHeroSlide(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar la imagen del hero' });
+  }
+});
+
+// Sube o baja una imagen un lugar en el orden del carrusel, intercambiando
+// su posición con la de la vecina inmediata.
+app.put('/api/admin/hero/:id/mover', requireAuth, async (req, res) => {
+  try {
+    const { direction } = req.body; // 'up' | 'down'
+    const { data: todas, error } = await supabase.from('hero_slides').select('id, position').order('position', { ascending: true });
+    if (error) throw error;
+
+    const idx = todas.findIndex((s) => s.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Imagen no encontrada' });
+
+    const idxVecino = direction === 'up' ? idx - 1 : idx + 1;
+    if (idxVecino < 0 || idxVecino >= todas.length) {
+      return res.json({ ok: true }); // ya está en la punta, no hay nada para mover
+    }
+
+    const actual = todas[idx];
+    const vecino = todas[idxVecino];
+
+    await Promise.all([
+      supabase.from('hero_slides').update({ position: vecino.position }).eq('id', actual.id),
+      supabase.from('hero_slides').update({ position: actual.position }).eq('id', vecino.id),
+    ]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al reordenar' });
+  }
+});
+
+app.delete('/api/admin/hero/:id', requireAuth, async (req, res) => {
+  try {
+    const { data: existing, error: findError } = await supabase
+      .from('hero_slides')
+      .select('image')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (findError) throw findError;
+    if (!existing) return res.status(404).json({ error: 'Imagen no encontrada' });
+
+    const { error } = await supabase.from('hero_slides').delete().eq('id', req.params.id);
+    if (error) throw error;
+
+    // Borrado de raíz: fila + imagen del Storage.
+    await borrarImagenPorUrl(existing.image);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar la imagen del hero' });
   }
 });
 
