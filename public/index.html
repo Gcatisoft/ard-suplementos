@@ -581,11 +581,45 @@
     padding:4px 11px; border-radius:999px;
   }
   .novedad-card-home-titulo{ font-family:var(--font-display); font-weight:700; font-size:16.5px; color:var(--navy-900); }
-  .novedad-card-home-texto{ font-family:var(--font-body); font-size:13.5px; color:var(--steel-600); line-height:1.5; }
+  .novedad-card-home-texto{
+    font-family:var(--font-body); font-size:13.5px; color:var(--steel-600); line-height:1.5;
+    display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .novedad-card-home-vermas{
+    align-self:flex-start; font-family:var(--font-body); font-weight:700; font-size:12.5px;
+    color:var(--accent); background:none; border:none; padding:0; cursor:pointer;
+  }
+  .novedad-card-home-vermas:hover{ text-decoration:underline; }
   .novedad-card-home-fecha{ font-family:var(--font-body); font-size:11.5px; color:#9aa8bb; margin-top:2px; }
   @media (max-width:560px){
     .novedades-grid-home{ grid-template-columns:1fr; }
   }
+
+  /* -------- Modal de novedad (leer todo) -------- */
+  .novedad-modal-overlay{
+    position:fixed; inset:0; background:rgba(10,14,22,0.6); z-index:200;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+    opacity:0; visibility:hidden; transition:opacity .2s ease, visibility .2s;
+  }
+  .novedad-modal-overlay.visible{ opacity:1; visibility:visible; }
+  .novedad-modal{
+    background:#fff; border-radius:18px; max-width:560px; width:100%;
+    max-height:88vh; overflow-y:auto; position:relative;
+    transform:translateY(10px); transition:transform .2s ease;
+  }
+  .novedad-modal-overlay.visible .novedad-modal{ transform:translateY(0); }
+  .novedad-modal-close{
+    position:absolute; top:12px; right:12px; z-index:2;
+    width:34px; height:34px; border-radius:50%; border:none; background:rgba(10,22,38,0.55);
+    color:#fff; font-size:18px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .novedad-modal-media{ width:100%; max-height:340px; background:var(--steel-100); overflow:hidden; }
+  .novedad-modal-media img{ width:100%; height:100%; max-height:340px; object-fit:cover; display:block; }
+  .novedad-modal-media video{ width:100%; max-height:340px; display:block; background:#000; }
+  .novedad-modal-body{ padding:24px; }
+  .novedad-modal-titulo{ font-family:var(--font-display); font-weight:700; font-size:21px; color:var(--navy-900); margin-top:10px; }
+  .novedad-modal-texto{ font-family:var(--font-body); font-size:14.5px; color:var(--ink); line-height:1.65; margin-top:12px; white-space:pre-line; }
+  .novedad-modal-fecha{ font-family:var(--font-body); font-size:12px; color:#9aa8bb; margin-top:14px; }
 
   /* -------- Como comprar -------- */
   .como-comprar{padding:56px 0;}
@@ -1101,6 +1135,19 @@
   <i class="fa-brands fa-whatsapp"></i>
 </a>
 
+<div class="novedad-modal-overlay" id="novedad-modal-overlay">
+  <div class="novedad-modal">
+    <button type="button" class="novedad-modal-close" id="novedad-modal-close" aria-label="Cerrar">✕</button>
+    <div id="novedad-modal-media"></div>
+    <div class="novedad-modal-body">
+      <span class="novedad-card-home-tag" id="novedad-modal-tag" style="display:none;"></span>
+      <h3 class="novedad-modal-titulo" id="novedad-modal-titulo"></h3>
+      <p class="novedad-modal-texto" id="novedad-modal-texto"></p>
+      <div class="novedad-modal-fecha" id="novedad-modal-fecha"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   const WHATSAPP_NUMBER = "5493834993955";
@@ -1540,6 +1587,8 @@
     catch(e){ return ''; }
   }
 
+  let novedadesData = [];
+
   function crearTarjetaNovedad(n){
     let mediaHtml = '';
     if (n.video){
@@ -1557,6 +1606,7 @@
           (n.tag ? '<span class="novedad-card-home-tag">' + n.tag + '</span>' : '') +
           '<h3 class="novedad-card-home-titulo">' + n.title + '</h3>' +
           (n.content ? '<p class="novedad-card-home-texto">' + n.content + '</p>' : '') +
+          (n.content ? '<button type="button" class="novedad-card-home-vermas" data-novedad-id="' + n.id + '">Ver más →</button>' : '') +
           '<span class="novedad-card-home-fecha">' + formatearFechaNovedad(n.createdAt) + '</span>' +
         '</div>' +
       '</article>'
@@ -1566,6 +1616,7 @@
   function pintarNovedades(lista){
     const wrap = document.getElementById('novedades-grid-home');
     const section = document.getElementById('novedades');
+    novedadesData = lista;
     if (!lista.length){
       // No mostramos la sección vacía en el sitio público.
       if (section) section.style.display = 'none';
@@ -1573,7 +1624,55 @@
     }
     if (section) section.style.display = '';
     wrap.innerHTML = lista.map(crearTarjetaNovedad).join('');
+
+    wrap.querySelectorAll('[data-novedad-id]').forEach(btn => {
+      btn.addEventListener('click', () => abrirNovedadModal(btn.getAttribute('data-novedad-id')));
+    });
   }
+
+  // -------- Modal: leer la novedad completa (imagen/video grande + texto sin recortar) --------
+  const novedadModalOverlay = document.getElementById('novedad-modal-overlay');
+
+  function abrirNovedadModal(id){
+    const n = novedadesData.find(x => x.id === id);
+    if (!n) return;
+
+    const mediaWrap = document.getElementById('novedad-modal-media');
+    if (n.video){
+      mediaWrap.innerHTML = '<div class="novedad-modal-media"><video src="' + n.video + '" controls playsinline></video></div>';
+    } else if (n.image){
+      mediaWrap.innerHTML = '<div class="novedad-modal-media"><img src="' + n.image + '" alt=""></div>';
+    } else {
+      mediaWrap.innerHTML = '';
+    }
+
+    const tagEl = document.getElementById('novedad-modal-tag');
+    if (n.tag){ tagEl.textContent = n.tag; tagEl.style.display = ''; }
+    else { tagEl.style.display = 'none'; }
+
+    document.getElementById('novedad-modal-titulo').textContent = n.title;
+    document.getElementById('novedad-modal-texto').textContent = n.content || '';
+    document.getElementById('novedad-modal-fecha').textContent = formatearFechaNovedad(n.createdAt);
+
+    novedadModalOverlay.classList.add('visible');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function cerrarNovedadModal(){
+    novedadModalOverlay.classList.remove('visible');
+    document.body.style.overflow = '';
+    // Pausa cualquier video que haya quedado reproduciéndose al cerrar.
+    const video = document.querySelector('#novedad-modal-media video');
+    if (video) video.pause();
+  }
+
+  document.getElementById('novedad-modal-close').addEventListener('click', cerrarNovedadModal);
+  novedadModalOverlay.addEventListener('click', (e) => {
+    if (e.target === novedadModalOverlay) cerrarNovedadModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && novedadModalOverlay.classList.contains('visible')) cerrarNovedadModal();
+  });
 
   fetch('/api/news')
     .then(res => { if (!res.ok) throw new Error('sin novedades'); return res.json(); })
