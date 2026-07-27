@@ -786,6 +786,7 @@
             '<div class="novedad-card-body">' +
               (n.tag ? '<span class="novedad-tag">' + n.tag + '</span>' : '') +
               '<div class="novedad-card-titulo">' + n.title + '</div>' +
+              (n.price ? '<div class="novedad-card-precio">' + formatearPrecio(n.price) + (n.oldPrice && n.oldPrice > n.price ? ' <span class="novedad-card-precio-anterior">' + formatearPrecio(n.oldPrice) + '</span>' : '') + '</div>' : '') +
               (n.content ? '<div class="novedad-card-contenido">' + n.content + '</div>' : '') +
               '<div class="novedad-card-footer">' +
                 '<div>' +
@@ -944,6 +945,8 @@
     document.getElementById('novedad-titulo').value = n.title;
     document.getElementById('novedad-tag').value = n.tag || '';
     document.getElementById('novedad-contenido').value = n.content || '';
+    document.getElementById('novedad-precio').value = n.price !== null && n.price !== undefined ? n.price : '';
+    document.getElementById('novedad-precio-anterior').value = n.oldPrice !== null && n.oldPrice !== undefined ? n.oldPrice : '';
     document.getElementById('novedad-activo').checked = !!n.active;
     novedadImagenExistente = n.image || '';
     novedadVideoExistente = n.video || '';
@@ -981,6 +984,8 @@
     formData.append('title', document.getElementById('novedad-titulo').value.trim());
     formData.append('tag', document.getElementById('novedad-tag').value);
     formData.append('content', document.getElementById('novedad-contenido').value.trim());
+    formData.append('price', document.getElementById('novedad-precio').value);
+    formData.append('oldPrice', document.getElementById('novedad-precio-anterior').value);
     formData.append('active', document.getElementById('novedad-activo').checked);
 
     // Es imagen O video, nunca los dos: si se está mostrando el bloque de
