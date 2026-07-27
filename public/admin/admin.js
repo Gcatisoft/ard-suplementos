@@ -55,6 +55,16 @@
   let novedadImagenExistente = ''; // URL que ya estaba guardada (puede quitarse)
   let novedadImagenNueva = null; // File recién seleccionado (todavía no subido)
   let novedadQuitarImagen = false;
+  let novedadVideoExistente = '';
+  let novedadVideoNueva = null;
+  let novedadQuitarVideo = false;
+  const novedadTipoImagenRadio = document.getElementById('novedad-tipo-imagen');
+  const novedadTipoVideoRadio = document.getElementById('novedad-tipo-video');
+  const novedadBloqueImagen = document.getElementById('novedad-bloque-imagen');
+  const novedadBloqueVideo = document.getElementById('novedad-bloque-video');
+  const novedadVideoGrid = document.getElementById('novedad-video-grid');
+  const novedadVideoInput = document.getElementById('novedad-video');
+  const novedadVideoAgregarBtn = document.getElementById('novedad-video-agregar-btn');
 
   function formatearPrecio(valor) {
     try {
@@ -746,10 +756,12 @@
 
     novedadesGrid.innerHTML = lista
       .map((n) => {
-        const imagenHtml = n.image ? '<img src="' + n.image + '" alt="">' : iconoImagenPlaceholder();
+        const mediaHtml = n.video
+          ? '<video src="' + n.video + '" muted playsinline preload="metadata"></video>'
+          : (n.image ? '<img src="' + n.image + '" alt="">' : iconoImagenPlaceholder());
         return (
           '<article class="novedad-card">' +
-            '<div class="novedad-card-img">' + imagenHtml + '</div>' +
+            '<div class="novedad-card-img">' + mediaHtml + '</div>' +
             '<div class="novedad-card-body">' +
               (n.tag ? '<span class="novedad-tag">' + n.tag + '</span>' : '') +
               '<div class="novedad-card-titulo">' + n.title + '</div>' +
@@ -779,6 +791,15 @@
   }
 
   filtroNovedadEstado.addEventListener('change', renderNovedades);
+
+  // -------- Selector Imagen / Video --------
+  function actualizarBloqueMediaVisible() {
+    const esVideo = novedadTipoVideoRadio.checked;
+    novedadBloqueImagen.style.display = esVideo ? 'none' : '';
+    novedadBloqueVideo.style.display = esVideo ? '' : 'none';
+  }
+  novedadTipoImagenRadio.addEventListener('change', actualizarBloqueMediaVisible);
+  novedadTipoVideoRadio.addEventListener('change', actualizarBloqueMediaVisible);
 
   // -------- Imagen (una sola por novedad) --------
   function renderNovedadImagenGrid() {
@@ -821,6 +842,53 @@
     renderNovedadImagenGrid();
   });
 
+  // -------- Video (uno solo por novedad) --------
+  function renderNovedadVideoGrid() {
+    let html = '';
+
+    if (novedadVideoNueva) {
+      const src = URL.createObjectURL(novedadVideoNueva);
+      html += '<div class="imagen-tile"><video src="' + src + '" muted></video><button type="button" class="imagen-quitar" id="novedad-video-quitar" title="Quitar video">✕</button></div>';
+    } else if (novedadVideoExistente && !novedadQuitarVideo) {
+      html += '<div class="imagen-tile"><video src="' + novedadVideoExistente + '" muted></video><button type="button" class="imagen-quitar" id="novedad-video-quitar" title="Quitar video">✕</button></div>';
+    } else {
+      html +=
+        '<button type="button" class="imagen-agregar-tile" id="novedad-video-agregar-btn">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>' +
+          'Agregar video' +
+        '</button>';
+    }
+
+    novedadVideoGrid.innerHTML = html;
+
+    const btnAgregar = novedadVideoGrid.querySelector('#novedad-video-agregar-btn');
+    if (btnAgregar) btnAgregar.addEventListener('click', () => novedadVideoInput.click());
+
+    const btnQuitar = novedadVideoGrid.querySelector('#novedad-video-quitar');
+    if (btnQuitar) {
+      btnQuitar.addEventListener('click', () => {
+        novedadVideoNueva = null;
+        novedadQuitarVideo = true;
+        novedadVideoInput.value = '';
+        renderNovedadVideoGrid();
+      });
+    }
+  }
+
+  novedadVideoInput.addEventListener('change', () => {
+    const file = novedadVideoInput.files[0];
+    if (!file) return;
+    const limiteMB = 20;
+    if (file.size > limiteMB * 1024 * 1024) {
+      alert('El video pesa ' + (file.size / 1024 / 1024).toFixed(1) + 'MB. El máximo permitido es ' + limiteMB + 'MB — comprimilo antes de subirlo.');
+      novedadVideoInput.value = '';
+      return;
+    }
+    novedadVideoNueva = file;
+    novedadQuitarVideo = false;
+    renderNovedadVideoGrid();
+  });
+
   function limpiarFormularioNovedad() {
     editandoNovedadId = null;
     novedadForm.reset();
@@ -829,7 +897,13 @@
     novedadImagenExistente = '';
     novedadImagenNueva = null;
     novedadQuitarImagen = false;
+    novedadVideoExistente = '';
+    novedadVideoNueva = null;
+    novedadQuitarVideo = false;
+    novedadTipoImagenRadio.checked = true;
+    actualizarBloqueMediaVisible();
     renderNovedadImagenGrid();
+    renderNovedadVideoGrid();
     formNovedadError.classList.remove('visible');
   }
 
@@ -851,7 +925,15 @@
     document.getElementById('novedad-contenido').value = n.content || '';
     document.getElementById('novedad-activo').checked = !!n.active;
     novedadImagenExistente = n.image || '';
+    novedadVideoExistente = n.video || '';
+    if (n.video) {
+      novedadTipoVideoRadio.checked = true;
+    } else {
+      novedadTipoImagenRadio.checked = true;
+    }
+    actualizarBloqueMediaVisible();
     renderNovedadImagenGrid();
+    renderNovedadVideoGrid();
     modalOverlayNovedad.classList.add('visible');
   }
 
@@ -879,8 +961,18 @@
     formData.append('tag', document.getElementById('novedad-tag').value);
     formData.append('content', document.getElementById('novedad-contenido').value.trim());
     formData.append('active', document.getElementById('novedad-activo').checked);
-    if (novedadImagenNueva) formData.append('imagen', novedadImagenNueva);
-    if (novedadQuitarImagen) formData.append('quitarImagen', 'true');
+
+    // Es imagen O video, nunca los dos: si se está mostrando el bloque de
+    // video, mandamos el video (si hay); si no, la imagen (si hay).
+    if (novedadTipoVideoRadio.checked) {
+      if (novedadVideoNueva) formData.append('video', novedadVideoNueva);
+      if (novedadQuitarVideo) formData.append('quitarVideo', 'true');
+      if (novedadImagenExistente) formData.append('quitarImagen', 'true');
+    } else {
+      if (novedadImagenNueva) formData.append('imagen', novedadImagenNueva);
+      if (novedadQuitarImagen) formData.append('quitarImagen', 'true');
+      if (novedadVideoExistente) formData.append('quitarVideo', 'true');
+    }
 
     try {
       const url = editandoNovedadId ? '/api/admin/news/' + editandoNovedadId : '/api/admin/news';
