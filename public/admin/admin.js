@@ -66,6 +66,20 @@
   const novedadVideoInput = document.getElementById('novedad-video');
   const novedadVideoAgregarBtn = document.getElementById('novedad-video-agregar-btn');
 
+  // -------- Hero (carrusel del home) --------
+  const heroSlidesGrid = document.getElementById('hero-slides-grid');
+  const heroSlidesEmptyState = document.getElementById('hero-slides-empty-state');
+  const nuevaHeroBtn = document.getElementById('nueva-hero-btn');
+  const modalOverlayHero = document.getElementById('modal-overlay-hero');
+  const modalHeroTitle = document.getElementById('modal-hero-title');
+  const formHeroError = document.getElementById('form-hero-error');
+  const heroForm = document.getElementById('hero-form');
+  const heroImagenGrid = document.getElementById('hero-imagen-grid');
+  const heroImagenInput = document.getElementById('hero-imagen');
+  let heroSlides = [];
+  let editandoHeroId = null;
+  let heroImagenNueva = null;
+
   function formatearPrecio(valor) {
     try {
       return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(valor);
@@ -120,6 +134,7 @@
     pedidos: document.getElementById('tab-pedidos'),
     resenas: document.getElementById('tab-resenas'),
     novedades: document.getElementById('tab-novedades'),
+    hero: document.getElementById('tab-hero'),
     stats: document.getElementById('tab-stats'),
   };
 
@@ -127,6 +142,7 @@
   let statsCargadas = false;
   let resenasCargadas = false;
   let novedadesCargadas = false;
+  let heroCargado = false;
 
   tabBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -152,12 +168,17 @@
         novedadesCargadas = true;
         cargarNovedades();
       }
+      if (tab === 'hero' && !heroCargado) {
+        heroCargado = true;
+        cargarHeroSlides();
+      }
       // Si ya se cargaron antes, igual refrescamos al volver a la pestaña
       // para no mostrar datos viejos si pasó tiempo:
       if (tab === 'pedidos' && pedidosCargados) cargarPedidos();
       if (tab === 'stats' && statsCargadas) cargarStats();
       if (tab === 'resenas' && resenasCargadas) cargarResenas();
       if (tab === 'novedades' && novedadesCargadas) cargarNovedades();
+      if (tab === 'hero' && heroCargado) cargarHeroSlides();
     });
   });
 
@@ -1010,6 +1031,226 @@
         return;
       }
       await cargarNovedades();
+    } catch (e) {
+      alert('Error de conexión con el servidor');
+    }
+  }
+
+  // ====================================================
+  // -------- HERO (carrusel del home) --------
+  // ====================================================
+  async function cargarHeroSlides() {
+    try {
+      const res = await fetch('/api/admin/hero');
+      if (res.status === 401) {
+        window.location.href = 'login.html';
+        return;
+      }
+      heroSlides = await res.json();
+      renderHeroSlides();
+    } catch (e) {
+      heroSlidesGrid.innerHTML = '<div class="empty-state">Error al cargar las imágenes del hero.</div>';
+    }
+  }
+
+  function renderHeroSlides() {
+    if (!heroSlides.length) {
+      heroSlidesGrid.innerHTML = '';
+      heroSlidesEmptyState.style.display = 'block';
+      return;
+    }
+    heroSlidesEmptyState.style.display = 'none';
+
+    heroSlidesGrid.innerHTML = heroSlides
+      .map((s, i) => {
+        return (
+          '<article class="hero-slide-card">' +
+            '<div class="hero-slide-card-img"><img src="' + s.image + '" alt=""></div>' +
+            '<div class="hero-slide-card-body">' +
+              (s.link ? '<div class="hero-slide-card-link">→ ' + s.link + '</div>' : '<div class="hero-slide-card-link">Sin link (solo decorativa)</div>') +
+              '<div class="hero-slide-card-footer">' +
+                '<div>' +
+                  '<span class="estado-badge ' + (s.active ? 'confirmado' : 'pendiente') + '">' + (s.active ? 'Visible' : 'Oculta') + '</span>' +
+                '</div>' +
+                '<div class="hero-slide-orden">' +
+                  '<button type="button" data-mover-hero="' + s.id + '" data-direccion="up" ' + (i === 0 ? 'disabled' : '') + ' title="Subir">↑</button>' +
+                  '<button type="button" data-mover-hero="' + s.id + '" data-direccion="down" ' + (i === heroSlides.length - 1 ? 'disabled' : '') + ' title="Bajar">↓</button>' +
+                '</div>' +
+              '</div>' +
+              '<div class="hero-slide-card-actions">' +
+                '<button type="button" class="icon-btn" data-editar-hero="' + s.id + '" title="Editar">' + iconoEditar() + '</button>' +
+                '<button type="button" class="icon-btn danger" data-borrar-hero="' + s.id + '" title="Eliminar">' + iconoBorrar() + '</button>' +
+              '</div>' +
+            '</div>' +
+          '</article>'
+        );
+      })
+      .join('');
+
+    heroSlidesGrid.querySelectorAll('[data-mover-hero]').forEach((btn) => {
+      btn.addEventListener('click', () => moverHeroSlide(btn.getAttribute('data-mover-hero'), btn.getAttribute('data-direccion')));
+    });
+    heroSlidesGrid.querySelectorAll('[data-editar-hero]').forEach((btn) => {
+      btn.addEventListener('click', () => abrirModalEdicionHero(btn.getAttribute('data-editar-hero')));
+    });
+    heroSlidesGrid.querySelectorAll('[data-borrar-hero]').forEach((btn) => {
+      btn.addEventListener('click', () => borrarHeroSlide(btn.getAttribute('data-borrar-hero')));
+    });
+  }
+
+  async function moverHeroSlide(id, direccion) {
+    try {
+      const res = await fetch('/api/admin/hero/' + id + '/mover', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ direction: direccion }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'No se pudo reordenar');
+        return;
+      }
+      await cargarHeroSlides();
+    } catch (e) {
+      alert('Error de conexión con el servidor');
+    }
+  }
+
+  // -------- Imagen (una sola por slide) --------
+  function renderHeroImagenGrid() {
+    let html = '';
+    const existente = editandoHeroId ? (heroSlides.find((s) => s.id === editandoHeroId) || {}).image : '';
+
+    if (heroImagenNueva) {
+      const src = URL.createObjectURL(heroImagenNueva);
+      html += '<div class="imagen-tile"><img src="' + src + '" alt=""><button type="button" class="imagen-quitar" id="hero-imagen-quitar" title="Cambiar imagen">✕</button></div>';
+    } else if (existente) {
+      html += '<div class="imagen-tile"><img src="' + existente + '" alt=""></div>';
+    } else {
+      html +=
+        '<button type="button" class="imagen-agregar-tile" id="hero-imagen-agregar-btn">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>' +
+          'Agregar' +
+        '</button>';
+    }
+
+    heroImagenGrid.innerHTML = html;
+
+    const btnAgregar = heroImagenGrid.querySelector('#hero-imagen-agregar-btn');
+    if (btnAgregar) btnAgregar.addEventListener('click', () => heroImagenInput.click());
+
+    const btnQuitar = heroImagenGrid.querySelector('#hero-imagen-quitar');
+    if (btnQuitar) {
+      btnQuitar.addEventListener('click', () => {
+        heroImagenNueva = null;
+        heroImagenInput.value = '';
+        renderHeroImagenGrid();
+      });
+    }
+  }
+
+  heroImagenInput.addEventListener('change', () => {
+    const file = heroImagenInput.files[0];
+    if (!file) return;
+    heroImagenNueva = file;
+    renderHeroImagenGrid();
+  });
+
+  function limpiarFormularioHero() {
+    editandoHeroId = null;
+    heroForm.reset();
+    document.getElementById('hero-id').value = '';
+    document.getElementById('hero-activo').checked = true;
+    heroImagenNueva = null;
+    renderHeroImagenGrid();
+    formHeroError.classList.remove('visible');
+  }
+
+  function abrirModalNuevaHero() {
+    limpiarFormularioHero();
+    modalHeroTitle.textContent = 'Nueva imagen del hero';
+    modalOverlayHero.classList.add('visible');
+  }
+
+  function abrirModalEdicionHero(id) {
+    const s = heroSlides.find((x) => x.id === id);
+    if (!s) return;
+    limpiarFormularioHero();
+    editandoHeroId = id;
+    modalHeroTitle.textContent = 'Editar imagen del hero';
+    document.getElementById('hero-id').value = s.id;
+    document.getElementById('hero-link').value = s.link || '';
+    document.getElementById('hero-activo').checked = !!s.active;
+    renderHeroImagenGrid();
+    modalOverlayHero.classList.add('visible');
+  }
+
+  function cerrarModalHero() {
+    modalOverlayHero.classList.remove('visible');
+  }
+
+  nuevaHeroBtn.addEventListener('click', abrirModalNuevaHero);
+  document.getElementById('modal-hero-close').addEventListener('click', cerrarModalHero);
+  document.getElementById('cancelar-hero-btn').addEventListener('click', cerrarModalHero);
+  modalOverlayHero.addEventListener('click', (e) => {
+    if (e.target === modalOverlayHero) cerrarModalHero();
+  });
+
+  heroForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    formHeroError.classList.remove('visible');
+
+    if (!editandoHeroId && !heroImagenNueva) {
+      formHeroError.textContent = 'Elegí una imagen';
+      formHeroError.classList.add('visible');
+      return;
+    }
+
+    const guardarBtn = document.getElementById('guardar-hero-btn');
+    guardarBtn.disabled = true;
+    guardarBtn.textContent = 'Guardando…';
+
+    const formData = new FormData();
+    formData.append('link', document.getElementById('hero-link').value.trim());
+    formData.append('active', document.getElementById('hero-activo').checked);
+    if (heroImagenNueva) formData.append('imagen', heroImagenNueva);
+
+    try {
+      const url = editandoHeroId ? '/api/admin/hero/' + editandoHeroId : '/api/admin/hero';
+      const method = editandoHeroId ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, body: formData });
+      const data = await res.json();
+
+      if (!res.ok) {
+        formHeroError.textContent = data.error || 'No se pudo guardar la imagen';
+        formHeroError.classList.add('visible');
+        guardarBtn.disabled = false;
+        guardarBtn.textContent = 'Guardar imagen';
+        return;
+      }
+
+      cerrarModalHero();
+      await cargarHeroSlides();
+    } catch (e) {
+      formHeroError.textContent = 'Error de conexión con el servidor';
+      formHeroError.classList.add('visible');
+    } finally {
+      guardarBtn.disabled = false;
+      guardarBtn.textContent = 'Guardar imagen';
+    }
+  });
+
+  async function borrarHeroSlide(id) {
+    const confirmado = window.confirm('¿Eliminar esta imagen del hero? Se borra de la base de datos junto con el archivo, y esta acción no se puede deshacer.');
+    if (!confirmado) return;
+    try {
+      const res = await fetch('/api/admin/hero/' + id, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'No se pudo eliminar la imagen');
+        return;
+      }
+      await cargarHeroSlides();
     } catch (e) {
       alert('Error de conexión con el servidor');
     }
