@@ -17,9 +17,9 @@
   --danger-light:#e0563f;
   --success:#2f9e5b;
 
-  --font-display:'Anton', sans-serif;
-  --font-cond:'Barlow Condensed', sans-serif;
-  --font-body:'Barlow', sans-serif;
+  --font-display:'Anton', 'Segoe UI', Roboto, sans-serif;
+  --font-cond:'Barlow Condensed', 'Segoe UI', Roboto, sans-serif;
+  --font-body:'Barlow', 'Segoe UI', Roboto, sans-serif;
 }
 
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -35,6 +35,9 @@ input, select, textarea{font-family:inherit;}
 
 /* -------- Login -------- */
 .login-page{display:flex; flex-direction:column; min-height:100vh;}
+@supports (min-height:100dvh){
+  .login-page{ min-height:100dvh; }
+}
 .login-wrap{
   flex:1;
   display:flex;
@@ -100,7 +103,7 @@ input, select, textarea{font-family:inherit;}
   padding:11px 14px;
   border-radius:9px;
   border:1.5px solid rgba(111,147,193,0.35);
-  font-size:14.5px;
+  font-size:16px;
   color:var(--ink);
   background:var(--white);
   transition:border-color .15s ease;
@@ -180,6 +183,9 @@ input, select, textarea{font-family:inherit;}
   background:var(--navy-950);
   color:var(--white);
   padding:16px 28px;
+  padding-top:calc(16px + env(safe-area-inset-top, 0px));
+  padding-left:calc(28px + env(safe-area-inset-left, 0px));
+  padding-right:calc(28px + env(safe-area-inset-right, 0px));
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -235,13 +241,13 @@ input, select, textarea{font-family:inherit;}
   border-radius:9px;
   border:1.5px solid rgba(111,147,193,0.35);
   min-width:220px;
-  font-size:14px;
+  font-size:16px;
 }
 .dash-toolbar select{
   padding:10px 14px;
   border-radius:9px;
   border:1.5px solid rgba(111,147,193,0.35);
-  font-size:14px;
+  font-size:16px;
   background:var(--white);
 }
 
