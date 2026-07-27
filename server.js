@@ -148,6 +148,8 @@ function mapNoticia(row) {
     content: row.content || '',
     image: row.image || '',
     video: row.video || '',
+    price: row.price !== null && row.price !== undefined ? Number(row.price) : null,
+    oldPrice: row.old_price !== null && row.old_price !== undefined ? Number(row.old_price) : null,
     active: row.active,
     createdAt: row.created_at,
   };
@@ -843,7 +845,7 @@ function manejarErrorMulter(err, req, res, next) {
 
 app.post('/api/admin/news', requireAuth, novedadUploadFields, manejarErrorMulter, async (req, res) => {
   try {
-    const { title, tag, content, active } = req.body;
+    const { title, tag, content, active, price, oldPrice } = req.body;
     if (!title) {
       return res.status(400).json({ error: 'El título es obligatorio' });
     }
@@ -865,6 +867,8 @@ app.post('/api/admin/news', requireAuth, novedadUploadFields, manejarErrorMulter
       content: content ? String(content).trim() : '',
       image: imageUrl,
       video: videoUrl,
+      price: price ? Number(price) : null,
+      old_price: oldPrice ? Number(oldPrice) : null,
       active: active === undefined ? true : active === 'true' || active === true,
     };
 
@@ -888,13 +892,15 @@ app.put('/api/admin/news/:id', requireAuth, novedadUploadFields, manejarErrorMul
     if (findError) throw findError;
     if (!existing) return res.status(404).json({ error: 'Novedad no encontrada' });
 
-    const { title, tag, content, active, quitarImagen, quitarVideo } = req.body;
+    const { title, tag, content, active, quitarImagen, quitarVideo, price, oldPrice } = req.body;
 
     const cambios = {};
     if (title !== undefined) cambios.title = String(title).trim();
     if (tag !== undefined) cambios.tag = String(tag).trim();
     if (content !== undefined) cambios.content = String(content).trim();
     if (active !== undefined) cambios.active = active === 'true' || active === true;
+    if (price !== undefined) cambios.price = price === '' ? null : Number(price);
+    if (oldPrice !== undefined) cambios.old_price = oldPrice === '' ? null : Number(oldPrice);
 
     const nuevoArchivoVideo = req.files?.video?.[0];
     const nuevoArchivoImagen = req.files?.imagen?.[0];
