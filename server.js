@@ -40,6 +40,20 @@ const upload = multer({
   },
 });
 
+// Multer aparte para Novedades, que además de imagen puede llevar un video.
+// Límite más alto porque un video pesa más, aunque sea corto.
+const VIDEO_MAX_MB = 20;
+const uploadNovedad = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: VIDEO_MAX_MB * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const esImagen = /^image\/(jpeg|png|webp|gif)$/.test(file.mimetype);
+    const esVideo = /^video\/(mp4|webm|quicktime)$/.test(file.mimetype);
+    if (esImagen || esVideo) cb(null, true);
+    else cb(new Error('Formato no permitido (usá JPG, PNG, WEBP, MP4 o WEBM)'));
+  },
+});
+
 // Redimensiona (máx. 1600px de lado más largo) y convierte a WebP para que
 // las imágenes de producto ocupen bastante menos espacio en Storage y carguen
 // más rápido en el sitio. Los GIF se suben tal cual (para no perder la
@@ -63,6 +77,27 @@ async function subirImagen(file) {
   const { error } = await supabase.storage
     .from(STORAGE_BUCKET)
     .upload(filename, buffer, { contentType, upsert: false });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filename);
+  return { url: data.publicUrl, path: filename };
+}
+
+// Los videos NO se recomprimen en el servidor: transcodificar video pide
+// bastante más tiempo y memoria de los que da una función serverless de
+// Vercel, y podría hacer fallar (o tumbar) el despliegue igual que pasó con
+// sharp. Por eso: se valida tamaño/formato y se sube tal cual. Si querés
+// controlar bien el peso, comprimí el video antes de subirlo (con el editor
+// del celular o alguna web gratuita) — subiendo clips cortos (10-15s) en MP4
+// ya se mantiene liviano.
+async function subirVideo(file) {
+  const extPorMime = { 'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov' };
+  const ext = extPorMime[file.mimetype] || '.mp4';
+  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+
+  const { error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(filename, file.buffer, { contentType: file.mimetype, upsert: false });
   if (error) throw error;
 
   const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filename);
@@ -102,6 +137,19 @@ function mapProducto(row) {
     active: row.active,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function mapNoticia(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    tag: row.tag || '',
+    content: row.content || '',
+    image: row.image || '',
+    video: row.video || '',
+    active: row.active,
+    createdAt: row.created_at,
   };
 }
 
@@ -733,6 +781,168 @@ app.delete('/api/admin/reviews/:id', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al eliminar la reseña' });
+  }
+});
+
+// ---------- Noticias / Novedades: API pública ----------
+// Solo devuelve las activas, para mostrar en index.html.
+app.get('/api/news', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('news')
+      .select('*')
+      .eq('active', true)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json((data || []).map(mapNoticia));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las novedades' });
+  }
+});
+
+// ---------- Noticias / Novedades: API de administración (protegida) ----------
+app.get('/api/admin/news', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('news').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json((data || []).map(mapNoticia));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las novedades' });
+  }
+});
+
+const novedadUploadFields = uploadNovedad.fields([
+  { name: 'imagen', maxCount: 1 },
+  { name: 'video', maxCount: 1 },
+]);
+
+// Middleware para convertir errores de multer (ej: archivo muy pesado) en un
+// JSON prolijo en vez de que Express tire un error feo sin manejar.
+function manejarErrorMulter(err, req, res, next) {
+  if (err) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: `El archivo supera el máximo permitido (${VIDEO_MAX_MB}MB para video, 5MB para imagen).` });
+    }
+    return res.status(400).json({ error: err.message || 'No se pudo procesar el archivo' });
+  }
+  next();
+}
+
+app.post('/api/admin/news', requireAuth, novedadUploadFields, manejarErrorMulter, async (req, res) => {
+  try {
+    const { title, tag, content, active } = req.body;
+    if (!title) {
+      return res.status(400).json({ error: 'El título es obligatorio' });
+    }
+
+    let imageUrl = '';
+    let videoUrl = '';
+    // Es imagen O video, no los dos: si mandaron ambos por error, se prioriza el video.
+    if (req.files?.video?.[0]) {
+      const subida = await subirVideo(req.files.video[0]);
+      videoUrl = subida.url;
+    } else if (req.files?.imagen?.[0]) {
+      const subida = await subirImagen(req.files.imagen[0]);
+      imageUrl = subida.url;
+    }
+
+    const nueva = {
+      title: String(title).trim(),
+      tag: tag ? String(tag).trim() : '',
+      content: content ? String(content).trim() : '',
+      image: imageUrl,
+      video: videoUrl,
+      active: active === undefined ? true : active === 'true' || active === true,
+    };
+
+    const { data, error } = await supabase.from('news').insert(nueva).select().single();
+    if (error) throw error;
+
+    res.status(201).json(mapNoticia(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear la novedad' });
+  }
+});
+
+app.put('/api/admin/news/:id', requireAuth, novedadUploadFields, manejarErrorMulter, async (req, res) => {
+  try {
+    const { data: existing, error: findError } = await supabase
+      .from('news')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (findError) throw findError;
+    if (!existing) return res.status(404).json({ error: 'Novedad no encontrada' });
+
+    const { title, tag, content, active, quitarImagen, quitarVideo } = req.body;
+
+    const cambios = {};
+    if (title !== undefined) cambios.title = String(title).trim();
+    if (tag !== undefined) cambios.tag = String(tag).trim();
+    if (content !== undefined) cambios.content = String(content).trim();
+    if (active !== undefined) cambios.active = active === 'true' || active === true;
+
+    const nuevoArchivoVideo = req.files?.video?.[0];
+    const nuevoArchivoImagen = req.files?.imagen?.[0];
+
+    if (nuevoArchivoVideo) {
+      // Subieron un video nuevo: reemplaza a lo que hubiera antes (imagen o video).
+      const subida = await subirVideo(nuevoArchivoVideo);
+      cambios.video = subida.url;
+      cambios.image = '';
+      if (existing.video) await borrarImagenPorUrl(existing.video);
+      if (existing.image) await borrarImagenPorUrl(existing.image);
+    } else if (nuevoArchivoImagen) {
+      const subida = await subirImagen(nuevoArchivoImagen);
+      cambios.image = subida.url;
+      cambios.video = '';
+      if (existing.image) await borrarImagenPorUrl(existing.image);
+      if (existing.video) await borrarImagenPorUrl(existing.video);
+    } else {
+      if (quitarImagen === 'true' && existing.image) {
+        await borrarImagenPorUrl(existing.image);
+        cambios.image = '';
+      }
+      if (quitarVideo === 'true' && existing.video) {
+        await borrarImagenPorUrl(existing.video);
+        cambios.video = '';
+      }
+    }
+
+    const { data, error } = await supabase.from('news').update(cambios).eq('id', req.params.id).select().single();
+    if (error) throw error;
+
+    res.json(mapNoticia(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar la novedad' });
+  }
+});
+
+app.delete('/api/admin/news/:id', requireAuth, async (req, res) => {
+  try {
+    const { data: existing, error: findError } = await supabase
+      .from('news')
+      .select('image, video')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (findError) throw findError;
+    if (!existing) return res.status(404).json({ error: 'Novedad no encontrada' });
+
+    const { error } = await supabase.from('news').delete().eq('id', req.params.id);
+    if (error) throw error;
+
+    // Borrado de raíz: además de la fila, borramos la imagen y/o el video
+    // del Storage para no dejar nada ocupando espacio.
+    await Promise.all([borrarImagenPorUrl(existing.image), borrarImagenPorUrl(existing.video)]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar la novedad' });
   }
 });
 
