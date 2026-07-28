@@ -284,15 +284,10 @@
   .detalle-precio-row{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
   .detalle-precio{ font-family:var(--font-display); font-size:32px; font-weight:800; color:var(--navy-900); }
   .detalle-precio-anterior{ font-size:16px; color:#9aa8bb; text-decoration:line-through; }
-  .detalle-precio-label{
-    font-size:11px; color:var(--steel-600); text-transform:uppercase; letter-spacing:0.03em;
-    margin-top:2px;
-  }
-  .detalle-precio-tarjeta{ font-size:14.5px; color:var(--steel-600); margin-top:4px; }
   .detalle-cuotas{
-    display:inline-block; margin-top:8px; padding:6px 12px; border-radius:8px;
-    background:var(--bg-soft); border:1px solid var(--line);
-    font-family:var(--font-body); font-weight:700; font-size:13.5px; color:var(--accent);
+    display:inline-flex; align-items:center; gap:8px; margin-top:10px; padding:9px 16px; border-radius:10px;
+    background:rgba(47,111,176,0.1); border:1.5px solid var(--accent);
+    font-family:var(--font-body); font-weight:800; font-size:16px; color:var(--accent);
   }
   .detalle-sabores{ margin:14px 0; }
   .detalle-sabores-label{
@@ -602,9 +597,7 @@
               '<span class="detalle-precio">' + formatearPrecio(p.price) + '</span>' +
               (tieneOferta ? '<span class="detalle-precio-anterior">' + formatearPrecio(p.oldPrice) + '</span>' : '') +
             '</div>' +
-            (p.cardPrice ? '<div class="detalle-precio-label">Efectivo/transferencia</div>' : '') +
-            (p.cardPrice ? '<div class="detalle-precio-tarjeta">' + formatearPrecio(p.cardPrice) + ' con tarjeta</div>' : '') +
-            (cuotasTexto ? '<div class="detalle-cuotas">' + cuotasTexto + '</div>' : '') +
+            (cuotasTexto ? '<div class="detalle-cuotas">💳 ' + cuotasTexto + '</div>' : '') +
           '</div>' +
           (sabores.length ?
             '<div class="detalle-sabores">' +
