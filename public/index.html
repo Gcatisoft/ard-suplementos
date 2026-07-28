@@ -570,8 +570,9 @@
     transition:transform .18s ease, box-shadow .18s ease;
   }
   .novedad-card-home:hover{ transform:translateY(-4px); box-shadow:0 14px 26px rgba(10,22,38,0.12); }
-  .novedad-card-home-img{ width:100%; height:170px; background:var(--steel-100); overflow:hidden; position:relative; }
-  .novedad-card-home-img img, .novedad-card-home-img video{ width:100%; height:100%; object-fit:cover; display:block; }
+  .novedad-card-home-img{ width:100%; height:240px; background:var(--navy-950); overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; }
+  .novedad-card-home-img img{ width:100%; height:100%; object-fit:contain; display:block; }
+  .novedad-card-home-img video{ width:100%; height:100%; object-fit:cover; display:block; }
   .novedad-card-home-play{
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     background:rgba(10,22,38,0.15); pointer-events:none;
@@ -603,9 +604,8 @@
   .novedad-card-home-fecha{ font-family:var(--font-body); font-size:11.5px; color:#9aa8bb; margin-top:2px; }
   @media (max-width:560px){
     .novedades-grid-home{ grid-template-columns:1fr; }
+    .novedad-card-home-img{ height:200px; }
   }
-
-  /* -------- Modal de novedad (leer todo) -------- */
   .novedad-modal-overlay{
     position:fixed; inset:0; background:rgba(10,14,22,0.6); z-index:200;
     display:flex; align-items:center; justify-content:center; padding:20px;
@@ -900,6 +900,18 @@
   </div>
 </section>
 
+<section class="novedades-section" id="novedades">
+  <div class="wrap">
+    <div class="section-head">
+      <span>Enterate primero</span>
+      <h2>Novedades y ofertas</h2>
+    </div>
+    <div class="novedades-grid-home" id="novedades-grid-home">
+      <div class="novedades-vacio">Cargando novedades…</div>
+    </div>
+  </div>
+</section>
+
 <section class="hero" id="hero">
   <div class="hero-viewport" id="hero-viewport">
     <img class="hero-img active" src="ard12.png" alt="ARD Suplementos" fetchpriority="high" decoding="async">
@@ -964,18 +976,6 @@
       <div class="carousel-track" id="track-destacados">
         <div class="carousel-empty">Cargando productos…</div>
       </div>
-    </div>
-  </div>
-</section>
-
-<section class="novedades-section" id="novedades">
-  <div class="wrap">
-    <div class="section-head">
-      <span>Enterate primero</span>
-      <h2>Novedades y ofertas</h2>
-    </div>
-    <div class="novedades-grid-home" id="novedades-grid-home">
-      <div class="novedades-vacio">Cargando novedades…</div>
     </div>
   </div>
 </section>
