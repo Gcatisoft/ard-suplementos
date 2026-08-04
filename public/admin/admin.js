@@ -901,6 +901,7 @@
     const payload = {
       amount: document.getElementById('venta-monto').value,
       purchaseDate: document.getElementById('venta-fecha').value,
+      items: document.getElementById('venta-productos').value.trim(),
       note: document.getElementById('venta-nota').value.trim(),
     };
 
@@ -960,6 +961,7 @@
         return (
           '<tr>' +
           '<td>' + fecha + '</td>' +
+          '<td>' + (v.items || '—') + '</td>' +
           '<td>' + formatearPrecio(v.amount) + '</td>' +
           '<td>' + origen + '</td>' +
           '<td>' + (v.note || '—') + '</td>' +
