@@ -1196,7 +1196,10 @@ app.delete('/api/admin/hero/:id', requireAuth, async (req, res) => {
 app.get('/api/admin/customers', requireAuth, async (req, res) => {
   try {
     const [{ data: customers, error: errCustomers }, { data: purchases, error: errPurchases }] = await Promise.all([
-      supabase.from('customers').select('*'),
+      // Solo los que tienen teléfono cargado: son los contactos de seguimiento
+      // de ventas (manuales o de pedidos web). Los que entraron con Google y
+      // nunca dejaron teléfono no forman parte de este listado.
+      supabase.from('customers').select('*').not('phone', 'is', null),
       supabase.from('customer_purchases').select('customer_id, amount, purchase_date'),
     ]);
     if (errCustomers) throw errCustomers;
@@ -1291,7 +1294,7 @@ app.post('/api/admin/customers', requireAuth, async (req, res) => {
     res.status(201).json(mapCustomer(data));
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error al crear el cliente', detalle: err.message || String(err) });
+    res.status(500).json({ error: 'Error al crear el cliente' });
   }
 });
 
