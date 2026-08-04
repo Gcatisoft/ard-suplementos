@@ -427,6 +427,7 @@
   <nav class="tabs-nav">
     <button type="button" class="tab-btn active" data-tab="productos">Productos</button>
     <button type="button" class="tab-btn" data-tab="pedidos">Pedidos y ventas</button>
+    <button type="button" class="tab-btn" data-tab="clientes">Clientes <span class="tab-badge" id="clientes-badge" style="display:none;"></span></button>
     <button type="button" class="tab-btn" data-tab="resenas">Reseñas <span class="tab-badge" id="resenas-badge" style="display:none;"></span></button>
     <button type="button" class="tab-btn" data-tab="novedades">Novedades</button>
     <button type="button" class="tab-btn" data-tab="hero">Imágenes del hero</button>
@@ -517,6 +518,60 @@
       </table>
       <div class="empty-state" id="pedidos-empty-state" style="display:none;">
         Todavía no hay pedidos registrados.
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: CLIENTES ================= -->
+  <section class="tab-panel" id="tab-clientes">
+
+    <div class="stats-row">
+      <div class="stat-card"><div class="num" id="cliente-stat-total">0</div><div class="label">Clientes totales</div></div>
+      <div class="stat-card"><div class="num" id="cliente-stat-al-dia">0</div><div class="label">Compraron hace poco</div></div>
+      <div class="stat-card"><div class="num" id="cliente-stat-atender">0</div><div class="label">Para contactar</div></div>
+      <div class="stat-card"><div class="num" id="cliente-stat-ingresos">$0</div><div class="label">Total vendido</div></div>
+    </div>
+
+    <div class="dash-toolbar">
+      <div class="filters">
+        <input type="search" id="cliente-buscador" placeholder="Buscar por nombre o teléfono…">
+        <select id="cliente-filtro-estado">
+          <option value="">Todos los clientes</option>
+          <option value="atender">Para contactar</option>
+          <option value="al-dia">Compraron hace poco</option>
+          <option value="nunca">Nunca compraron</option>
+        </select>
+        <select id="cliente-umbral-dias" title="A partir de cuántos días sin comprar se marca 'para contactar'">
+          <option value="15">+15 días sin comprar</option>
+          <option value="30" selected>+30 días sin comprar</option>
+          <option value="45">+45 días sin comprar</option>
+          <option value="60">+60 días sin comprar</option>
+          <option value="90">+90 días sin comprar</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="cliente-nuevo-btn" style="width:auto;">+ Nuevo cliente</button>
+    </div>
+
+    <div class="tabla-wrap">
+      <table class="productos-tabla">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Teléfono</th>
+            <th>Última compra</th>
+            <th>Hace</th>
+            <th>Compras</th>
+            <th>Total gastado</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="cliente-tabla-body">
+          <!-- filas dinámicas -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="cliente-empty-state" style="display:none;">
+        Todavía no cargaste ningún cliente. Los pedidos que lleguen por el sitio se van a agregar solos acá, o podés cargar uno a mano con "+ Nuevo cliente".
       </div>
     </div>
   </section>
@@ -869,6 +924,113 @@
         <button type="submit" class="btn btn-primary" id="guardar-hero-btn" style="width:auto;">Guardar imagen</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ============ MODAL CLIENTE (nuevo / editar) ============ -->
+<div class="modal-overlay" id="modal-overlay-cliente">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h2 id="modal-cliente-title">Nuevo cliente</h2>
+      <button class="modal-close" id="modal-cliente-close" type="button">✕</button>
+    </div>
+
+    <div class="error-msg" id="form-cliente-error"></div>
+
+    <form id="cliente-form">
+      <input type="hidden" id="cliente-id">
+
+      <div class="form-group">
+        <label for="cliente-nombre">Nombre *</label>
+        <input type="text" id="cliente-nombre" required placeholder="Nombre y apellido">
+      </div>
+
+      <div class="form-group">
+        <label for="cliente-telefono">Teléfono (WhatsApp) *</label>
+        <input type="text" id="cliente-telefono" required placeholder="Ej: 3834123456">
+        <div class="form-hint">Con código de área, sin espacios ni guiones. Se usa para el link directo de WhatsApp.</div>
+      </div>
+
+      <div class="form-group">
+        <label for="cliente-notas">Notas (opcional)</label>
+        <textarea id="cliente-notas" placeholder="Ej: prefiere sabor chocolate, compra cada mes, etc."></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-cliente-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="guardar-cliente-btn" style="width:auto;">Guardar cliente</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL VENTA (cargar una compra a mano) ============ -->
+<div class="modal-overlay" id="modal-overlay-venta">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h2>Registrar venta</h2>
+      <button class="modal-close" id="modal-venta-close" type="button">✕</button>
+    </div>
+
+    <div class="error-msg" id="form-venta-error"></div>
+
+    <form id="venta-form">
+      <input type="hidden" id="venta-cliente-id">
+
+      <div class="form-group">
+        <label for="venta-monto">Monto (ARS) *</label>
+        <input type="number" id="venta-monto" min="0" step="1" required placeholder="0">
+      </div>
+
+      <div class="form-group">
+        <label for="venta-fecha">Fecha *</label>
+        <input type="date" id="venta-fecha" required>
+      </div>
+
+      <div class="form-group">
+        <label for="venta-nota">Nota (opcional)</label>
+        <input type="text" id="venta-nota" placeholder="Ej: venta en el local">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-venta-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="guardar-venta-btn" style="width:auto;">Guardar venta</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL HISTORIAL DE COMPRAS ============ -->
+<div class="modal-overlay" id="modal-overlay-historial">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <h2 id="modal-historial-title">Historial de compras</h2>
+      <button class="modal-close" id="modal-historial-close" type="button">✕</button>
+    </div>
+
+    <div class="tabla-wrap" style="box-shadow:none;border-radius:12px;">
+      <table class="pedidos-tabla">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Monto</th>
+            <th>Origen</th>
+            <th>Nota</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="historial-tabla-body">
+          <!-- filas dinámicas -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="historial-empty-state" style="display:none;padding:30px 20px;">
+        Todavía no hay compras registradas para este cliente.
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-primary" id="historial-agregar-venta-btn" style="width:auto;">+ Registrar venta</button>
+    </div>
   </div>
 </div>
 
