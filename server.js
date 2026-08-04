@@ -155,6 +155,60 @@ function mapNoticia(row) {
   };
 }
 
+function mapCustomer(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    phone: row.phone,
+    notes: row.notes || '',
+    contactedAt: row.contacted_at || null,
+    createdAt: row.created_at,
+  };
+}
+
+function mapPurchase(row) {
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    amount: Number(row.amount),
+    purchaseDate: row.purchase_date,
+    note: row.note || '',
+    source: row.source,
+    createdAt: row.created_at,
+  };
+}
+
+// Deja solo dígitos, para poder matchear el mismo cliente aunque escriban
+// el teléfono con espacios, guiones, +54, etc.
+function normalizarTelefono(tel) {
+  return String(tel || '').replace(/\D/g, '');
+}
+
+// Busca un cliente por teléfono normalizado; si no existe, lo crea.
+// Se usa tanto desde el checkout público (pedidos por WhatsApp) como
+// desde el alta manual en el panel, para no duplicar clientes.
+async function buscarOCrearCliente({ name, phone }) {
+  const telNormalizado = normalizarTelefono(phone);
+  if (!telNormalizado) return null;
+
+  const { data: existente, error: errBuscar } = await supabase
+    .from('customers')
+    .select('*')
+    .eq('phone', telNormalizado)
+    .maybeSingle();
+  if (errBuscar) throw errBuscar;
+
+  if (existente) return existente;
+
+  const { data: nuevo, error: errCrear } = await supabase
+    .from('customers')
+    .insert({ name: String(name || 'Sin nombre').trim(), phone: telNormalizado })
+    .select()
+    .single();
+  if (errCrear) throw errCrear;
+  return nuevo;
+}
+
 function mapHeroSlide(row) {
   return {
     id: row.id,
@@ -608,6 +662,27 @@ app.post('/api/orders', async (req, res) => {
 
     const { data, error } = await supabase.from('orders').insert(nuevo).select().single();
     if (error) throw error;
+
+    // Enganchamos el pedido con el módulo de Clientes: buscamos (o creamos)
+    // al cliente por teléfono y le sumamos esta compra a su historial, así
+    // el seguimiento de "hace cuánto no compra" queda al día solo, sin que
+    // tengas que cargar nada a mano para los pedidos que salen del sitio.
+    try {
+      const cliente = await buscarOCrearCliente({ name: customerName, phone: customerPhone });
+      if (cliente) {
+        await supabase.from('customer_purchases').insert({
+          customer_id: cliente.id,
+          amount: total,
+          purchase_date: new Date().toISOString().slice(0, 10),
+          note: 'Pedido web #' + data.order_number,
+          source: 'web',
+          order_id: data.id,
+        });
+      }
+    } catch (errCliente) {
+      // No frenamos el pedido si esto falla; el pedido ya quedó registrado.
+      console.error('No se pudo vincular el pedido con el módulo de clientes:', errCliente.message);
+    }
 
     res.status(201).json(mapOrder(data));
   } catch (err) {
@@ -1106,6 +1181,214 @@ app.delete('/api/admin/hero/:id', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al eliminar la imagen del hero' });
+  }
+});
+
+// ============================================================
+// ---------- Clientes: CRM liviano de seguimiento de ventas ----------
+// ============================================================
+// Todo protegido (requireAuth): esto es solo para el panel de administración.
+
+// Lista de clientes con sus datos agregados (última compra, total gastado,
+// días sin comprar). Se calcula acá en el servidor en vez de guardarlo en
+// la base, para no duplicar datos: la base solo guarda clientes + compras,
+// y el resumen se arma al vuelo con lo que ya está.
+app.get('/api/admin/customers', requireAuth, async (req, res) => {
+  try {
+    const [{ data: customers, error: errCustomers }, { data: purchases, error: errPurchases }] = await Promise.all([
+      supabase.from('customers').select('*'),
+      supabase.from('customer_purchases').select('customer_id, amount, purchase_date'),
+    ]);
+    if (errCustomers) throw errCustomers;
+    if (errPurchases) throw errPurchases;
+
+    const porCliente = new Map();
+    (purchases || []).forEach((p) => {
+      const acc = porCliente.get(p.customer_id) || { totalGastado: 0, cantidadCompras: 0, ultimaCompra: null };
+      acc.totalGastado += Number(p.amount) || 0;
+      acc.cantidadCompras += 1;
+      if (!acc.ultimaCompra || p.purchase_date > acc.ultimaCompra) acc.ultimaCompra = p.purchase_date;
+      porCliente.set(p.customer_id, acc);
+    });
+
+    const hoy = new Date();
+    const resultado = (customers || []).map((c) => {
+      const agg = porCliente.get(c.id) || { totalGastado: 0, cantidadCompras: 0, ultimaCompra: null };
+      let diasSinComprar = null;
+      if (agg.ultimaCompra) {
+        const ms = hoy - new Date(agg.ultimaCompra + 'T00:00:00');
+        diasSinComprar = Math.floor(ms / (1000 * 60 * 60 * 24));
+      }
+      return {
+        ...mapCustomer(c),
+        totalGastado: agg.totalGastado,
+        cantidadCompras: agg.cantidadCompras,
+        ultimaCompra: agg.ultimaCompra,
+        diasSinComprar,
+      };
+    });
+
+    resultado.sort((a, b) => {
+      // Primero los que compraron alguna vez (por fecha más reciente), al final los que nunca compraron.
+      if (a.ultimaCompra && b.ultimaCompra) return b.ultimaCompra.localeCompare(a.ultimaCompra);
+      if (a.ultimaCompra) return -1;
+      if (b.ultimaCompra) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    res.json(resultado);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener los clientes' });
+  }
+});
+
+app.get('/api/admin/customers/:id', requireAuth, async (req, res) => {
+  try {
+    const { data: cliente, error: errCliente } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (errCliente) throw errCliente;
+    if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+    const { data: compras, error: errCompras } = await supabase
+      .from('customer_purchases')
+      .select('*')
+      .eq('customer_id', req.params.id)
+      .order('purchase_date', { ascending: false });
+    if (errCompras) throw errCompras;
+
+    res.json({ ...mapCustomer(cliente), compras: (compras || []).map(mapPurchase) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener el cliente' });
+  }
+});
+
+app.post('/api/admin/customers', requireAuth, async (req, res) => {
+  try {
+    const { name, phone, notes } = req.body || {};
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Nombre y teléfono son obligatorios' });
+    }
+    const telNormalizado = normalizarTelefono(phone);
+    if (!telNormalizado) {
+      return res.status(400).json({ error: 'El teléfono no es válido' });
+    }
+
+    const { data, error } = await supabase
+      .from('customers')
+      .insert({ name: String(name).trim(), phone: telNormalizado, notes: notes ? String(notes).trim() : '' })
+      .select()
+      .single();
+    if (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'Ya existe un cliente con ese teléfono' });
+      throw error;
+    }
+
+    res.status(201).json(mapCustomer(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear el cliente' });
+  }
+});
+
+app.put('/api/admin/customers/:id', requireAuth, async (req, res) => {
+  try {
+    const { name, phone, notes, contactedAt } = req.body || {};
+    const cambios = {};
+    if (name !== undefined) cambios.name = String(name).trim();
+    if (phone !== undefined) {
+      const telNormalizado = normalizarTelefono(phone);
+      if (!telNormalizado) return res.status(400).json({ error: 'El teléfono no es válido' });
+      cambios.phone = telNormalizado;
+    }
+    if (notes !== undefined) cambios.notes = String(notes).trim();
+    if (contactedAt !== undefined) cambios.contacted_at = contactedAt || null;
+
+    const { data, error } = await supabase.from('customers').update(cambios).eq('id', req.params.id).select().single();
+    if (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'Ya existe un cliente con ese teléfono' });
+      throw error;
+    }
+    if (!data) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+    res.json(mapCustomer(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar el cliente' });
+  }
+});
+
+// Marca "lo contacté ahora" (para no perder de vista a quién ya le escribiste).
+app.post('/api/admin/customers/:id/contactado', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .update({ contacted_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Cliente no encontrado' });
+    res.json(mapCustomer(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al marcar el contacto' });
+  }
+});
+
+app.delete('/api/admin/customers/:id', requireAuth, async (req, res) => {
+  try {
+    const { error } = await supabase.from('customers').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar el cliente' });
+  }
+});
+
+// ---------- Compras de un cliente (carga manual de ventas) ----------
+app.post('/api/admin/customers/:id/purchases', requireAuth, async (req, res) => {
+  try {
+    const { amount, purchaseDate, note } = req.body || {};
+    if (amount === undefined || amount === '' || isNaN(Number(amount))) {
+      return res.status(400).json({ error: 'El monto es obligatorio' });
+    }
+
+    const nuevo = {
+      customer_id: req.params.id,
+      amount: Number(amount),
+      purchase_date: purchaseDate || new Date().toISOString().slice(0, 10),
+      note: note ? String(note).trim() : '',
+      source: 'manual',
+    };
+
+    const { data, error } = await supabase.from('customer_purchases').insert(nuevo).select().single();
+    if (error) throw error;
+
+    res.status(201).json(mapPurchase(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al registrar la venta' });
+  }
+});
+
+app.delete('/api/admin/customers/:customerId/purchases/:purchaseId', requireAuth, async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('customer_purchases')
+      .delete()
+      .eq('id', req.params.purchaseId)
+      .eq('customer_id', req.params.customerId);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar la venta' });
   }
 });
 
