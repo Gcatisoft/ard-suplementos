@@ -988,6 +988,12 @@
       </div>
 
       <div class="form-group">
+        <label for="venta-productos">¿Qué compró?</label>
+        <input type="text" id="venta-productos" placeholder="Ej: 2x Proteína Chocolate, 1x Creatina">
+        <div class="form-hint">Así queda registrado en el listado de ventas de este cliente.</div>
+      </div>
+
+      <div class="form-group">
         <label for="venta-nota">Nota (opcional)</label>
         <input type="text" id="venta-nota" placeholder="Ej: venta en el local">
       </div>
@@ -1002,7 +1008,7 @@
 
 <!-- ============ MODAL HISTORIAL DE COMPRAS ============ -->
 <div class="modal-overlay" id="modal-overlay-historial">
-  <div class="modal" style="max-width:560px;">
+  <div class="modal" style="max-width:680px;">
     <div class="modal-header">
       <h2 id="modal-historial-title">Historial de compras</h2>
       <button class="modal-close" id="modal-historial-close" type="button">✕</button>
@@ -1013,6 +1019,7 @@
         <thead>
           <tr>
             <th>Fecha</th>
+            <th>Productos</th>
             <th>Monto</th>
             <th>Origen</th>
             <th>Nota</th>
