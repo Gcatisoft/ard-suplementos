@@ -173,6 +173,7 @@ function mapPurchase(row) {
     amount: Number(row.amount),
     purchaseDate: row.purchase_date,
     note: row.note || '',
+    items: row.items || '',
     source: row.source,
     createdAt: row.created_at,
   };
@@ -670,11 +671,15 @@ app.post('/api/orders', async (req, res) => {
     try {
       const cliente = await buscarOCrearCliente({ name: customerName, phone: customerPhone });
       if (cliente) {
+        const itemsTexto = items
+          .map((it) => (Number(it.qty) || 1) + 'x ' + it.name + (it.flavor ? ' (' + it.flavor + ')' : ''))
+          .join(', ');
         await supabase.from('customer_purchases').insert({
           customer_id: cliente.id,
           amount: total,
           purchase_date: new Date().toISOString().slice(0, 10),
           note: 'Pedido web #' + data.order_number,
+          items: itemsTexto,
           source: 'web',
           order_id: data.id,
         });
@@ -1357,7 +1362,7 @@ app.delete('/api/admin/customers/:id', requireAuth, async (req, res) => {
 // ---------- Compras de un cliente (carga manual de ventas) ----------
 app.post('/api/admin/customers/:id/purchases', requireAuth, async (req, res) => {
   try {
-    const { amount, purchaseDate, note } = req.body || {};
+    const { amount, purchaseDate, note, items } = req.body || {};
     if (amount === undefined || amount === '' || isNaN(Number(amount))) {
       return res.status(400).json({ error: 'El monto es obligatorio' });
     }
@@ -1367,6 +1372,7 @@ app.post('/api/admin/customers/:id/purchases', requireAuth, async (req, res) => 
       amount: Number(amount),
       purchase_date: purchaseDate || new Date().toISOString().slice(0, 10),
       note: note ? String(note).trim() : '',
+      items: items ? String(items).trim() : '',
       source: 'manual',
     };
 
