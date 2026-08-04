@@ -1291,7 +1291,7 @@ app.post('/api/admin/customers', requireAuth, async (req, res) => {
     res.status(201).json(mapCustomer(data));
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Error al crear el cliente' });
+    res.status(500).json({ error: 'Error al crear el cliente', detalle: err.message || String(err) });
   }
 });
 
