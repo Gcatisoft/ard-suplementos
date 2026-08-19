@@ -40,6 +40,21 @@ const upload = multer({
   },
 });
 
+// Middleware para convertir errores de multer (archivo muy pesado o formato
+// no permitido) en un JSON prolijo, en vez de que Express devuelva una
+// página de error HTML que el panel no puede interpretar (y que se termina
+// viendo como "Error de conexión con el servidor" aunque el problema real
+// sea, por ejemplo, que la foto pesa más de 5MB).
+function manejarErrorImagen(err, req, res, next) {
+  if (err) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'La imagen supera el máximo permitido (5MB). Achicá el archivo e intentá de nuevo.' });
+    }
+    return res.status(400).json({ error: err.message || 'No se pudo procesar la imagen' });
+  }
+  next();
+}
+
 // Multer aparte para Novedades, que además de imagen puede llevar un video.
 // Límite más alto porque un video pesa más, aunque sea corto.
 const VIDEO_MAX_MB = 20;
@@ -476,7 +491,7 @@ app.get('/api/admin/products/:id', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), async (req, res) => {
+app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), manejarErrorImagen, async (req, res) => {
   try {
     const { name, brand, category, price, oldPrice, cardPrice, stock, description, featured, active, imageUrl, flavors, installments } = req.body;
     if (!name || !category || price === undefined || price === '') {
@@ -518,7 +533,7 @@ app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), async 
   }
 });
 
-app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), async (req, res) => {
+app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), manejarErrorImagen, async (req, res) => {
   try {
     const { data: existing, error: findError } = await supabase
       .from('products')
@@ -1070,7 +1085,7 @@ app.get('/api/admin/hero', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/admin/hero', requireAuth, upload.single('imagen'), async (req, res) => {
+app.post('/api/admin/hero', requireAuth, upload.single('imagen'), manejarErrorImagen, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'La imagen es obligatoria' });
@@ -1104,7 +1119,7 @@ app.post('/api/admin/hero', requireAuth, upload.single('imagen'), async (req, re
   }
 });
 
-app.put('/api/admin/hero/:id', requireAuth, upload.single('imagen'), async (req, res) => {
+app.put('/api/admin/hero/:id', requireAuth, upload.single('imagen'), manejarErrorImagen, async (req, res) => {
   try {
     const { data: existing, error: findError } = await supabase
       .from('hero_slides')
@@ -1404,6 +1419,16 @@ app.delete('/api/admin/customers/:customerId/purchases/:purchaseId', requireAuth
 // Ruta directa al panel admin
 app.get('/admin', (req, res) => {
   res.redirect('/admin/login.html');
+});
+
+// Red de seguridad: cualquier error que se nos haya escapado sin capturar
+// (en cualquier ruta) devuelve JSON en vez de la página de error HTML de
+// Express, para que el panel siempre pueda mostrar un mensaje entendible en
+// vez de "Error de conexión con el servidor".
+app.use((err, req, res, next) => {
+  console.error('Error no manejado:', err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'Ocurrió un error inesperado en el servidor' });
 });
 
 app.listen(PORT, () => {
