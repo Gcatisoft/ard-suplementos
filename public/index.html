@@ -1105,7 +1105,7 @@
     <div class="foot-grid">
       <div class="foot-col foot-brand-col">
         <div class="foot-brand">
-          <img class="foot-logo-img" src="logogrande.jpeg" alt="ARD Suplementos">
+          <img class="foot-logo-img" src="logoard-footer.png" alt="ARD Suplementos">
           <span class="foot-brand-name">ARD Suplementos</span>
         </div>
         <p class="foot-desc">Suplementos deportivos en Catamarca. Asesoramiento por WhatsApp, envíos a domicilio y retiro en local.</p>
@@ -1551,7 +1551,6 @@ function desbloquearScrollFondo(){
   const dotsWrap = document.getElementById('hero-dots');
   const btnPrev = document.getElementById('hero-prev');
   const btnNext = document.getElementById('hero-next');
-  const IMAGEN_FIJA = { image: 'ard12.png', link: '' }; // la de siempre, se mantiene siempre como parte del carrusel
   let indice = 0;
   let total = 1;
   let timer = null;
@@ -1596,12 +1595,20 @@ function desbloquearScrollFondo(){
   }
 
   function iniciarCarrusel(extras){
-    // La imagen fija de siempre queda primera, y lo que se cargue desde el
-    // panel se suma después (no la reemplaza).
-    const lista = [IMAGEN_FIJA, ...extras];
+    // El carrusel muestra únicamente lo que se cargó desde el panel de admin.
+    const lista = extras;
     total = lista.length;
 
     viewport.innerHTML = '';
+
+    if (!total){
+      // Sin imágenes cargadas todavía: no mostramos flechas ni puntos.
+      btnPrev.style.display = 'none';
+      btnNext.style.display = 'none';
+      dotsWrap.innerHTML = '';
+      return;
+    }
+
     lista.forEach((slide, i) => viewport.appendChild(armarSlide(slide, i === 0)));
     mostrar(0);
 
@@ -1618,13 +1625,17 @@ function desbloquearScrollFondo(){
       btnNext.addEventListener('click', () => { siguiente(); reiniciarAutoplay(); });
 
       reiniciarAutoplay();
+    } else {
+      btnPrev.style.display = 'none';
+      btnNext.style.display = 'none';
+      dotsWrap.innerHTML = '';
     }
   }
 
   fetch('/api/hero')
     .then(res => { if (!res.ok) throw new Error('sin hero'); return res.json(); })
     .then(lista => iniciarCarrusel(Array.isArray(lista) ? lista : []))
-    .catch(() => iniciarCarrusel([])); // ante cualquier problema, se queda solo con la imagen fija
+    .catch(() => iniciarCarrusel([])); // ante cualquier problema, el carrusel queda vacío hasta que carguen imágenes desde el panel
 })();
 </script>
 
