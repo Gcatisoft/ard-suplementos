@@ -341,6 +341,36 @@
     padding: 0;
   }
   .imagen-tile .imagen-quitar:hover { background: #a12c2c; }
+  .imagen-tile .imagen-editar-tamano {
+    position: absolute;
+    top: 4px; left: 4px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(20,24,33,0.7);
+    color: #fff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .imagen-tile .imagen-editar-tamano svg { width: 12px; height: 12px; }
+  .imagen-tile .imagen-editar-tamano:hover { background: var(--accent); }
+  .resize-preview-wrap {
+    width: 100%;
+    max-height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--steel-100);
+    border-radius: 12px;
+    overflow: hidden;
+    padding: 10px;
+  }
+  .resize-preview-wrap img { max-width: 100%; max-height: 240px; object-fit: contain; display: block; }
+  .resize-presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  #resize-modal-overlay { z-index: 200; }
   .imagen-agregar-tile {
     width: 92px;
     height: 92px;
@@ -759,7 +789,7 @@
             </button>
           </div>
           <input type="file" id="imagenes" accept="image/png,image/jpeg,image/webp,image/gif" multiple style="display:none;">
-          <div class="form-hint">JPG, PNG o WEBP. Máx. 5MB c/u. La primera imagen es la principal (se muestra en el listado).</div>
+          <div class="form-hint">JPG, PNG o WEBP. Máx. 5MB c/u. La primera imagen es la principal (se muestra en el listado). Tocá el ✎ de cada miniatura para ajustar su tamaño antes de guardar.</div>
         </div>
 
         <div class="form-group full">
@@ -903,7 +933,7 @@
             </button>
           </div>
           <input type="file" id="hero-imagen" accept="image/png,image/jpeg,image/webp" style="display:none;">
-          <div class="form-hint">Recomendado: imagen horizontal (banner), buena resolución. Se optimiza sola al subirla.</div>
+          <div class="form-hint">Recomendado: imagen horizontal (banner), buena resolución. Tocá el ✎ para ajustar su tamaño antes de guardar.</div>
         </div>
 
         <div class="form-group full">
@@ -1037,6 +1067,46 @@
 
     <div class="modal-footer">
       <button type="button" class="btn btn-primary" id="historial-agregar-venta-btn" style="width:auto;">+ Registrar venta</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: EDITOR DE TAMAÑO DE IMAGEN ============ -->
+<div class="modal-overlay" id="resize-modal-overlay">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h2>Ajustar tamaño</h2>
+      <button class="modal-close" id="resize-modal-close" type="button">✕</button>
+    </div>
+
+    <div class="resize-preview-wrap">
+      <img id="resize-preview-img" alt="Vista previa">
+    </div>
+
+    <div class="form-grid" style="margin-top:16px;">
+      <div class="form-group">
+        <label for="resize-ancho">Ancho (px)</label>
+        <input type="number" id="resize-ancho" min="20" max="4000" step="1">
+      </div>
+      <div class="form-group">
+        <label for="resize-alto">Alto (px)</label>
+        <input type="number" id="resize-alto" min="20" max="4000" step="1">
+      </div>
+      <div class="form-group full">
+        <label class="checkbox-item"><input type="checkbox" id="resize-proporcion" checked> Mantener proporción</label>
+      </div>
+      <div class="form-group full">
+        <div class="resize-presets">
+          <button type="button" class="btn btn-ghost btn-sm" data-preset="original">Tamaño original</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-preset="cuadrado">Cuadrado 1:1</button>
+        </div>
+        <div class="form-hint">La imagen se agranda o achica exactamente al tamaño que definas acá. Se aplica recién al tocar "Aplicar".</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" id="resize-cancelar-btn">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="resize-aplicar-btn">Aplicar</button>
     </div>
   </div>
 </div>
