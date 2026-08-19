@@ -130,6 +130,127 @@
   function iconoBorrar() {
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>';
   }
+  function iconoEditarTamano() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
+  }
+
+  // ==========================================================
+  // -------- Editor de tamaño de imagen (antes de subir) --------
+  // Deja al admin definir manualmente el ancho y alto (en px) de
+  // cualquier imagen recién seleccionada, agrandándola o achicándola
+  // a gusto, antes de que se suba al servidor.
+  // ==========================================================
+  const resizeModalOverlay = document.getElementById('resize-modal-overlay');
+  const resizePreviewImg = document.getElementById('resize-preview-img');
+  const resizeAnchoInput = document.getElementById('resize-ancho');
+  const resizeAltoInput = document.getElementById('resize-alto');
+  const resizeProporcionCheck = document.getElementById('resize-proporcion');
+  const resizeCancelarBtn = document.getElementById('resize-cancelar-btn');
+  const resizeAplicarBtn = document.getElementById('resize-aplicar-btn');
+  const resizeModalClose = document.getElementById('resize-modal-close');
+
+  let resizeArchivoActual = null; // File que se está editando
+  let resizeImgObj = null; // Image() cargada para dibujar en el canvas
+  let resizeRatioOriginal = 1;
+  let resizeCallback = null; // función a la que se le entrega el File final ya redimensionado
+
+  function abrirEditorTamano(file, onAplicar) {
+    if (!resizeModalOverlay) { onAplicar(file); return; } // por si el HTML no tiene el modal cargado
+
+    resizeArchivoActual = file;
+    resizeCallback = onAplicar;
+
+    const src = URL.createObjectURL(file);
+    resizePreviewImg.src = src;
+
+    const img = new Image();
+    img.onload = () => {
+      resizeImgObj = img;
+      resizeRatioOriginal = img.naturalWidth / img.naturalHeight || 1;
+      resizeAnchoInput.value = img.naturalWidth;
+      resizeAltoInput.value = img.naturalHeight;
+      resizeProporcionCheck.checked = true;
+    };
+    img.src = src;
+
+    resizeModalOverlay.classList.add('visible');
+  }
+
+  function cerrarEditorTamano() {
+    if (resizeModalOverlay) resizeModalOverlay.classList.remove('visible');
+    resizeArchivoActual = null;
+    resizeImgObj = null;
+    resizeCallback = null;
+  }
+
+  if (resizeAnchoInput) {
+    resizeAnchoInput.addEventListener('input', () => {
+      if (!resizeProporcionCheck.checked) return;
+      const ancho = Number(resizeAnchoInput.value) || 0;
+      if (ancho > 0) resizeAltoInput.value = Math.round(ancho / resizeRatioOriginal);
+    });
+  }
+  if (resizeAltoInput) {
+    resizeAltoInput.addEventListener('input', () => {
+      if (!resizeProporcionCheck.checked) return;
+      const alto = Number(resizeAltoInput.value) || 0;
+      if (alto > 0) resizeAnchoInput.value = Math.round(alto * resizeRatioOriginal);
+    });
+  }
+
+  document.querySelectorAll('#resize-modal-overlay [data-preset]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!resizeImgObj) return;
+      const preset = btn.getAttribute('data-preset');
+      if (preset === 'original') {
+        resizeAnchoInput.value = resizeImgObj.naturalWidth;
+        resizeAltoInput.value = resizeImgObj.naturalHeight;
+      } else if (preset === 'cuadrado') {
+        const lado = Math.max(resizeImgObj.naturalWidth, resizeImgObj.naturalHeight);
+        resizeAnchoInput.value = lado;
+        resizeAltoInput.value = lado;
+      }
+    });
+  });
+
+  if (resizeAplicarBtn) {
+    resizeAplicarBtn.addEventListener('click', () => {
+      if (!resizeImgObj || !resizeCallback) { cerrarEditorTamano(); return; }
+      let ancho = Math.round(Number(resizeAnchoInput.value));
+      let alto = Math.round(Number(resizeAltoInput.value));
+      if (!ancho || ancho < 20) ancho = resizeImgObj.naturalWidth;
+      if (!alto || alto < 20) alto = resizeImgObj.naturalHeight;
+      ancho = Math.min(ancho, 4000);
+      alto = Math.min(alto, 4000);
+
+      // Dibuja la imagen en un canvas con el tamaño exacto elegido: si el
+      // recuadro es más chico que la imagen original, la achica; si es más
+      // grande, la agranda. Así el admin decide el tamaño final, sin que
+      // el servidor lo recalcule por su cuenta.
+      const canvas = document.createElement('canvas');
+      canvas.width = ancho;
+      canvas.height = alto;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(resizeImgObj, 0, 0, ancho, alto);
+
+      const nombreBase = (resizeArchivoActual.name || 'imagen').replace(/\.[^.]+$/, '');
+      canvas.toBlob((blob) => {
+        if (!blob) { cerrarEditorTamano(); return; }
+        const archivoFinal = new File([blob], nombreBase + '.png', { type: 'image/png' });
+        const callback = resizeCallback;
+        cerrarEditorTamano();
+        callback(archivoFinal);
+      }, 'image/png');
+    });
+  }
+
+  if (resizeCancelarBtn) resizeCancelarBtn.addEventListener('click', cerrarEditorTamano);
+  if (resizeModalClose) resizeModalClose.addEventListener('click', cerrarEditorTamano);
+  if (resizeModalOverlay) {
+    resizeModalOverlay.addEventListener('click', (e) => {
+      if (e.target === resizeModalOverlay) cerrarEditorTamano();
+    });
+  }
 
   // -------- Sesión --------
   async function verificarSesion() {
@@ -346,6 +467,7 @@
       html +=
         '<div class="imagen-tile">' +
           '<img src="' + src + '" alt="">' +
+          '<button type="button" class="imagen-editar-tamano" data-editar-tamano-nueva="' + i + '" title="Ajustar tamaño">' + iconoEditarTamano() + '</button>' +
           (esPrincipal ? '<span class="imagen-principal-tag">Principal</span>' : '') +
           '<button type="button" class="imagen-quitar" data-quitar-nueva="' + i + '" title="Quitar imagen">✕</button>' +
         '</div>';
@@ -373,6 +495,15 @@
       btn.addEventListener('click', () => {
         imagenesNuevas.splice(Number(btn.getAttribute('data-quitar-nueva')), 1);
         renderImagenesGrid();
+      });
+    });
+    imagenesGrid.querySelectorAll('[data-editar-tamano-nueva]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = Number(btn.getAttribute('data-editar-tamano-nueva'));
+        abrirEditorTamano(imagenesNuevas[idx], (archivoFinal) => {
+          imagenesNuevas[idx] = archivoFinal;
+          renderImagenesGrid();
+        });
       });
     });
   }
@@ -1523,7 +1654,9 @@
 
     if (heroImagenNueva) {
       const src = URL.createObjectURL(heroImagenNueva);
-      html += '<div class="imagen-tile"><img src="' + src + '" alt=""><button type="button" class="imagen-quitar" id="hero-imagen-quitar" title="Cambiar imagen">✕</button></div>';
+      html += '<div class="imagen-tile"><img src="' + src + '" alt="">' +
+        '<button type="button" class="imagen-editar-tamano" id="hero-editar-tamano" title="Ajustar tamaño">' + iconoEditarTamano() + '</button>' +
+        '<button type="button" class="imagen-quitar" id="hero-imagen-quitar" title="Cambiar imagen">✕</button></div>';
     } else if (existente) {
       html += '<div class="imagen-tile"><img src="' + existente + '" alt=""></div>';
     } else {
@@ -1545,6 +1678,16 @@
         heroImagenNueva = null;
         heroImagenInput.value = '';
         renderHeroImagenGrid();
+      });
+    }
+
+    const btnEditarTamano = heroImagenGrid.querySelector('#hero-editar-tamano');
+    if (btnEditarTamano) {
+      btnEditarTamano.addEventListener('click', () => {
+        abrirEditorTamano(heroImagenNueva, (archivoFinal) => {
+          heroImagenNueva = archivoFinal;
+          renderHeroImagenGrid();
+        });
       });
     }
   }
