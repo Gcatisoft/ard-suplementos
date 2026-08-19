@@ -1435,4 +1435,4 @@ app.listen(PORT, () => {
   console.log(`\nARD Suplementos corriendo en http://localhost:${PORT}`);
   console.log(`Panel de administración: http://localhost:${PORT}/admin/login.html`);
   console.log(`Conectado a Supabase: ${SUPABASE_URL}`);
-});
+}); 
