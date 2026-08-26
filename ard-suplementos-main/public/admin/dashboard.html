@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Panel de administración · ARD Suplementos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin.css">
+<style>
+  /* ===== Estilos agregados para pestañas / pedidos / estadísticas =====
+     Autocontenido para no depender de admin.css. Si querés, después lo
+     movemos adentro de admin.css para tenerlo todo junto. */
+
+  .tabs-nav {
+    display: flex;
+    gap: 4px;
+    margin: 20px 0 18px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tabs-nav::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    padding: 10px 18px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #6b7686;
+    cursor: pointer;
+    transition: color .15s ease, border-color .15s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .tab-btn:hover { color: #1a2233; }
+  .tab-btn.active {
+    color: #1a2233;
+    border-bottom-color: #1a2233;
+  }
+  .tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    margin-left: 6px;
+    border-radius: 999px;
+    background: #a12c2c;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .stats-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  .stat-card-2 {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .stat-card-2 .num {
+    font-family: 'Anton', sans-serif;
+    font-size: 28px;
+    color: #1a2233;
+    line-height: 1;
+  }
+  .stat-card-2 .label {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #6b7686;
+  }
+
+  .section-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #1a2233;
+    margin: 26px 0 12px;
+  }
+
+  .top-productos-tabla, .pedidos-tabla, .resenas-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .top-productos-tabla th, .pedidos-tabla th, .resenas-tabla th {
+    text-align: left;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #6b7686;
+    background: #f7f8fa;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .top-productos-tabla td, .pedidos-tabla td, .resenas-tabla td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    font-size: 14px;
+    color: #1a2233;
+    vertical-align: top;
+  }
+  .top-productos-tabla tr:last-child td, .pedidos-tabla tr:last-child td, .resenas-tabla tr:last-child td { border-bottom: none; }
+
+  .estado-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .estado-badge.pendiente { background: #fff4d6; color: #93701a; }
+  .estado-badge.confirmado { background: #d9f2e3; color: #1a7a44; }
+  .estado-badge.cancelado { background: #fde2e2; color: #a12c2c; }
+
+  .pedido-items-toggle {
+    background: none;
+    border: none;
+    color: #3159c9;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+  }
+  .pedido-items-detalle {
+    display: none;
+    margin-top: 8px;
+    font-size: 13px;
+    color: #4a5568;
+  }
+  .pedido-items-detalle.visible { display: block; }
+  .pedido-items-detalle ul { margin: 0; padding-left: 18px; }
+
+  .pedido-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pedido-actions select {
+    font-size: 13px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(0,0,0,0.15);
+  }
+
+  .pedidos-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  /* ===== Reseñas ===== */
+  .resena-stars { color: #d98c1f; letter-spacing: 1px; white-space: nowrap; }
+  .resena-comentario-corto { color: #1a2233; }
+  .resena-comentario-toggle {
+    background: none;
+    border: none;
+    color: #3159c9;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 4px;
+    text-decoration: underline;
+    white-space: nowrap;
+  }
+  .resena-comentario-completo {
+    display: none;
+    margin-top: 6px;
+    color: #4a5568;
+    font-size: 13px;
+  }
+  .resena-comentario-completo.visible { display: block; }
+  .resenas-tabla td { max-width: 320px; }
+
+  /* ===== Novedades ===== */
+  .novedades-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  .novedad-card {
+    border: 1px solid #e3e7ee;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+  .novedad-card-img {
+    width: 100%;
+    height: 140px;
+    background: #f2f4f8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .novedad-card-img img, .novedad-card-img video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .novedad-card-img svg { width: 32px; height: 32px; color: #b3bccb; }
+  .novedad-card-body { padding: 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .novedad-tag {
+    align-self: flex-start;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #b5540c;
+    background: #fdeee0;
+    padding: 3px 9px;
+    border-radius: 999px;
+  }
+  .novedad-card-titulo { font-weight: 700; font-size: 14.5px; color: #1a2233; }
+  .novedad-card-precio { font-weight: 700; font-size: 15px; color: #1a2233; }
+  .novedad-card-precio-anterior { font-weight: 500; font-size: 12.5px; color: #9aa8bb; text-decoration: line-through; }
+  .novedad-card-contenido {
+    font-size: 12.5px;
+    color: #5c6b82;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .novedad-card-footer {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 10px;
+  }
+  .novedad-card-fecha { font-size: 11.5px; color: #97a2b3; }
+  .novedad-card-actions { display: flex; gap: 6px; }
+
+  /* ===== Hero ===== */
+  .hero-slides-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .hero-slide-card {
+    border: 1px solid #e3e7ee;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+  .hero-slide-card-img {
+    width: 100%;
+    height: 140px;
+    background: #f2f4f8;
+    overflow: hidden;
+  }
+  .hero-slide-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .hero-slide-card-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .hero-slide-card-link { font-size: 12px; color: #5c6b82; word-break: break-all; }
+  .hero-slide-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .hero-slide-orden { display: flex; gap: 4px; }
+  .hero-slide-orden button {
+    width: 26px; height: 26px; border-radius: 6px; border: 1px solid #d8dee8;
+    background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .hero-slide-orden button:hover { background: #f2f4f8; }
+  .hero-slide-orden button:disabled { opacity: .35; cursor: default; }
+  .hero-slide-card-actions { display: flex; gap: 6px; }
+
+  /* ===== Galería de imágenes del producto (múltiples imágenes) ===== */
+  .imagenes-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .imagen-tile {
+    position: relative;
+    width: 92px;
+    height: 92px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.1);
+    background: #f7f8fa;
+    flex-shrink: 0;
+  }
+  .imagen-tile img, .imagen-tile video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .imagen-tile .imagen-principal-tag {
+    position: absolute;
+    left: 0; bottom: 0; right: 0;
+    background: rgba(26,34,51,0.75);
+    color: #fff;
+    font-size: 10px;
+    text-align: center;
+    padding: 2px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .imagen-tile .imagen-quitar {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(20,24,33,0.7);
+    color: #fff;
+    border: none;
+    font-size: 13px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .imagen-tile .imagen-quitar:hover { background: #a12c2c; }
+  .imagen-tile .imagen-editar-tamano {
+    position: absolute;
+    top: 4px; left: 4px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(20,24,33,0.7);
+    color: #fff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .imagen-tile .imagen-editar-tamano svg { width: 12px; height: 12px; }
+  .imagen-tile .imagen-editar-tamano:hover { background: var(--accent); }
+  .resize-preview-wrap {
+    width: 100%;
+    max-height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--steel-100);
+    border-radius: 12px;
+    overflow: hidden;
+    padding: 10px;
+  }
+  .resize-preview-wrap img { max-width: 100%; max-height: 240px; object-fit: contain; display: block; }
+  .resize-presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  #resize-modal-overlay { z-index: 200; }
+  .imagen-agregar-tile {
+    width: 92px;
+    height: 92px;
+    border-radius: 10px;
+    border: 1.5px dashed rgba(0,0,0,0.2);
+    background: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: #6b7686;
+    font-size: 11.5px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .imagen-agregar-tile:hover { border-color: #3159c9; color: #3159c9; }
+  .imagen-agregar-tile svg { width: 20px; height: 20px; }
+
+  /* ===== Responsive (celulares y tablets chicas) ===== */
+  @media (max-width: 760px) {
+    .dash-header {
+      padding: 12px 16px;
+      padding-top: calc(12px + env(safe-area-inset-top, 0px));
+      padding-left: calc(16px + env(safe-area-inset-left, 0px));
+      padding-right: calc(16px + env(safe-area-inset-right, 0px));
+    }
+    .dash-header .brand { font-size: 13.5px; gap: 8px; }
+    .dash-header .brand .badge-icon { width: 30px; height: 30px; }
+    .dash-header .user-info { gap: 8px; font-size: 12px; }
+
+    .dash-main { padding: 18px 14px 50px; }
+
+    .tabs-nav { margin: 16px 0 14px; }
+    .tab-btn { padding: 9px 13px; font-size: 13.5px; }
+
+    .dash-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+    .dash-toolbar .filters { width: 100%; }
+    .dash-toolbar select,
+    .dash-toolbar input[type=search] { min-width: 0; width: 100%; }
+    .dash-toolbar > button { width: 100% !important; }
+
+    .modal-overlay { padding: 10px; }
+    .modal { padding: 20px 16px 18px; border-radius: 14px; max-height: 94vh; }
+    .modal-header h2 { font-size: 17px; }
+
+    .stats-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stat-card { padding: 14px 14px; }
+    .stat-card .num { font-size: 22px; }
+
+    .novedades-grid,
+    .hero-slides-grid { grid-template-columns: 1fr; }
+
+    .row-actions { flex-wrap: wrap; }
+  }
+
+  @media (max-width: 420px) {
+    .stats-row { grid-template-columns: 1fr; }
+    .imagen-tile,
+    .imagen-agregar-tile { width: 78px; height: 78px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="dash-header">
+  <div class="brand">
+    <div class="badge-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" color="#fff">
+        <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+    </div>
+    ARD Suplementos · Admin
+  </div>
+  <div class="user-info">
+    <span id="username-label"></span>
+    <a class="btn btn-ghost btn-sm" href="/index.html" target="_blank" style="color:#dbe6f2;border-color:rgba(219,230,242,0.4);">Ver sitio</a>
+    <button class="btn btn-danger btn-sm" id="logout-btn">Cerrar sesión</button>
+  </div>
+</header>
+
+<main class="dash-main">
+
+  <nav class="tabs-nav">
+    <button type="button" class="tab-btn active" data-tab="productos">Productos</button>
+    <button type="button" class="tab-btn" data-tab="pedidos">Pedidos y ventas</button>
+    <button type="button" class="tab-btn" data-tab="clientes">Clientes <span class="tab-badge" id="clientes-badge" style="display:none;"></span></button>
+    <button type="button" class="tab-btn" data-tab="resenas">Reseñas <span class="tab-badge" id="resenas-badge" style="display:none;"></span></button>
+    <button type="button" class="tab-btn" data-tab="novedades">Novedades</button>
+    <button type="button" class="tab-btn" data-tab="hero">Imágenes del hero</button>
+    <button type="button" class="tab-btn" data-tab="stats">Estadísticas</button>
+  </nav>
+
+  <!-- ================= TAB: PRODUCTOS ================= -->
+  <section class="tab-panel active" id="tab-productos">
+
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">Productos totales</div></div>
+      <div class="stat-card"><div class="num" id="stat-activos">0</div><div class="label">Publicados en el sitio</div></div>
+      <div class="stat-card"><div class="num" id="stat-sinstock">0</div><div class="label">Sin stock</div></div>
+      <div class="stat-card"><div class="num" id="stat-destacados">0</div><div class="label">Destacados</div></div>
+    </div>
+
+    <div class="dash-toolbar">
+      <div class="filters">
+        <input type="search" id="buscador" placeholder="Buscar por nombre o marca…">
+        <select id="filtro-categoria">
+          <option value="">Todas las categorías</option>
+        </select>
+        <select id="filtro-estado">
+          <option value="">Todos los estados</option>
+          <option value="activo">Publicados</option>
+          <option value="inactivo">Ocultos</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="nuevo-btn" style="width:auto;">+ Nuevo producto</button>
+    </div>
+
+    <div class="tabla-wrap">
+      <table class="productos-tabla">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Producto</th>
+            <th>Marca</th>
+            <th>Categoría</th>
+            <th>Precio</th>
+            <th>Stock</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tabla-body">
+          <!-- filas dinámicas -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="empty-state" style="display:none;">
+        Todavía no cargaste ningún producto. Hacé clic en "Nuevo producto" para empezar.
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: PEDIDOS Y VENTAS ================= -->
+  <section class="tab-panel" id="tab-pedidos">
+
+    <div class="pedidos-toolbar">
+      <div class="filters">
+        <select id="filtro-pedido-estado">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendientes</option>
+          <option value="confirmado">Confirmados (ventas)</option>
+          <option value="cancelado">Cancelados</option>
+        </select>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="refrescar-pedidos-btn">Actualizar</button>
+    </div>
+
+    <div class="tabla-wrap">
+      <table class="pedidos-tabla">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Cliente</th>
+            <th>Teléfono</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="pedidos-tabla-body">
+          <!-- filas dinámicas -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="pedidos-empty-state" style="display:none;">
+        Todavía no hay pedidos registrados.
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: CLIENTES ================= -->
+  <section class="tab-panel" id="tab-clientes">
+
+    <div class="stats-row">
+      <div class="stat-card"><div class="num" id="cliente-stat-total">0</div><div class="label">Clientes totales</div></div>
+      <div class="stat-card"><div class="num" id="cliente-stat-al-dia">0</div><div class="label">Compraron hace poco</div></div>
+      <div class="stat-card"><div class="num" id="cliente-stat-atender">0</div><div class="label">Para contactar</div></div>
+      <div class="stat-card"><div class="num" id="cliente-stat-ingresos">$0</div><div class="label">Total vendido</div></div>
+    </div>
+
+    <div class="dash-toolbar">
+      <div class="filters">
+        <input type="search" id="cliente-buscador" placeholder="Buscar por nombre o teléfono…">
+        <select id="cliente-filtro-estado">
+          <option value="">Todos los clientes</option>
+          <option value="atender">Para contactar</option>
+          <option value="al-dia">Compraron hace poco</option>
+          <option value="nunca">Nunca compraron</option>
+        </select>
+        <select id="cliente-umbral-dias" title="A partir de cuántos días sin comprar se marca 'para contactar'">
+          <option value="15">+15 días sin comprar</option>
+          <option value="30" selected>+30 días sin comprar</option>
+          <option value="45">+45 días sin comprar</option>
+          <option value="60">+60 días sin comprar</option>
+          <option value="90">+90 días sin comprar</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="cliente-nuevo-btn" style="width:auto;">+ Nuevo cliente</button>
+    </div>
+
+    <div class="tabla-wrap">
+      <table class="productos-tabla">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Teléfono</th>
+            <th>Última compra</th>
+            <th>Hace</th>
+            <th>Compras</th>
+            <th>Total gastado</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="cliente-tabla-body">
+          <!-- filas dinámicas -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="cliente-empty-state" style="display:none;">
+        Todavía no cargaste ningún cliente. Los pedidos que lleguen por el sitio se van a agregar solos acá, o podés cargar uno a mano con "+ Nuevo cliente".
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: RESEÑAS ================= -->
+  <section class="tab-panel" id="tab-resenas">
+
+    <div class="pedidos-toolbar">
+      <div class="filters">
+        <select id="filtro-resena-estado">
+          <option value="">Todas</option>
+          <option value="pendiente">Pendientes de aprobar</option>
+          <option value="publicada">Publicadas</option>
+        </select>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="refrescar-resenas-btn">Actualizar</button>
+    </div>
+
+    <div class="tabla-wrap">
+      <table class="resenas-tabla">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Calificación</th>
+            <th>Comentario</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="resenas-tabla-body">
+          <!-- filas dinámicas -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="resenas-empty-state" style="display:none;">
+        Todavía no hay reseñas para mostrar.
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: NOVEDADES ================= -->
+  <section class="tab-panel" id="tab-novedades">
+
+    <div class="dash-toolbar">
+      <div class="filters">
+        <select id="filtro-novedad-estado">
+          <option value="">Todas</option>
+          <option value="activo">Publicadas</option>
+          <option value="inactivo">Ocultas</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="nueva-novedad-btn" style="width:auto;">+ Nueva novedad</button>
+    </div>
+
+    <div class="novedades-grid" id="novedades-grid">
+      <!-- tarjetas dinámicas -->
+    </div>
+    <div class="empty-state" id="novedades-empty-state" style="display:none;">
+      Todavía no cargaste ninguna noticia, oferta o novedad.
+    </div>
+  </section>
+
+  <!-- ================= TAB: HERO ================= -->
+  <section class="tab-panel" id="tab-hero">
+
+    <div class="dash-toolbar">
+      <p style="font-size:13px;color:#5c6b82;max-width:520px;">
+        Estas son las imágenes que rotan en el banner grande de arriba del todo en la página de inicio. Se muestran en este mismo orden.
+      </p>
+      <button class="btn btn-primary" id="nueva-hero-btn" style="width:auto;">+ Nueva imagen</button>
+    </div>
+
+    <div class="hero-slides-grid" id="hero-slides-grid">
+      <!-- tarjetas dinámicas -->
+    </div>
+    <div class="empty-state" id="hero-slides-empty-state" style="display:none;">
+      Todavía no cargaste ninguna imagen para el carrusel del hero. Mientras tanto, en el sitio se muestra la imagen fija de siempre.
+    </div>
+  </section>
+
+  <!-- ================= TAB: ESTADÍSTICAS ================= -->
+  <section class="tab-panel" id="tab-stats">
+
+    <div class="stats-grid-2">
+      <div class="stat-card-2"><div class="num" id="stat2-ventas">0</div><div class="label">Ventas confirmadas</div></div>
+      <div class="stat-card-2"><div class="num" id="stat2-ingresos">$0</div><div class="label">Ingresos totales</div></div>
+      <div class="stat-card-2"><div class="num" id="stat2-pendientes">0</div><div class="label">Pedidos pendientes</div></div>
+      <div class="stat-card-2"><div class="num" id="stat2-mes">0</div><div class="label">Pedidos este mes</div></div>
+      <div class="stat-card-2"><div class="num" id="stat2-ingresos-mes">$0</div><div class="label">Ingresos este mes</div></div>
+    </div>
+
+    <div class="section-title">Productos más pedidos</div>
+    <div class="tabla-wrap">
+      <table class="top-productos-tabla">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Unidades pedidas</th>
+            <th>Ingresos generados</th>
+          </tr>
+        </thead>
+        <tbody id="top-productos-body">
+          <!-- filas dinámicas -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="top-productos-empty" style="display:none;">
+        Todavía no hay ventas confirmadas para mostrar estadísticas.
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ MODAL PRODUCTO ============ -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Nuevo producto</h2>
+      <button class="modal-close" id="modal-close" type="button">✕</button>
+    </div>
+
+    <div class="error-msg" id="form-error"></div>
+
+    <form id="producto-form">
+      <input type="hidden" id="producto-id">
+
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="nombre">Nombre del producto *</label>
+          <input type="text" id="nombre" required placeholder="Ej: Whey Protein Concentrado 2lb">
+        </div>
+
+        <div class="form-group">
+          <label for="marca">Marca</label>
+          <input type="text" id="marca" placeholder="Ej: Star Nutrition">
+        </div>
+
+        <div class="form-group">
+          <label for="categoria">Categoría *</label>
+          <input type="text" id="categoria" list="categorias-lista" required placeholder="Ej: Proteínas">
+          <datalist id="categorias-lista"></datalist>
+        </div>
+
+        <div class="form-group">
+          <label for="precio">Precio efectivo / transferencia (ARS) *</label>
+          <input type="number" id="precio" min="0" step="1" required placeholder="0">
+        </div>
+
+        <div class="form-group">
+          <label for="precio-tarjeta">Precio con tarjeta (ARS)</label>
+          <input type="number" id="precio-tarjeta" min="0" step="1" placeholder="Dejalo vacío si es el mismo precio">
+          <div class="form-hint">Si lo dejás vacío, se muestra solo el precio efectivo/transferencia.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="precio-anterior">Precio anterior (opcional)</label>
+          <input type="number" id="precio-anterior" min="0" step="1" placeholder="Para mostrar oferta">
+        </div>
+
+        <div class="form-group">
+          <label for="stock">Stock disponible</label>
+          <input type="number" id="stock" min="0" step="1" placeholder="0">
+        </div>
+
+        <div class="form-group full">
+          <label for="sabores">Sabores disponibles</label>
+          <input type="text" id="sabores" placeholder="Ej: Chocolate, Vainilla, Frutilla">
+          <div class="form-hint">Separá cada sabor con una coma. Dejalo vacío si el producto no tiene variantes de sabor.</div>
+        </div>
+
+        <div class="form-group full">
+          <label for="cuotas">Cuotas sin interés</label>
+          <input type="number" id="cuotas" min="0" step="1" placeholder="Ej: 3">
+          <div class="form-hint">Cantidad de cuotas. Se calcula sobre el precio con tarjeta (o el precio normal si no cargaste uno) y se muestra como "3 cuotas de $X".</div>
+        </div>
+
+        <div class="form-group full">
+          <label>Imágenes del producto</label>
+          <div class="imagenes-grid" id="imagenes-grid">
+            <button type="button" class="imagen-agregar-tile" id="imagen-agregar-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+              </svg>
+              Agregar
+            </button>
+          </div>
+          <input type="file" id="imagenes" accept="image/png,image/jpeg,image/webp,image/gif" multiple style="display:none;">
+          <div class="form-hint">JPG, PNG o WEBP. Máx. 5MB c/u. La primera imagen es la principal (se muestra en el listado). Tocá el ✎ de cada miniatura para ajustar su tamaño antes de guardar.</div>
+        </div>
+
+        <div class="form-group full">
+          <label for="descripcion">Descripción</label>
+          <textarea id="descripcion" placeholder="Breve descripción del producto…"></textarea>
+        </div>
+
+        <div class="form-group full">
+          <div class="checkbox-row">
+            <label class="checkbox-item"><input type="checkbox" id="destacado"> Destacado</label>
+            <label class="checkbox-item"><input type="checkbox" id="activo" checked> Publicado en el sitio</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="guardar-btn" style="width:auto;">Guardar producto</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL NOVEDAD ============ -->
+<div class="modal-overlay" id="modal-overlay-novedad">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-novedad-title">Nueva novedad</h2>
+      <button class="modal-close" id="modal-novedad-close" type="button">✕</button>
+    </div>
+
+    <div class="error-msg" id="form-novedad-error"></div>
+
+    <form id="novedad-form">
+      <input type="hidden" id="novedad-id">
+
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="novedad-titulo">Título *</label>
+          <input type="text" id="novedad-titulo" required placeholder="Ej: Hot Sale: 20% OFF en toda la tienda">
+        </div>
+
+        <div class="form-group full">
+          <label for="novedad-tag">Etiqueta</label>
+          <select id="novedad-tag">
+            <option value="">Sin etiqueta</option>
+            <option value="Novedad">Novedad</option>
+            <option value="Oferta">Oferta</option>
+            <option value="Descuento">Descuento</option>
+            <option value="Hot Sale">Hot Sale</option>
+          </select>
+        </div>
+
+        <div class="form-group full">
+          <label for="novedad-contenido">Texto</label>
+          <textarea id="novedad-contenido" placeholder="Contanos el detalle de la novedad, oferta o descuento…"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="novedad-precio">Precio promocional (opcional)</label>
+          <input type="number" id="novedad-precio" min="0" step="1" placeholder="Ej: 15000">
+        </div>
+
+        <div class="form-group">
+          <label for="novedad-precio-anterior">Precio anterior (opcional)</label>
+          <input type="number" id="novedad-precio-anterior" min="0" step="1" placeholder="Para mostrar el descuento">
+          <div class="form-hint">Si cargás los dos, se muestra tachado el anterior y el % de descuento.</div>
+        </div>
+
+        <div class="form-group full">
+          <label>Multimedia (opcional)</label>
+          <div class="checkbox-row" style="margin-bottom:10px;">
+            <label class="checkbox-item"><input type="radio" name="novedad-media-tipo" id="novedad-tipo-imagen" value="imagen" checked> Imagen</label>
+            <label class="checkbox-item"><input type="radio" name="novedad-media-tipo" id="novedad-tipo-video" value="video"> Video</label>
+          </div>
+
+          <div id="novedad-bloque-imagen">
+            <div class="imagenes-grid" id="novedad-imagen-grid">
+              <button type="button" class="imagen-agregar-tile" id="novedad-imagen-agregar-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+                </svg>
+                Agregar
+              </button>
+            </div>
+            <input type="file" id="novedad-imagen" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+            <div class="form-hint">JPG, PNG o WEBP. Máx. 5MB.</div>
+          </div>
+
+          <div id="novedad-bloque-video" style="display:none;">
+            <div class="imagenes-grid" id="novedad-video-grid">
+              <button type="button" class="imagen-agregar-tile" id="novedad-video-agregar-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+                </svg>
+                Agregar video
+              </button>
+            </div>
+            <input type="file" id="novedad-video" accept="video/mp4,video/webm,video/quicktime" style="display:none;">
+            <div class="form-hint">MP4 o WEBM. Máx. 20MB. Recomendado: clips cortos (10-15s) — si el video pesa mucho, comprimilo antes de subirlo para no gastar de más en almacenamiento.</div>
+          </div>
+        </div>
+
+        <div class="form-group full">
+          <div class="checkbox-row">
+            <label class="checkbox-item"><input type="checkbox" id="novedad-activo" checked> Publicada en el sitio</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-novedad-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="guardar-novedad-btn" style="width:auto;">Guardar novedad</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL HERO ============ -->
+<div class="modal-overlay" id="modal-overlay-hero">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-hero-title">Nueva imagen del hero</h2>
+      <button class="modal-close" id="modal-hero-close" type="button">✕</button>
+    </div>
+
+    <div class="error-msg" id="form-hero-error"></div>
+
+    <form id="hero-form">
+      <input type="hidden" id="hero-id">
+
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Imagen *</label>
+          <div class="imagenes-grid" id="hero-imagen-grid">
+            <button type="button" class="imagen-agregar-tile" id="hero-imagen-agregar-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>
+              </svg>
+              Agregar
+            </button>
+          </div>
+          <input type="file" id="hero-imagen" accept="image/png,image/jpeg,image/webp" style="display:none;">
+          <div class="form-hint">Recomendado: imagen horizontal (banner), buena resolución. Tocá el ✎ para ajustar su tamaño antes de guardar.</div>
+        </div>
+
+        <div class="form-group full">
+          <label for="hero-link">Link (opcional)</label>
+          <input type="text" id="hero-link" placeholder="Ej: /productos.html?categoria=Combos">
+          <div class="form-hint">Si lo cargás, la imagen se puede tocar y lleva a esa dirección. Dejalo vacío si es solo decorativa.</div>
+        </div>
+
+        <div class="form-group full">
+          <div class="checkbox-row">
+            <label class="checkbox-item"><input type="checkbox" id="hero-activo" checked> Visible en el carrusel</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-hero-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="guardar-hero-btn" style="width:auto;">Guardar imagen</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL CLIENTE (nuevo / editar) ============ -->
+<div class="modal-overlay" id="modal-overlay-cliente">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h2 id="modal-cliente-title">Nuevo cliente</h2>
+      <button class="modal-close" id="modal-cliente-close" type="button">✕</button>
+    </div>
+
+    <div class="error-msg" id="form-cliente-error"></div>
+
+    <form id="cliente-form">
+      <input type="hidden" id="cliente-id">
+
+      <div class="form-group">
+        <label for="cliente-nombre">Nombre *</label>
+        <input type="text" id="cliente-nombre" required placeholder="Nombre y apellido">
+      </div>
+
+      <div class="form-group">
+        <label for="cliente-telefono">Teléfono (WhatsApp) *</label>
+        <input type="text" id="cliente-telefono" required placeholder="Ej: 3834123456">
+        <div class="form-hint">Con código de área, sin espacios ni guiones. Se usa para el link directo de WhatsApp.</div>
+      </div>
+
+      <div class="form-group">
+        <label for="cliente-notas">Notas (opcional)</label>
+        <textarea id="cliente-notas" placeholder="Ej: prefiere sabor chocolate, compra cada mes, etc."></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-cliente-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="guardar-cliente-btn" style="width:auto;">Guardar cliente</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL VENTA (cargar una compra a mano) ============ -->
+<div class="modal-overlay" id="modal-overlay-venta">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h2>Registrar venta</h2>
+      <button class="modal-close" id="modal-venta-close" type="button">✕</button>
+    </div>
+
+    <div class="error-msg" id="form-venta-error"></div>
+
+    <form id="venta-form">
+      <input type="hidden" id="venta-cliente-id">
+
+      <div class="form-group">
+        <label for="venta-monto">Monto (ARS) *</label>
+        <input type="number" id="venta-monto" min="0" step="1" required placeholder="0">
+      </div>
+
+      <div class="form-group">
+        <label for="venta-fecha">Fecha *</label>
+        <input type="date" id="venta-fecha" required>
+      </div>
+
+      <div class="form-group">
+        <label for="venta-productos">¿Qué compró?</label>
+        <input type="text" id="venta-productos" placeholder="Ej: 2x Proteína Chocolate, 1x Creatina">
+        <div class="form-hint">Así queda registrado en el listado de ventas de este cliente.</div>
+      </div>
+
+      <div class="form-group">
+        <label for="venta-nota">Nota (opcional)</label>
+        <input type="text" id="venta-nota" placeholder="Ej: venta en el local">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-venta-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="guardar-venta-btn" style="width:auto;">Guardar venta</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL HISTORIAL DE COMPRAS ============ -->
+<div class="modal-overlay" id="modal-overlay-historial">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-header">
+      <h2 id="modal-historial-title">Historial de compras</h2>
+      <button class="modal-close" id="modal-historial-close" type="button">✕</button>
+    </div>
+
+    <div class="tabla-wrap" style="box-shadow:none;border-radius:12px;">
+      <table class="pedidos-tabla">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Productos</th>
+            <th>Monto</th>
+            <th>Origen</th>
+            <th>Nota</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="historial-tabla-body">
+          <!-- filas dinámicas -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="historial-empty-state" style="display:none;padding:30px 20px;">
+        Todavía no hay compras registradas para este cliente.
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-primary" id="historial-agregar-venta-btn" style="width:auto;">+ Registrar venta</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: EDITOR DE TAMAÑO DE IMAGEN ============ -->
+<div class="modal-overlay" id="resize-modal-overlay">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h2>Ajustar tamaño</h2>
+      <button class="modal-close" id="resize-modal-close" type="button">✕</button>
+    </div>
+
+    <div class="resize-preview-wrap">
+      <img id="resize-preview-img" alt="Vista previa">
+    </div>
+
+    <div class="form-grid" style="margin-top:16px;">
+      <div class="form-group">
+        <label for="resize-ancho">Ancho (px)</label>
+        <input type="number" id="resize-ancho" min="20" max="4000" step="1">
+      </div>
+      <div class="form-group">
+        <label for="resize-alto">Alto (px)</label>
+        <input type="number" id="resize-alto" min="20" max="4000" step="1">
+      </div>
+      <div class="form-group full">
+        <label class="checkbox-item"><input type="checkbox" id="resize-proporcion" checked> Mantener proporción</label>
+      </div>
+      <div class="form-group full">
+        <div class="resize-presets">
+          <button type="button" class="btn btn-ghost btn-sm" data-preset="original">Tamaño original</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-preset="cuadrado">Cuadrado 1:1</button>
+        </div>
+        <div class="form-hint">La imagen se agranda o achica exactamente al tamaño que definas acá. Se aplica recién al tocar "Aplicar".</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" id="resize-cancelar-btn">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="resize-aplicar-btn">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
