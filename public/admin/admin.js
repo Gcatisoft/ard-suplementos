@@ -3,6 +3,30 @@
   let pedidos = [];
   let editandoId = null;
 
+  // -------- Paginación de productos --------
+  // Antes se traían TODOS los productos de una sola vez (con sus imágenes)
+  // cada vez que se abría el panel. Ahora se piden de a páginas al servidor,
+  // y la búsqueda/filtros también se resuelven ahí — así el navegador nunca
+  // tiene en memoria más que la página actual.
+  const PRODUCTOS_POR_PAGINA = 20;
+  let paginaActual = 1;
+  let totalPaginasProductos = 1;
+  let totalProductosCount = 0;
+  let buscadorDebounceTimer = null;
+
+  // Escapa HTML antes de insertar cualquier dato en el DOM vía innerHTML.
+  // Es crítico para nombre/comentario de reseñas, nombre/teléfono/notas de
+  // pedidos y clientes: todo eso puede originarse en un formulario público
+  // sin login (o en un POST directo a la API), así que se trata como
+  // no confiable aunque venga "de la base". Sin esto, alguien podría mandar
+  // un pedido con nombre `<img src=x onerror=fetch('/api/admin/change-password',...)>`
+  // y ejecutar JS con la sesión del admin apenas abre el panel.
+  function escaparHTML(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+
   const tablaBody = document.getElementById('tabla-body');
   const emptyState = document.getElementById('empty-state');
   const buscador = document.getElementById('buscador');
@@ -263,6 +287,8 @@
       }
       usernameLabel.textContent = data.username ? ('Hola, ' + data.username) : '';
       cargarProductos();
+      cargarCategorias();
+      renderStats();
       actualizarBadgeResenas();
     } catch (e) {
       window.location.href = 'login.html';
@@ -343,53 +369,91 @@
   // ====================================================
   async function cargarProductos() {
     try {
-      const res = await fetch('/api/admin/products');
+      const params = new URLSearchParams();
+      params.set('page', paginaActual);
+      params.set('limit', PRODUCTOS_POR_PAGINA);
+      if (buscador.value.trim()) params.set('q', buscador.value.trim());
+      if (filtroCategoria.value) params.set('category', filtroCategoria.value);
+      if (filtroEstado.value) params.set('estado', filtroEstado.value);
+
+      const res = await fetch('/api/admin/products?' + params.toString());
       if (res.status === 401) {
         window.location.href = 'login.html';
         return;
       }
-      productos = await res.json();
-      actualizarSelectorCategorias();
+      const respuesta = await res.json();
+      productos = respuesta.productos || [];
+      totalPaginasProductos = respuesta.totalPages || 1;
+      totalProductosCount = respuesta.total || 0;
+      // Si al filtrar quedamos parados en una página que ya no existe
+      // (por ejemplo, se borró el único producto de la última página),
+      // volvemos a la página anterior disponible.
+      if (paginaActual > totalPaginasProductos) {
+        paginaActual = totalPaginasProductos;
+        return cargarProductos();
+      }
       renderTabla();
-      renderStats();
+      renderPaginacion();
     } catch (e) {
       tablaBody.innerHTML = '<tr><td colspan="8">Error al cargar los productos.</td></tr>';
     }
   }
 
-  function actualizarSelectorCategorias() {
-    const categorias = [...new Set(productos.map((p) => p.category).filter(Boolean))].sort();
-    const valorActual = filtroCategoria.value;
-    filtroCategoria.innerHTML =
-      '<option value="">Todas las categorías</option>' +
-      categorias.map((c) => '<option value="' + c + '">' + c + '</option>').join('');
-    filtroCategoria.value = categorias.includes(valorActual) ? valorActual : '';
-
-    categoriasLista.innerHTML = categorias.map((c) => '<option value="' + c + '">').join('');
+  async function cargarCategorias() {
+    try {
+      const res = await fetch('/api/admin/products/categorias');
+      if (!res.ok) return;
+      const categorias = await res.json();
+      const valorActual = filtroCategoria.value;
+      filtroCategoria.innerHTML =
+        '<option value="">Todas las categorías</option>' +
+        categorias.map((c) => '<option value="' + escaparHTML(c) + '">' + escaparHTML(c) + '</option>').join('');
+      filtroCategoria.value = categorias.includes(valorActual) ? valorActual : '';
+      categoriasLista.innerHTML = categorias.map((c) => '<option value="' + escaparHTML(c) + '">').join('');
+    } catch (e) {
+      // silencioso: el selector de categorías no es crítico para operar
+    }
   }
 
-  function productosFiltrados() {
-    const term = buscador.value.trim().toLowerCase();
-    const cat = filtroCategoria.value;
-    const estado = filtroEstado.value;
-    return productos.filter((p) => {
-      if (term && !(p.name.toLowerCase().includes(term) || (p.brand || '').toLowerCase().includes(term))) return false;
-      if (cat && p.category !== cat) return false;
-      if (estado === 'activo' && !p.active) return false;
-      if (estado === 'inactivo' && p.active) return false;
-      return true;
-    });
+  async function renderStats() {
+    try {
+      const res = await fetch('/api/admin/products/stats');
+      if (!res.ok) return;
+      const stats = await res.json();
+      document.getElementById('stat-total').textContent = stats.total;
+      document.getElementById('stat-activos').textContent = stats.activos;
+      document.getElementById('stat-sinstock').textContent = stats.sinStock;
+      document.getElementById('stat-destacados').textContent = stats.destacados;
+    } catch (e) {
+      // silencioso: las estadísticas no son críticas para operar
+    }
   }
 
-  function renderStats() {
-    document.getElementById('stat-total').textContent = productos.length;
-    document.getElementById('stat-activos').textContent = productos.filter((p) => p.active).length;
-    document.getElementById('stat-sinstock').textContent = productos.filter((p) => Number(p.stock) <= 0).length;
-    document.getElementById('stat-destacados').textContent = productos.filter((p) => p.featured).length;
+  function renderPaginacion() {
+    let cont = document.getElementById('productos-paginacion');
+    if (!cont) return;
+    if (totalProductosCount === 0) {
+      cont.innerHTML = '';
+      return;
+    }
+    const desde = (paginaActual - 1) * PRODUCTOS_POR_PAGINA + 1;
+    const hasta = Math.min(paginaActual * PRODUCTOS_POR_PAGINA, totalProductosCount);
+    cont.innerHTML =
+      '<span class="paginacion-info">' + desde + '–' + hasta + ' de ' + totalProductosCount + '</span>' +
+      '<div class="paginacion-botones">' +
+      '<button type="button" class="btn btn-ghost btn-sm" id="pagina-anterior-btn"' + (paginaActual <= 1 ? ' disabled' : '') + '>← Anterior</button>' +
+      '<span class="paginacion-actual">Página ' + paginaActual + ' de ' + totalPaginasProductos + '</span>' +
+      '<button type="button" class="btn btn-ghost btn-sm" id="pagina-siguiente-btn"' + (paginaActual >= totalPaginasProductos ? ' disabled' : '') + '>Siguiente →</button>' +
+      '</div>';
+
+    const btnAnt = document.getElementById('pagina-anterior-btn');
+    const btnSig = document.getElementById('pagina-siguiente-btn');
+    if (btnAnt) btnAnt.addEventListener('click', () => { if (paginaActual > 1) { paginaActual--; cargarProductos(); } });
+    if (btnSig) btnSig.addEventListener('click', () => { if (paginaActual < totalPaginasProductos) { paginaActual++; cargarProductos(); } });
   }
 
   function renderTabla() {
-    const lista = productosFiltrados();
+    const lista = productos;
     if (!lista.length) {
       tablaBody.innerHTML = '';
       emptyState.style.display = 'block';
@@ -416,9 +480,9 @@
         return (
           '<tr>' +
           '<td>' + imagenHtml + '</td>' +
-          '<td><strong>' + p.name + '</strong></td>' +
-          '<td>' + (p.brand || '—') + '</td>' +
-          '<td>' + p.category + '</td>' +
+          '<td><strong>' + escaparHTML(p.name) + '</strong></td>' +
+          '<td>' + escaparHTML(p.brand || '—') + '</td>' +
+          '<td>' + escaparHTML(p.category) + '</td>' +
           '<td>' + precioHtml + '</td>' +
           '<td>' + p.stock + '</td>' +
           '<td>' + chips.join(' ') + '</td>' +
@@ -441,9 +505,14 @@
     });
   }
 
-  buscador.addEventListener('input', renderTabla);
-  filtroCategoria.addEventListener('change', renderTabla);
-  filtroEstado.addEventListener('change', renderTabla);
+  // Buscar con debounce (esperamos que la persona termine de tipear antes de
+  // pedirle al servidor, para no mandar un request por cada letra).
+  buscador.addEventListener('input', () => {
+    clearTimeout(buscadorDebounceTimer);
+    buscadorDebounceTimer = setTimeout(() => { paginaActual = 1; cargarProductos(); }, 350);
+  });
+  filtroCategoria.addEventListener('change', () => { paginaActual = 1; cargarProductos(); });
+  filtroEstado.addEventListener('change', () => { paginaActual = 1; cargarProductos(); });
 
   // -------- Galería de imágenes (existentes + nuevas) --------
   function renderImagenesGrid() {
@@ -624,6 +693,8 @@
 
       cerrarModal();
       await cargarProductos();
+      cargarCategorias();
+      renderStats();
     } catch (err) {
       formError.textContent = 'Error de conexión con el servidor';
       formError.classList.add('visible');
@@ -648,6 +719,7 @@
         return;
       }
       await cargarProductos();
+      renderStats();
     } catch (err) {
       alert('Error de conexión con el servidor');
     }
@@ -684,14 +756,14 @@
       .map((p) => {
         const itemsResumen = p.items.length + (p.items.length === 1 ? ' producto' : ' productos');
         const itemsDetalle = p.items
-          .map((it) => '<li>' + it.qty + 'x ' + it.name + (it.flavor ? ' (Sabor: ' + it.flavor + ')' : '') + ' — ' + formatearPrecio(it.price) + '</li>')
+          .map((it) => '<li>' + escaparHTML(it.qty) + 'x ' + escaparHTML(it.name) + (it.flavor ? ' (Sabor: ' + escaparHTML(it.flavor) + ')' : '') + ' — ' + formatearPrecio(it.price) + '</li>')
           .join('');
 
         return (
           '<tr>' +
           '<td>#' + String(p.orderNumber).padStart(4, '0') + '</td>' +
-          '<td><strong>' + p.customerName + '</strong></td>' +
-          '<td>' + p.customerPhone + '</td>' +
+          '<td><strong>' + escaparHTML(p.customerName) + '</strong></td>' +
+          '<td>' + escaparHTML(p.customerPhone) + '</td>' +
           '<td>' +
             '<button type="button" class="pedido-items-toggle" data-toggle-items="' + p.id + '">' + itemsResumen + '</button>' +
             '<div class="pedido-items-detalle" id="items-detalle-' + p.id + '"><ul>' + itemsDetalle + '</ul></div>' +
@@ -879,8 +951,8 @@
 
         return (
           '<tr>' +
-          '<td><strong>' + c.name + '</strong></td>' +
-          '<td>' + c.phone + '</td>' +
+          '<td><strong>' + escaparHTML(c.name) + '</strong></td>' +
+          '<td>' + escaparHTML(c.phone) + '</td>' +
           '<td>' + ultimaCompraTxt + '</td>' +
           '<td>' + diasTxt + '</td>' +
           '<td>' + c.cantidadCompras + '</td>' +
@@ -1092,10 +1164,10 @@
         return (
           '<tr>' +
           '<td>' + fecha + '</td>' +
-          '<td>' + (v.items || '—') + '</td>' +
+          '<td>' + escaparHTML(v.items || '—') + '</td>' +
           '<td>' + formatearPrecio(v.amount) + '</td>' +
           '<td>' + origen + '</td>' +
-          '<td>' + (v.note || '—') + '</td>' +
+          '<td>' + escaparHTML(v.note || '—') + '</td>' +
           '<td><button type="button" class="icon-btn danger" data-borrar-venta="' + v.id + '" title="Eliminar">' + iconoBorrar() + '</button></td>' +
           '</tr>'
         );
@@ -1185,18 +1257,18 @@
     resenasTablaBody.innerHTML = resenas
       .map((r) => {
         const comentarioLargo = (r.comentario || '').length > 80;
-        const comentarioCorto = comentarioLargo ? r.comentario.slice(0, 80) + '…' : (r.comentario || '');
+        const comentarioCortoTxt = comentarioLargo ? r.comentario.slice(0, 80) + '…' : (r.comentario || '');
         const comentarioHtml = comentarioLargo
-          ? '<span class="resena-comentario-corto">' + comentarioCorto + '</span>' +
+          ? '<span class="resena-comentario-corto">' + escaparHTML(comentarioCortoTxt) + '</span>' +
             '<button type="button" class="resena-comentario-toggle" data-toggle-comentario="' + r.id + '">Ver más</button>' +
-            '<div class="resena-comentario-completo" id="comentario-' + r.id + '">' + r.comentario + '</div>'
-          : '<span class="resena-comentario-corto">' + comentarioCorto + '</span>';
+            '<div class="resena-comentario-completo" id="comentario-' + r.id + '">' + escaparHTML(r.comentario) + '</div>'
+          : '<span class="resena-comentario-corto">' + escaparHTML(comentarioCortoTxt) + '</span>';
 
         const publicada = !!r.aprobada;
 
         return (
           '<tr>' +
-          '<td><strong>' + (r.nombre || 'Anónimo') + '</strong></td>' +
+          '<td><strong>' + escaparHTML(r.nombre || 'Anónimo') + '</strong></td>' +
           '<td><span class="resena-stars">' + estrellasHtml(r.calificacion) + '</span></td>' +
           '<td>' + comentarioHtml + '</td>' +
           '<td><span class="estado-badge ' + (publicada ? 'confirmado' : 'pendiente') + '">' + (publicada ? 'Publicada' : 'Pendiente') + '</span></td>' +
