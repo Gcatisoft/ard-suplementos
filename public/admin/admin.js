@@ -759,9 +759,13 @@
           .map((it) => '<li>' + escaparHTML(it.qty) + 'x ' + escaparHTML(it.name) + (it.flavor ? ' (Sabor: ' + escaparHTML(it.flavor) + ')' : '') + ' — ' + formatearPrecio(it.price) + '</li>')
           .join('');
 
+        const badgePago = p.sentVia === 'mercadopago'
+          ? ' <span class="pago-mp-badge" title="Pago online por Mercado Pago' + (p.mpStatus ? ' — estado MP: ' + escaparHTML(p.mpStatus) : '') + '">MP</span>'
+          : '';
+
         return (
           '<tr>' +
-          '<td>#' + String(p.orderNumber).padStart(4, '0') + '</td>' +
+          '<td>#' + String(p.orderNumber).padStart(4, '0') + badgePago + '</td>' +
           '<td><strong>' + escaparHTML(p.customerName) + '</strong></td>' +
           '<td>' + escaparHTML(p.customerPhone) + '</td>' +
           '<td>' +

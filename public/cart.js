@@ -162,10 +162,11 @@
     + '.ard-cart-item-remove{background:none;border:none;color:#c0392b;cursor:pointer;font-size:12px;text-decoration:underline;padding:0;margin-top:4px;}'
     + '.ard-cart-footer{border-top:1px solid #eee;padding:16px 20px;}'
     + '.ard-cart-total{display:flex;justify-content:space-between;align-items:center;font-size:16px;font-weight:700;color:#0d1b2a;margin-bottom:12px;}'
-    + '.ard-cart-checkout{width:100%;background:#25D366;color:#fff;border:none;border-radius:10px;padding:13px;'
+    + '.ard-cart-checkout{width:100%;background:#ff5a1f;color:#fff;border:none;border-radius:10px;padding:13px;'
     + 'font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}'
+    + '.ard-cart-checkout:hover{background:#e04d16;}'
     + '.ard-cart-checkout:disabled{opacity:.6;cursor:default;}'
-    + '.ard-cart-checkout svg{width:18px;height:18px;fill:#fff;}'
+    + '.ard-cart-checkout svg{width:18px;height:18px;stroke:#fff;}'
     + '.ard-cart-clear{width:100%;background:none;border:none;color:#5c7091;font-size:12px;text-align:center;'
     + 'margin-top:8px;cursor:pointer;text-decoration:underline;}'
     + '.ard-cart-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10001;'
@@ -180,11 +181,14 @@
     + '.ard-cart-field input,.ard-cart-field textarea{width:100%;box-sizing:border-box;padding:10px 12px;'
     + 'border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;}'
     + '.ard-cart-field textarea{resize:vertical;min-height:60px;}'
-    + '.ard-cart-modal-actions{display:flex;gap:10px;margin-top:16px;}'
-    + '.ard-cart-modal-actions button{flex:1;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;border:none;}'
-    + '.ard-cart-modal-cancel{background:#f1f1f1;color:#0d1b2a;}'
+    + '.ard-cart-modal-actions{display:flex;flex-direction:column;gap:10px;margin-top:16px;}'
+    + '.ard-cart-modal-actions button{border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;border:none;'
+    + 'display:flex;align-items:center;justify-content:center;gap:8px;}'
+    + '.ard-cart-modal-actions button svg{width:17px;height:17px;}'
+    + '.ard-cart-pay-mp{background:#009ee3;color:#fff;}'
     + '.ard-cart-modal-confirm{background:#25D366;color:#fff;}'
-    + '.ard-cart-modal-confirm:disabled{opacity:.6;cursor:default;}'
+    + '.ard-cart-pay-mp:disabled,.ard-cart-modal-confirm:disabled{opacity:.6;cursor:default;}'
+    + '.ard-cart-modal-cancel{background:none;color:#5c7091;font-weight:600;padding:4px;text-decoration:underline;}'
     + '.ard-cart-error{color:#c0392b;font-size:12px;margin-top:-4px;margin-bottom:10px;display:none;}'
     + '.ard-cart-error.visible{display:block;}'
     + '.ard-cart-toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);'
@@ -206,6 +210,7 @@
   // ---------- Íconos ----------
   var ICON_CART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>';
   var ICON_WHATSAPP = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.4 1.26 4.83L2 22l5.42-1.42a9.85 9.85 0 0 0 4.62 1.17h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.13-2.9-7C17.17 3.03 14.7 2 12.04 2zm0 18.13a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.11.81.83-3.03-.2-.31a8.2 8.2 0 0 1-1.26-4.37c0-4.54 3.7-8.24 8.24-8.24 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.21-8.26 8.21z"/></svg>';
+  var ICON_CARD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>';
 
   // ---------- DOM ----------
   var fab = document.createElement('button');
@@ -228,7 +233,7 @@
     '<div class="ard-cart-body" id="ard-cart-body"></div>' +
     '<div class="ard-cart-footer">' +
       '<div class="ard-cart-total"><span>Total</span><span id="ard-cart-total">$0</span></div>' +
-      '<button class="ard-cart-checkout" id="ard-cart-checkout">' + ICON_WHATSAPP + ' Finalizar pedido por WhatsApp</button>' +
+      '<button class="ard-cart-checkout" id="ard-cart-checkout">' + ICON_CART + ' Finalizar compra</button>' +
       '<button class="ard-cart-clear" id="ard-cart-clear">Vaciar carrito</button>' +
     '</div>';
   panel.querySelector('.ard-cart-close').addEventListener('click', cerrarPanel);
@@ -242,7 +247,7 @@
   modalOverlay.innerHTML =
     '<div class="ard-cart-modal">' +
       '<h3>Datos para el pedido</h3>' +
-      '<p>Lo confirmamos por WhatsApp. Solo necesitamos tu nombre y teléfono.</p>' +
+      '<p>Elegí cómo querés pagar. Solo necesitamos tu nombre y teléfono.</p>' +
       '<div class="ard-cart-field">' +
         '<label for="ard-cart-nombre">Nombre</label>' +
         '<input type="text" id="ard-cart-nombre" autocomplete="name" placeholder="Tu nombre">' +
@@ -257,15 +262,17 @@
       '</div>' +
       '<div class="ard-cart-error" id="ard-cart-error"></div>' +
       '<div class="ard-cart-modal-actions">' +
+        '<button class="ard-cart-pay-mp" id="ard-cart-pay-mp" type="button">' + ICON_CARD + ' Pagar online con Mercado Pago</button>' +
+        '<button class="ard-cart-modal-confirm" id="ard-cart-modal-confirm" type="button">' + ICON_WHATSAPP + ' Coordinar por WhatsApp</button>' +
         '<button class="ard-cart-modal-cancel" id="ard-cart-modal-cancel" type="button">Cancelar</button>' +
-        '<button class="ard-cart-modal-confirm" id="ard-cart-modal-confirm" type="button">Confirmar pedido</button>' +
       '</div>' +
     '</div>';
   modalOverlay.addEventListener('click', function (e) {
     if (e.target === modalOverlay) cerrarModalCheckout();
   });
   modalOverlay.querySelector('#ard-cart-modal-cancel').addEventListener('click', cerrarModalCheckout);
-  modalOverlay.querySelector('#ard-cart-modal-confirm').addEventListener('click', confirmarPedido);
+  modalOverlay.querySelector('#ard-cart-modal-confirm').addEventListener('click', function () { confirmarPedido('whatsapp'); });
+  modalOverlay.querySelector('#ard-cart-pay-mp').addEventListener('click', function () { confirmarPedido('mercadopago'); });
 
   var toast = document.createElement('div');
   toast.className = 'ard-cart-toast';
@@ -362,6 +369,7 @@
     if (!items.length) return;
     cerrarPanel();
     document.getElementById('ard-cart-error').classList.remove('visible');
+    restaurarBotonesModal();
     modalOverlay.classList.add('open');
     setTimeout(function () {
       var input = document.getElementById('ard-cart-nombre');
@@ -388,12 +396,13 @@
     return lineas.join('\n');
   }
 
-  function confirmarPedido() {
+  function confirmarPedido(canal) {
     var nombreInput = document.getElementById('ard-cart-nombre');
     var telInput = document.getElementById('ard-cart-telefono');
     var notasInput = document.getElementById('ard-cart-notas');
     var errorEl = document.getElementById('ard-cart-error');
-    var confirmBtn = document.getElementById('ard-cart-modal-confirm');
+    var mpBtn = document.getElementById('ard-cart-pay-mp');
+    var waBtn = document.getElementById('ard-cart-modal-confirm');
 
     var nombre = (nombreInput.value || '').trim();
     var telefono = (telInput.value || '').trim();
@@ -412,11 +421,15 @@
       items: items.map(function (it) {
         return { productId: it.id, name: it.name, brand: it.brand, flavor: it.flavor || '', price: it.price, qty: it.qty };
       }),
-      notes: notas
+      notes: notas,
+      channel: canal
     };
 
-    confirmBtn.disabled = true;
-    confirmBtn.textContent = 'Enviando…';
+    mpBtn.disabled = true;
+    waBtn.disabled = true;
+    var botonActivo = canal === 'mercadopago' ? mpBtn : waBtn;
+    var textoOriginal = botonActivo.innerHTML;
+    botonActivo.textContent = 'Un momento…';
 
     fetch('/api/orders', {
       method: 'POST',
@@ -428,26 +441,65 @@
         return res.json();
       })
       .then(function (pedido) {
-        finalizarCheckout(pedido, nombre);
+        if (canal === 'mercadopago') {
+          irAMercadoPago(pedido, nombre);
+        } else {
+          finalizarCheckoutWhatsapp(pedido, nombre);
+        }
       })
       .catch(function () {
-        // Si falla el registro (sin conexión, backend caído, etc.) igual
-        // dejamos que la venta se concrete por WhatsApp para no perderla.
-        mostrarToast('No se pudo registrar el pedido, pero lo enviamos igual por WhatsApp');
-        finalizarCheckout(null, nombre);
-      })
-      .finally(function () {
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = 'Confirmar pedido';
+        if (canal === 'mercadopago') {
+          mostrarToast('No se pudo iniciar el pago. Probá coordinar por WhatsApp.');
+          mpBtn.disabled = false;
+          waBtn.disabled = false;
+          botonActivo.innerHTML = textoOriginal;
+        } else {
+          // Si falla el registro (sin conexión, backend caído, etc.) igual
+          // dejamos que la venta se concrete por WhatsApp para no perderla.
+          mostrarToast('No se pudo registrar el pedido, pero lo enviamos igual por WhatsApp');
+          finalizarCheckoutWhatsapp(null, nombre);
+        }
       });
   }
 
-  function finalizarCheckout(pedido, nombre) {
+  // Pide el link de pago (preferencia de Mercado Pago) para el pedido ya
+  // creado, y redirige al comprador ahí. El carrito recién se vacía cuando
+  // ya sabemos que el link se generó bien.
+  function irAMercadoPago(pedido, nombre) {
+    if (!pedido || !pedido.id) {
+      mostrarToast('No se pudo iniciar el pago. Probá coordinar por WhatsApp.');
+      restaurarBotonesModal();
+      return;
+    }
+    fetch('/api/orders/' + pedido.id + '/pagar', { method: 'POST' })
+      .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+      .then(function (r) {
+        if (!r.ok || !r.data.initPoint) throw new Error(r.data.error || 'No se pudo iniciar el pago');
+        clear();
+        window.location.href = r.data.initPoint;
+      })
+      .catch(function (err) {
+        mostrarToast(err.message || 'No se pudo iniciar el pago con Mercado Pago');
+        restaurarBotonesModal();
+      });
+  }
+
+  function restaurarBotonesModal() {
+    var mpBtn = document.getElementById('ard-cart-pay-mp');
+    var waBtn = document.getElementById('ard-cart-modal-confirm');
+    mpBtn.disabled = false;
+    waBtn.disabled = false;
+    mpBtn.innerHTML = ICON_CARD + ' Pagar online con Mercado Pago';
+    waBtn.innerHTML = ICON_WHATSAPP + ' Coordinar por WhatsApp';
+  }
+
+  function finalizarCheckoutWhatsapp(pedido, nombre) {
     var mensaje = encodeURIComponent(construirMensajeWhatsapp(pedido, nombre));
     window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + mensaje, '_blank', 'noopener');
     clear();
     cerrarModalCheckout();
     cerrarPanel();
+    restaurarBotonesModal();
   }
 
   // ---------- Init ----------

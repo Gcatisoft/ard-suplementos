@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Pago pendiente · ARD Suplementos</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#0e1c30; --accent:#2f6fb0; --warn:#93701a; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',sans-serif;background:#f4f7fb;color:var(--ink);min-height:100vh;
+    display:flex;align-items:center;justify-content:center;padding:20px;}
+  .card{background:#fff;border-radius:18px;padding:40px 32px;max-width:420px;width:100%;
+    text-align:center;box-shadow:0 20px 50px rgba(14,28,48,.12);}
+  .icono{width:72px;height:72px;border-radius:50%;background:#fff4d6;display:flex;align-items:center;
+    justify-content:center;margin:0 auto 20px;}
+  .icono svg{width:36px;height:36px;stroke:var(--warn);}
+  h1{font-size:22px;margin-bottom:10px;}
+  p{color:#5c7091;font-size:14px;line-height:1.5;margin-bottom:6px;}
+  .pedido{font-weight:700;color:var(--ink);}
+  a.btn{display:inline-block;margin-top:24px;background:var(--accent);color:#fff;text-decoration:none;
+    padding:13px 28px;border-radius:10px;font-weight:700;font-size:14px;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="icono">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </div>
+    <h1>Pago en proceso</h1>
+    <p>Tu pedido <span class="pedido" id="pedido-num"></span> quedó registrado y estamos esperando la confirmación de Mercado Pago.</p>
+    <p>Apenas se acredite, te lo confirmamos. Si tenés dudas, escribinos por WhatsApp.</p>
+    <a class="btn" href="/">Volver a la tienda</a>
+  </div>
+  <script>
+    var params = new URLSearchParams(window.location.search);
+    var pedido = params.get('pedido');
+    var valido = pedido && pedido !== 'null' && pedido !== 'undefined';
+    document.getElementById('pedido-num').textContent = valido ? '#' + pedido : '';
+  </script>
+</body>
+</html>

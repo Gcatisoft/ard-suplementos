@@ -1,5 +1,6 @@
 require('dotenv').config();
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
@@ -15,6 +16,18 @@ const SESSION_SECRET = process.env.SESSION_SECRET;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'productos';
+
+// ---------- Mercado Pago (Checkout Pro) ----------
+// Solo hace falta el Access Token. Si no está cargado, el botón de "Pagar
+// online" del carrito devuelve un error controlado y el sitio sigue andando
+// normal con el checkout por WhatsApp.
+const MP_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN || '';
+const MP_WEBHOOK_SECRET = process.env.MERCADOPAGO_WEBHOOK_SECRET || '';
+// URL pública del sitio (para armar los links de retorno y el webhook que MP
+// nos pega cuando cambia el estado de un pago). En producción, seteala en el
+// .env; en local se deduce del request (y el webhook se omite porque MP no
+// puede llegar a localhost).
+const PUBLIC_URL = (process.env.PUBLIC_URL || '').replace(/\/$/, '');
 
 // Sin fallback: si falta alguna de estas, el server no arranca. Un
 // SESSION_SECRET hardcodeado en el código sería público (queda en el
@@ -35,6 +48,62 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SESSION_SECRET) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
+
+// ---------- Helpers de Mercado Pago ----------
+// Llamadas directas a la API REST de MP (sin SDK): una dependencia menos que
+// mantener/compilar en el deploy y alcanza de sobra para Checkout Pro.
+async function mpApi(ruta, opciones = {}) {
+  const res = await fetch('https://api.mercadopago.com' + ruta, {
+    ...opciones,
+    headers: {
+      Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+      'Content-Type': 'application/json',
+      ...(opciones.headers || {}),
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.message || 'Error de Mercado Pago');
+    err.mpBody = data;
+    throw err;
+  }
+  return data;
+}
+
+function urlBase(req) {
+  if (PUBLIC_URL) return PUBLIC_URL;
+  return `${req.protocol}://${req.get('host')}`;
+}
+
+// Traduce el estado de un pago de MP al estado interno del pedido.
+function estadoPedidoDesdeMP(mpStatus) {
+  if (mpStatus === 'approved') return 'confirmado';
+  if (mpStatus === 'rejected' || mpStatus === 'cancelled' || mpStatus === 'charged_back') return 'cancelado';
+  return 'pendiente'; // pending, in_process, authorized, etc.
+}
+
+// Valida la firma del webhook (header x-signature) cuando hay un secreto
+// configurado. Sin secreto, no se valida (para poder probar rápido), pero
+// conviene setear MERCADOPAGO_WEBHOOK_SECRET en producción.
+function firmaWebhookValida(req) {
+  if (!MP_WEBHOOK_SECRET) return true;
+  const firma = req.get('x-signature') || '';
+  const requestId = req.get('x-request-id') || '';
+  const partes = {};
+  firma.split(',').forEach((p) => {
+    const [k, v] = p.split('=').map((s) => (s || '').trim());
+    if (k && v) partes[k] = v;
+  });
+  if (!partes.ts || !partes.v1) return false;
+  const dataId = String(req.query['data.id'] || req.body?.data?.id || '').toLowerCase();
+  const manifest = `id:${dataId};request-id:${requestId};ts:${partes.ts};`;
+  const esperado = crypto.createHmac('sha256', MP_WEBHOOK_SECRET).update(manifest).digest('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(esperado), Buffer.from(partes.v1));
+  } catch (e) {
+    return false;
+  }
+}
 
 // ---------- Multer en memoria (subimos el buffer directo a Supabase Storage) ----------
 const upload = multer({
@@ -793,9 +862,47 @@ function mapOrder(row) {
     status: row.status,
     notes: row.notes || '',
     sentVia: row.sent_via,
+    mpStatus: row.mp_status || null,
+    mpPaymentId: row.mp_payment_id || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+// Engancha un pedido web con el módulo de Clientes: busca (o crea) al cliente
+// por teléfono y le suma esta compra al historial. Es idempotente: si ya se
+// registró la compra de este pedido (misma order_id) no la duplica, así se
+// puede llamar tanto al crear el pedido (WhatsApp) como al confirmarse el
+// pago (Mercado Pago) sin miedo a contar la venta dos veces.
+async function registrarCompraDePedido(order) {
+  try {
+    const { data: yaExiste } = await supabase
+      .from('customer_purchases')
+      .select('id')
+      .eq('order_id', order.id)
+      .maybeSingle();
+    if (yaExiste) return;
+
+    const cliente = await buscarOCrearCliente({ name: order.customer_name, phone: order.customer_phone });
+    if (!cliente) return;
+
+    const itemsTexto = (order.items || [])
+      .map((it) => (Number(it.qty) || 1) + 'x ' + it.name + (it.flavor ? ' (' + it.flavor + ')' : ''))
+      .join(', ');
+
+    await supabase.from('customer_purchases').insert({
+      customer_id: cliente.id,
+      amount: Number(order.total) || 0,
+      purchase_date: new Date().toISOString().slice(0, 10),
+      note: 'Pedido web #' + order.order_number,
+      items: itemsTexto,
+      source: 'web',
+      order_id: order.id,
+    });
+  } catch (err) {
+    // No frenamos nada si esto falla; el pedido/pago ya quedó registrado.
+    console.error('No se pudo vincular el pedido con el módulo de clientes:', err.message);
+  }
 }
 
 // ---------- Pedidos: API pública ----------
@@ -803,7 +910,8 @@ function mapOrder(row) {
 // así queda registrado en el panel aunque el cliente no confirme nada más.
 app.post('/api/orders', publicWriteLimiter, async (req, res) => {
   try {
-    const { customerName, customerPhone, customerId, items, notes } = req.body || {};
+    const { customerName, customerPhone, customerId, items, notes, channel } = req.body || {};
+    const canal = channel === 'mercadopago' ? 'mercadopago' : 'whatsapp';
 
     if (!customerName || !customerPhone || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'Faltan datos del pedido (nombre, teléfono o items)' });
@@ -836,35 +944,18 @@ app.post('/api/orders', publicWriteLimiter, async (req, res) => {
       total,
       notes: notes ? String(notes).trim() : '',
       status: 'pendiente',
-      sent_via: 'whatsapp',
+      sent_via: canal,
     };
 
     const { data, error } = await supabase.from('orders').insert(nuevo).select().single();
     if (error) throw error;
 
-    // Enganchamos el pedido con el módulo de Clientes: buscamos (o creamos)
-    // al cliente por teléfono y le sumamos esta compra a su historial, así
-    // el seguimiento de "hace cuánto no compra" queda al día solo, sin que
-    // tengas que cargar nada a mano para los pedidos que salen del sitio.
-    try {
-      const cliente = await buscarOCrearCliente({ name: customerName, phone: customerPhone });
-      if (cliente) {
-        const itemsTexto = itemsValidados
-          .map((it) => (Number(it.qty) || 1) + 'x ' + it.name + (it.flavor ? ' (' + it.flavor + ')' : ''))
-          .join(', ');
-        await supabase.from('customer_purchases').insert({
-          customer_id: cliente.id,
-          amount: total,
-          purchase_date: new Date().toISOString().slice(0, 10),
-          note: 'Pedido web #' + data.order_number,
-          items: itemsTexto,
-          source: 'web',
-          order_id: data.id,
-        });
-      }
-    } catch (errCliente) {
-      // No frenamos el pedido si esto falla; el pedido ya quedó registrado.
-      console.error('No se pudo vincular el pedido con el módulo de clientes:', errCliente.message);
+    // Para pedidos por WhatsApp, la venta se registra en el historial del
+    // cliente ya (el pedido "vale" apenas se manda). Para Mercado Pago, se
+    // registra recién cuando el webhook confirma que el pago fue aprobado,
+    // así un checkout abandonado no cuenta como venta.
+    if (canal !== 'mercadopago') {
+      await registrarCompraDePedido(data);
     }
 
     res.status(201).json(mapOrder(data));
@@ -921,6 +1012,128 @@ app.delete('/api/admin/orders/:id', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al eliminar el pedido' });
+  }
+});
+
+// ============================================================
+// ---------- Mercado Pago: pago online del pedido ----------
+// ============================================================
+
+// Crea una preferencia de Checkout Pro para un pedido ya registrado y
+// devuelve el link de pago (`initPoint`). El carrito redirige al comprador ahí.
+app.post('/api/orders/:id/pagar', publicWriteLimiter, async (req, res) => {
+  try {
+    if (!MP_ACCESS_TOKEN) {
+      return res.status(503).json({ error: 'Los pagos online no están disponibles en este momento' });
+    }
+
+    const { data: order, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
+    if (order.status === 'confirmado') {
+      return res.status(409).json({ error: 'Este pedido ya fue pagado' });
+    }
+
+    const itemsMP = (order.items || [])
+      .map((it) => ({
+        title: String((it.name || 'Producto') + (it.flavor ? ' - ' + it.flavor : '')).slice(0, 250),
+        quantity: Math.max(1, Number(it.qty) || 1),
+        unit_price: Math.round((Number(it.price) || 0) * 100) / 100,
+        currency_id: 'ARS',
+      }))
+      .filter((it) => it.unit_price > 0);
+
+    if (!itemsMP.length) {
+      return res.status(400).json({ error: 'El pedido no tiene productos con precio válido' });
+    }
+
+    const base = urlBase(req);
+    const esLocal = /localhost|127\.0\.0\.1/.test(base);
+    const ref = order.order_number ? `?pedido=${order.order_number}` : '';
+
+    const preferencia = {
+      items: itemsMP,
+      external_reference: String(order.id),
+      payer: { name: order.customer_name || '' },
+      back_urls: {
+        success: `${base}/pago-exitoso.html${ref}`,
+        failure: `${base}/pago-fallido.html${ref}`,
+        pending: `${base}/pago-pendiente.html${ref}`,
+      },
+      statement_descriptor: 'ARD SUPLEMENTOS',
+      metadata: { order_id: order.id, order_number: order.order_number },
+    };
+    // MP rechaza notification_url y auto_return si apuntan a localhost, así que
+    // en local no los mandamos (el estado del pedido se puede ajustar a mano
+    // desde el panel mientras probás).
+    if (!esLocal) {
+      preferencia.auto_return = 'approved';
+      preferencia.notification_url = `${base}/api/webhooks/mercadopago`;
+    }
+
+    const pref = await mpApi('/checkout/preferences', {
+      method: 'POST',
+      body: JSON.stringify(preferencia),
+    });
+
+    await supabase
+      .from('orders')
+      .update({ mp_preference_id: pref.id, sent_via: 'mercadopago' })
+      .eq('id', order.id);
+
+    res.json({ initPoint: pref.init_point, preferenceId: pref.id });
+  } catch (err) {
+    console.error('Error al crear la preferencia de Mercado Pago:', err.mpBody || err.message);
+    res.status(502).json({ error: 'No se pudo iniciar el pago con Mercado Pago' });
+  }
+});
+
+// Webhook de Mercado Pago: MP lo llama cuando cambia el estado de un pago.
+// Respondemos 200 enseguida (si no, MP reintenta) y procesamos después.
+app.post('/api/webhooks/mercadopago', async (req, res) => {
+  res.sendStatus(200);
+  try {
+    if (!firmaWebhookValida(req)) {
+      console.warn('Webhook de Mercado Pago con firma inválida — ignorado');
+      return;
+    }
+
+    const tipo = req.query.type || req.query.topic || req.body?.type;
+    const paymentId =
+      req.query['data.id'] || req.body?.data?.id || (tipo === 'payment' ? req.query.id : null);
+    if (tipo !== 'payment' || !paymentId) return;
+
+    const pago = await mpApi('/v1/payments/' + paymentId);
+    const orderId = pago.external_reference;
+    if (!orderId) return;
+
+    const { data: order } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .maybeSingle();
+    if (!order) return;
+
+    const nuevoEstado = estadoPedidoDesdeMP(pago.status);
+    const cambios = { mp_payment_id: String(pago.id), mp_status: pago.status };
+    // Una notificación tardía (pending/rejected) no debe "despagar" un pedido
+    // que ya quedó confirmado.
+    if (!(order.status === 'confirmado' && nuevoEstado !== 'confirmado')) {
+      cambios.status = nuevoEstado;
+    }
+
+    await supabase.from('orders').update(cambios).eq('id', orderId);
+
+    // Pago aprobado: recién ahí sumamos la venta al historial del cliente.
+    if (pago.status === 'approved') {
+      await registrarCompraDePedido(order);
+    }
+  } catch (err) {
+    console.error('Error procesando el webhook de Mercado Pago:', err.mpBody || err.message);
   }
 });
 

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>No se pudo procesar el pago · ARD Suplementos</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#0e1c30; --accent:#2f6fb0; --err:#a12c2c; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',sans-serif;background:#f4f7fb;color:var(--ink);min-height:100vh;
+    display:flex;align-items:center;justify-content:center;padding:20px;}
+  .card{background:#fff;border-radius:18px;padding:40px 32px;max-width:420px;width:100%;
+    text-align:center;box-shadow:0 20px 50px rgba(14,28,48,.12);}
+  .icono{width:72px;height:72px;border-radius:50%;background:#fde2e2;display:flex;align-items:center;
+    justify-content:center;margin:0 auto 20px;}
+  .icono svg{width:36px;height:36px;stroke:var(--err);}
+  h1{font-size:22px;margin-bottom:10px;}
+  p{color:#5c7091;font-size:14px;line-height:1.5;margin-bottom:6px;}
+  .pedido{font-weight:700;color:var(--ink);}
+  .acciones{display:flex;flex-direction:column;gap:10px;margin-top:24px;}
+  a.btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;
+    padding:13px 28px;border-radius:10px;font-weight:700;font-size:14px;}
+  a.btn-wa{background:#25D366;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="icono">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </div>
+    <h1>No se pudo procesar el pago</h1>
+    <p>Tu pedido <span class="pedido" id="pedido-num"></span> quedó registrado, pero el pago no se completó.</p>
+    <p>Podés intentar de nuevo desde la tienda, o coordinar directamente por WhatsApp.</p>
+    <div class="acciones">
+      <a class="btn" href="/">Volver a intentar</a>
+      <a class="btn btn-wa" id="btn-wa" href="#">Coordinar por WhatsApp</a>
+    </div>
+  </div>
+  <script>
+    var params = new URLSearchParams(window.location.search);
+    var pedido = params.get('pedido');
+    var valido = pedido && pedido !== 'null' && pedido !== 'undefined';
+    var etiqueta = valido ? '#' + pedido : '';
+    document.getElementById('pedido-num').textContent = etiqueta;
+    // Ajustá este número si cambia el WhatsApp del negocio (mismo que data-whatsapp en cart.js).
+    document.getElementById('btn-wa').href = 'https://wa.me/5493834993955?text=' +
+      encodeURIComponent('Hola! Tuve un problema pagando el pedido ' + etiqueta + ', ¿me ayudan a coordinarlo?');
+  </script>
+</body>
+</html>
