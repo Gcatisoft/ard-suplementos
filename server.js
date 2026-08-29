@@ -6,19 +6,25 @@ const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const sharp = require('sharp');
 const compression = require('compression');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const { createClient } = require('@supabase/supabase-js');
 
 const PORT = process.env.PORT || 3000;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'ard-suplementos-secret-cambiar';
+const SESSION_SECRET = process.env.SESSION_SECRET;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'productos';
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+// Sin fallback: si falta alguna de estas, el server no arranca. Un
+// SESSION_SECRET hardcodeado en el código sería público (queda en el
+// repo) y cualquiera podría firmar cookies de sesión válidas con él.
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SESSION_SECRET) {
   console.error(
-    '\n❌ Faltan variables de entorno de Supabase.\n' +
-      '   Configurá SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en tu archivo .env\n' +
-      '   (mirá .env.example para el detalle).\n'
+    '\n❌ Faltan variables de entorno obligatorias.\n' +
+      '   Configurá SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY y SESSION_SECRET en tu archivo .env\n' +
+      '   (mirá .env.example para el detalle. SESSION_SECRET: cualquier string largo y random,\n' +
+      '   por ejemplo generado con `node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"`).\n'
   );
   process.exit(1);
 }
@@ -75,6 +81,16 @@ const uploadNovedad = multer({
 // animación si el producto tuviera una imagen animada).
 async function optimizarImagen(file) {
   if (file.mimetype === 'image/gif') {
+    // El mimetype que manda el navegador es solo una etiqueta, no una
+    // garantía: alguien podría subir cualquier archivo (por ejemplo HTML/JS)
+    // con el header Content-Type falseado a "image/gif" para que quede
+    // guardado en Storage y luego intentar que otra víctima lo abra
+    // directamente. Comprobamos la firma real del archivo (los primeros
+    // bytes de todo GIF válido son "GIF87a" o "GIF89a") antes de aceptarlo.
+    const firma = file.buffer.slice(0, 6).toString('ascii');
+    if (firma !== 'GIF87a' && firma !== 'GIF89a') {
+      throw new Error('El archivo no es un GIF válido');
+    }
     return { buffer: file.buffer, contentType: file.mimetype, ext: '.gif' };
   }
   const buffer = await sharp(file.buffer)
@@ -307,11 +323,29 @@ class SupabaseSessionStore extends session.Store {
 
 // ---------- App ----------
 const app = express();
+
+// Necesario para que Express detecte HTTPS correctamente detrás de un proxy
+// (Vercel, Render, etc. terminan TLS antes de llegar a Node). Sin esto,
+// `cookie.secure` de abajo nunca se activaría en producción y la cookie de
+// sesión viajaría también por HTTP.
+app.set('trust proxy', 1);
+
+// Headers de seguridad básicos (CSP, X-Frame-Options, X-Content-Type-Options,
+// etc.). CSP desactivado por ahora porque el sitio carga imágenes/scripts de
+// orígenes variados (Supabase Storage, CDNs) y una política default bloquea
+// eso; se puede afinar más adelante con las fuentes exactas que usa el sitio.
+app.use(helmet({ contentSecurityPolicy: false }));
+
 // Comprime (gzip) todas las respuestas de texto (HTML, CSS, JS, JSON), que
 // suelen pesar 60-80% menos comprimidas: páginas más livianas y más rápidas.
 app.use(compression());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Límite de tamaño en el body JSON/form: sin esto, cualquiera puede mandar
+// un POST de varios MB de texto (por ejemplo en "notes" o "comentario") y
+// forzar al server a parsear payloads gigantes repetidamente (DoS barato).
+// 1MB es de sobra para nombre/teléfono/notas/reseñas; las imágenes van aparte
+// por multipart (multer), no por acá.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(
   session({
     store: new SupabaseSessionStore(supabase),
@@ -321,6 +355,10 @@ app.use(
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
+      // Solo por HTTPS en producción (evita que la cookie de sesión viaje en
+      // texto plano); en local (NODE_ENV distinto de 'production', sin TLS)
+      // la dejamos sin 'secure' para poder seguir probando por http://localhost.
+      secure: process.env.NODE_ENV === 'production',
       maxAge: 1000 * 60 * 60 * 8, // 8 horas
     },
   })
@@ -345,8 +383,30 @@ function requireAuth(req, res, next) {
   return res.status(401).json({ error: 'No autorizado' });
 }
 
+// ---------- Rate limiting ----------
+// Login: máximo 10 intentos cada 15 min por IP. Frena fuerza bruta sobre las
+// contraseñas de admin sin afectar el uso normal (nadie falla el login 10 veces).
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiados intentos de inicio de sesión. Probá de nuevo en unos minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Pedidos y reseñas: rutas públicas sin login, expuestas a spam/bots.
+// Límite generoso (no son acciones que un cliente real repita muchas veces
+// seguidas) pero corta scripts que las inunden.
+const publicWriteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Demasiadas solicitudes. Probá de nuevo en unos minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ---------- Auth ----------
-app.post('/api/admin/login', async (req, res) => {
+app.post('/api/admin/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body || {};
     if (!username || !password) {
@@ -418,6 +478,21 @@ app.post('/api/admin/change-password', requireAuth, async (req, res) => {
 });
 
 // ---------- Productos: API pública (para el index) ----------
+// Sanitiza el término de búsqueda antes de meterlo en un filtro PostgREST:
+// `.or()` recibe un string crudo con sintaxis propia (comas separan
+// condiciones, los paréntesis anidan). Si el texto del usuario llega tal
+// cual, alguien podría escribir algo como `x,is-active.eq.false)`-like para
+// inyectar condiciones extra en el filtro. Sacamos esos caracteres especiales
+// y escapamos los comodines de ILIKE (%, _) para que el término se use
+// siempre como texto literal a buscar, nunca como sintaxis de filtro.
+function sanitizarBusqueda(q) {
+  return String(q)
+    .replace(/[,()]/g, '')
+    .replace(/[%_]/g, '\\$&')
+    .slice(0, 100)
+    .trim();
+}
+
 app.get('/api/products', async (req, res) => {
   try {
     const { category, featured, q } = req.query;
@@ -425,7 +500,10 @@ app.get('/api/products', async (req, res) => {
 
     if (category) query = query.ilike('category', category);
     if (featured === 'true') query = query.eq('featured', true);
-    if (q) query = query.or(`name.ilike.%${q}%,brand.ilike.%${q}%`);
+    if (q) {
+      const term = sanitizarBusqueda(q);
+      if (term) query = query.or(`name.ilike.%${term}%,brand.ilike.%${term}%`);
+    }
 
     query = query.order('created_at', { ascending: false });
 
@@ -468,14 +546,86 @@ app.get('/api/products/:id', async (req, res) => {
 });
 
 // ---------- Productos: API de administración (protegida) ----------
+// Paginado en el servidor: antes esto traía TODOS los productos (con todas
+// sus imágenes) en cada carga del panel, aunque hubiera cientos. Ahora se
+// pide de a páginas (20 por defecto) y los filtros de búsqueda/categoría/
+// estado se aplican en la consulta a Supabase, no sobre el listado completo
+// ya bajado al navegador.
 app.get('/api/admin/products', requireAuth, async (req, res) => {
   try {
-    const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const desde = (page - 1) * limit;
+    const hasta = desde + limit - 1;
+
+    let query = supabase.from('products').select('*', { count: 'exact' });
+
+    if (req.query.category) query = query.eq('category', req.query.category);
+    if (req.query.estado === 'activo') query = query.eq('active', true);
+    if (req.query.estado === 'inactivo') query = query.eq('active', false);
+    if (req.query.q) {
+      const term = sanitizarBusqueda(req.query.q);
+      if (term) query = query.or(`name.ilike.%${term}%,brand.ilike.%${term}%`);
+    }
+
+    query = query.order('created_at', { ascending: false }).range(desde, hasta);
+
+    const { data, error, count } = await query;
     if (error) throw error;
-    res.json((data || []).map(mapProducto));
+
+    res.json({
+      productos: (data || []).map(mapProducto),
+      total: count || 0,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil((count || 0) / limit)),
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al obtener los productos' });
+  }
+});
+
+// Categorías existentes, para el selector de filtro — trae solo la columna
+// `category` (no las imágenes ni el resto de cada producto) así arma la
+// lista completa sin pesar como traer todos los productos enteros.
+app.get('/api/admin/products/categorias', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('products').select('category');
+    if (error) throw error;
+    const categorias = [...new Set((data || []).map((r) => r.category).filter(Boolean))].sort();
+    res.json(categorias);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las categorías' });
+  }
+});
+
+// Estadísticas del panel de productos — consultas de solo conteo
+// (`head: true`), no bajan filas, así que son livianas sin importar cuántos
+// productos haya cargados.
+app.get('/api/admin/products/stats', requireAuth, async (req, res) => {
+  try {
+    const base = () => supabase.from('products').select('*', { count: 'exact', head: true });
+    const [total, activos, sinStock, destacados] = await Promise.all([
+      base(),
+      base().eq('active', true),
+      base().lte('stock', 0),
+      base().eq('featured', true),
+    ]);
+    if (total.error) throw total.error;
+    if (activos.error) throw activos.error;
+    if (sinStock.error) throw sinStock.error;
+    if (destacados.error) throw destacados.error;
+    res.json({
+      total: total.count || 0,
+      activos: activos.count || 0,
+      sinStock: sinStock.count || 0,
+      destacados: destacados.count || 0,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las estadísticas' });
   }
 });
 
@@ -630,10 +780,6 @@ app.delete('/api/admin/products/:id', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Error al eliminar el producto' });
   }
 });
-// ============================================================
-// PEGAR ESTE BLOQUE EN server.js, ANTES de: app.get('/admin', ...)
-// ============================================================
-
 // ---------- Mapeo de pedidos (snake_case -> camelCase) ----------
 function mapOrder(row) {
   return {
@@ -655,7 +801,7 @@ function mapOrder(row) {
 // ---------- Pedidos: API pública ----------
 // El storefront pega acá justo antes (o al mismo tiempo) de abrir el link de WhatsApp,
 // así queda registrado en el panel aunque el cliente no confirme nada más.
-app.post('/api/orders', async (req, res) => {
+app.post('/api/orders', publicWriteLimiter, async (req, res) => {
   try {
     const { customerName, customerPhone, customerId, items, notes } = req.body || {};
 
@@ -663,13 +809,30 @@ app.post('/api/orders', async (req, res) => {
       return res.status(400).json({ error: 'Faltan datos del pedido (nombre, teléfono o items)' });
     }
 
-    const total = items.reduce((acc, it) => acc + (Number(it.price) || 0) * (Number(it.qty) || 0), 0);
+    // No confiamos en el precio que manda el navegador (el carrito lo guarda
+    // en localStorage y viaja tal cual en el POST): alguien podría editar el
+    // payload y mandar precios en $0. Volvemos a buscar cada producto en la
+    // base y recalculamos el total con el precio real y vigente.
+    const ids = [...new Set(items.map((it) => it.productId).filter(Boolean))];
+    const { data: productosDb, error: errProductos } = ids.length
+      ? await supabase.from('products').select('id, name, price').in('id', ids)
+      : { data: [], error: null };
+    if (errProductos) throw errProductos;
+
+    const precioPorId = new Map((productosDb || []).map((p) => [p.id, Number(p.price)]));
+
+    const itemsValidados = items.map((it) => {
+      const precioReal = precioPorId.has(it.productId) ? precioPorId.get(it.productId) : Number(it.price) || 0;
+      return { ...it, price: precioReal };
+    });
+
+    const total = itemsValidados.reduce((acc, it) => acc + (Number(it.price) || 0) * (Number(it.qty) || 0), 0);
 
     const nuevo = {
       customer_name: String(customerName).trim(),
       customer_phone: String(customerPhone).trim(),
       customer_id: customerId || null,
-      items,
+      items: itemsValidados,
       total,
       notes: notes ? String(notes).trim() : '',
       status: 'pendiente',
@@ -686,7 +849,7 @@ app.post('/api/orders', async (req, res) => {
     try {
       const cliente = await buscarOCrearCliente({ name: customerName, phone: customerPhone });
       if (cliente) {
-        const itemsTexto = items
+        const itemsTexto = itemsValidados
           .map((it) => (Number(it.qty) || 1) + 'x ' + it.name + (it.flavor ? ' (' + it.flavor + ')' : ''))
           .join(', ');
         await supabase.from('customer_purchases').insert({
@@ -809,7 +972,7 @@ app.get('/api/reviews', async (req, res) => {
   }
 });
 
-app.post('/api/reviews', async (req, res) => {
+app.post('/api/reviews', publicWriteLimiter, async (req, res) => {
   try {
     const { nombre, calificacion, comentario } = req.body || {};
 
@@ -1435,4 +1598,4 @@ app.listen(PORT, () => {
   console.log(`\nARD Suplementos corriendo en http://localhost:${PORT}`);
   console.log(`Panel de administración: http://localhost:${PORT}/admin/login.html`);
   console.log(`Conectado a Supabase: ${SUPABASE_URL}`);
-}); 
+});
