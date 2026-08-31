@@ -766,9 +766,13 @@
           ? ' <span class="pago-mp-badge" title="Pago online por Mercado Pago' + (p.mpStatus ? ' — estado MP: ' + escaparHTML(p.mpStatus) : '') + '">MP</span>'
           : '';
 
+        const badgeCuenta = p.accountId
+          ? ' <span class="pago-mp-badge" style="background:#1a7a44;" title="Compra hecha desde una cuenta registrada del sitio">CUENTA</span>'
+          : '';
+
         return (
           '<tr>' +
-          '<td>#' + String(p.orderNumber).padStart(4, '0') + badgePago + '</td>' +
+          '<td>#' + String(p.orderNumber).padStart(4, '0') + badgePago + badgeCuenta + '</td>' +
           '<td><strong>' + escaparHTML(p.customerName) + '</strong></td>' +
           '<td>' + escaparHTML(p.customerPhone) + '</td>' +
           '<td>' +

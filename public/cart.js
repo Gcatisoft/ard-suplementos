@@ -43,6 +43,19 @@
   var items = cargar();
   var listeners = [];
 
+  // Cuenta del cliente logueada (o null). El registro/login es obligatorio
+  // para finalizar la compra.
+  var cuenta = null;
+  function refrescarCuenta() {
+    return fetch('/api/account/me', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : { account: null }; })
+      .then(function (d) { cuenta = (d && d.account) || null; return cuenta; })
+      .catch(function () { cuenta = null; return null; });
+  }
+  function urlLoginConRetorno() {
+    return '/cuenta.html?redirect=' + encodeURIComponent(location.pathname + location.search);
+  }
+
   // Cada línea del carrito se identifica por producto + sabor (si tiene).
   // Así, dos sabores distintos del mismo producto quedan como líneas
   // separadas en vez de mezclarse en una sola.
@@ -246,29 +259,44 @@
   modalOverlay.className = 'ard-cart-modal-overlay';
   modalOverlay.innerHTML =
     '<div class="ard-cart-modal">' +
-      '<h3>Datos para el pedido</h3>' +
-      '<p>Elegí cómo querés pagar. Solo necesitamos tu nombre y teléfono.</p>' +
-      '<div class="ard-cart-field">' +
-        '<label for="ard-cart-nombre">Nombre</label>' +
-        '<input type="text" id="ard-cart-nombre" autocomplete="name" placeholder="Tu nombre">' +
+      '<div id="ard-cart-login-gate" style="display:none;">' +
+        '<h3>Necesitás una cuenta</h3>' +
+        '<p>Para finalizar la compra tenés que iniciar sesión o crear una cuenta. Así podés seguir tus pedidos y tus compras quedan protegidas.</p>' +
+        '<div class="ard-cart-modal-actions">' +
+          '<a class="ard-cart-pay-mp" id="ard-cart-ir-login" href="#" style="text-align:center;text-decoration:none;">Iniciar sesión / Crear cuenta</a>' +
+          '<button class="ard-cart-modal-cancel" id="ard-cart-login-cancel" type="button">Ahora no</button>' +
+        '</div>' +
       '</div>' +
-      '<div class="ard-cart-field">' +
-        '<label for="ard-cart-telefono">Teléfono</label>' +
-        '<input type="tel" id="ard-cart-telefono" autocomplete="tel" placeholder="Ej: 3834 123456">' +
-      '</div>' +
-      '<div class="ard-cart-field">' +
-        '<label for="ard-cart-notas">Notas (opcional)</label>' +
-        '<textarea id="ard-cart-notas" placeholder="Alguna aclaración sobre tu pedido…"></textarea>' +
-      '</div>' +
-      '<div class="ard-cart-error" id="ard-cart-error"></div>' +
-      '<div class="ard-cart-modal-actions">' +
-        '<button class="ard-cart-pay-mp" id="ard-cart-pay-mp" type="button">' + ICON_CARD + ' Pagar online con Mercado Pago</button>' +
-        '<button class="ard-cart-modal-confirm" id="ard-cart-modal-confirm" type="button">' + ICON_WHATSAPP + ' Coordinar por WhatsApp</button>' +
-        '<button class="ard-cart-modal-cancel" id="ard-cart-modal-cancel" type="button">Cancelar</button>' +
+      '<div id="ard-cart-checkout-form">' +
+        '<h3>Datos para el pedido</h3>' +
+        '<p id="ard-cart-como">Elegí cómo querés pagar.</p>' +
+        '<div class="ard-cart-field">' +
+          '<label for="ard-cart-nombre">Nombre</label>' +
+          '<input type="text" id="ard-cart-nombre" autocomplete="name" placeholder="Tu nombre">' +
+        '</div>' +
+        '<div class="ard-cart-field">' +
+          '<label for="ard-cart-telefono">Teléfono</label>' +
+          '<input type="tel" id="ard-cart-telefono" autocomplete="tel" placeholder="Ej: 3834 123456">' +
+        '</div>' +
+        '<div class="ard-cart-field">' +
+          '<label for="ard-cart-notas">Notas (opcional)</label>' +
+          '<textarea id="ard-cart-notas" placeholder="Alguna aclaración sobre tu pedido…"></textarea>' +
+        '</div>' +
+        '<div class="ard-cart-error" id="ard-cart-error"></div>' +
+        '<div class="ard-cart-modal-actions">' +
+          '<button class="ard-cart-pay-mp" id="ard-cart-pay-mp" type="button">' + ICON_CARD + ' Pagar online con Mercado Pago</button>' +
+          '<button class="ard-cart-modal-confirm" id="ard-cart-modal-confirm" type="button">' + ICON_WHATSAPP + ' Coordinar por WhatsApp</button>' +
+          '<button class="ard-cart-modal-cancel" id="ard-cart-modal-cancel" type="button">Cancelar</button>' +
+        '</div>' +
       '</div>' +
     '</div>';
   modalOverlay.addEventListener('click', function (e) {
     if (e.target === modalOverlay) cerrarModalCheckout();
+  });
+  modalOverlay.querySelector('#ard-cart-login-cancel').addEventListener('click', cerrarModalCheckout);
+  modalOverlay.querySelector('#ard-cart-ir-login').addEventListener('click', function (e) {
+    e.preventDefault();
+    location.href = urlLoginConRetorno();
   });
   modalOverlay.querySelector('#ard-cart-modal-cancel').addEventListener('click', cerrarModalCheckout);
   modalOverlay.querySelector('#ard-cart-modal-confirm').addEventListener('click', function () { confirmarPedido('whatsapp'); });
@@ -371,10 +399,33 @@
     document.getElementById('ard-cart-error').classList.remove('visible');
     restaurarBotonesModal();
     modalOverlay.classList.add('open');
-    setTimeout(function () {
-      var input = document.getElementById('ard-cart-nombre');
-      if (input) input.focus();
-    }, 50);
+
+    var gate = document.getElementById('ard-cart-login-gate');
+    var form = document.getElementById('ard-cart-checkout-form');
+
+    // Mientras consultamos la sesión, mostramos el form deshabilitado.
+    refrescarCuenta().then(function (c) {
+      if (!c) {
+        gate.style.display = '';
+        form.style.display = 'none';
+        return;
+      }
+      gate.style.display = 'none';
+      form.style.display = '';
+
+      // Prellenamos con los datos de la cuenta.
+      var nombreInput = document.getElementById('ard-cart-nombre');
+      var telInput = document.getElementById('ard-cart-telefono');
+      if (nombreInput && !nombreInput.value) nombreInput.value = c.name || '';
+      if (telInput && !telInput.value) telInput.value = c.phone || '';
+      var como = document.getElementById('ard-cart-como');
+      if (como) como.textContent = 'Comprás como ' + c.email + '. Elegí cómo querés pagar.';
+
+      setTimeout(function () {
+        var focusEl = (telInput && !telInput.value) ? telInput : nombreInput;
+        if (focusEl) focusEl.focus();
+      }, 50);
+    });
   }
 
   function cerrarModalCheckout() {
@@ -437,6 +488,11 @@
       body: JSON.stringify(payload)
     })
       .then(function (res) {
+        if (res.status === 401) {
+          // La sesión venció entre que abrió el modal y confirmó.
+          location.href = urlLoginConRetorno();
+          throw new Error('__redirect__');
+        }
         if (!res.ok) throw new Error('No se pudo registrar el pedido');
         return res.json();
       })
@@ -447,7 +503,8 @@
           finalizarCheckoutWhatsapp(pedido, nombre);
         }
       })
-      .catch(function () {
+      .catch(function (err) {
+        if (err && err.message === '__redirect__') return;
         if (canal === 'mercadopago') {
           mostrarToast('No se pudo iniciar el pago. Probá coordinar por WhatsApp.');
           mpBtn.disabled = false;
@@ -506,6 +563,7 @@
   function init() {
     montarDOM();
     render();
+    refrescarCuenta();
   }
 
   if (document.readyState === 'loading') {

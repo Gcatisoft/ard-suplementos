@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi cuenta — ARD Suplementos</title>
+<meta name="description" content="Ingresá a tu cuenta de ARD Suplementos para ver el historial de tus compras.">
+<meta name="robots" content="noindex, follow">
+<meta name="theme-color" content="#0a1626">
+<link rel="canonical" href="https://ardsuplementos.com.ar/cuenta.html">
+<link rel="icon" href="/logoard.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --white:#ffffff; --bg-soft:#f5f8fc; --ink:#0e1c30;
+    --navy-950:#0a1626; --navy-900:#11223c; --navy-800:#1a3357;
+    --steel-600:#4f76a8; --steel-300:#a9c3de; --steel-100:#e7eef7;
+    --line:#e3e9f2; --accent:#2f6fb0; --accent-light:#4886c9;
+    --flame:#e0563f; --flame-dark:#c73f2a;
+    --font-display:'Poppins','Segoe UI',Roboto,sans-serif;
+    --font-body:'Inter','Segoe UI',Roboto,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:var(--font-body);background:var(--bg-soft);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  a{text-decoration:none;color:inherit;}
+  button,input{font-family:inherit;}
+  button{cursor:pointer;}
+  img{max-width:100%;display:block;}
+
+  .nav{background:var(--navy-950);}
+  .nav-inner{max-width:1100px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .nav-inner img{height:74px;width:auto;}
+  .nav-inner a.volver{color:var(--steel-300);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+  .nav-inner a.volver:hover{color:#fff;}
+
+  .wrap{max-width:1100px;margin:0 auto;padding:32px 20px 60px;}
+
+  .card{
+    background:#fff;border:1px solid var(--line);border-radius:16px;
+    padding:28px;box-shadow:0 12px 30px rgba(17,34,60,0.06);
+  }
+  .card + .card{margin-top:18px;}
+
+  h1{font-family:var(--font-display);font-weight:800;font-size:clamp(22px,3vw,30px);color:var(--navy-900);text-transform:uppercase;}
+  h2{font-family:var(--font-display);font-weight:700;font-size:18px;color:var(--navy-900);margin-bottom:14px;}
+  .sub{color:var(--steel-600);font-size:14.5px;margin-top:6px;}
+
+  /* Tabs login / registro */
+  .auth-wrap{max-width:440px;margin:0 auto;}
+  .tabs{display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--line);}
+  .tab{
+    flex:1;padding:12px;background:none;border:none;border-bottom:3px solid transparent;
+    font-family:var(--font-display);font-weight:600;font-size:14px;text-transform:uppercase;
+    letter-spacing:.02em;color:var(--steel-600);
+  }
+  .tab.active{color:var(--navy-900);border-bottom-color:var(--accent);}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--steel-600);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;}
+  .field input{
+    width:100%;border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+    font-size:15px;color:var(--ink);background:var(--bg-soft);
+  }
+  .field input:focus{outline:2px solid var(--accent-light);outline-offset:1px;}
+
+  .btn{
+    width:100%;border:none;border-radius:999px;padding:13px 20px;
+    background:var(--flame);color:#fff;font-family:var(--font-display);font-weight:700;
+    font-size:15px;letter-spacing:.02em;text-transform:uppercase;
+    box-shadow:0 10px 22px rgba(224,86,63,0.32);
+  }
+  .btn:hover{background:var(--flame-dark);}
+  .btn:disabled{opacity:.6;cursor:default;}
+  .btn-ghost{
+    background:none;color:var(--navy-900);box-shadow:none;border:1px solid var(--line);
+  }
+  .btn-ghost:hover{background:var(--bg-soft);}
+
+  .msg{font-size:13.5px;font-weight:600;margin-top:10px;display:none;}
+  .msg.error{color:var(--flame-dark);display:block;}
+  .msg.ok{color:#1a7a44;display:block;}
+
+  .cuenta-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  .cuenta-mail{font-size:14px;color:var(--steel-600);margin-top:4px;}
+
+  .pedido{
+    border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:12px;
+  }
+  .pedido-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline;}
+  .pedido-num{font-family:var(--font-display);font-weight:700;color:var(--navy-900);font-size:15px;}
+  .pedido-fecha{font-size:12.5px;color:var(--steel-600);}
+  .pedido-items{margin:10px 0 0;padding-left:18px;font-size:13.5px;color:var(--ink);}
+  .pedido-items li{margin-bottom:3px;}
+  .pedido-bottom{display:flex;justify-content:space-between;gap:12px;margin-top:12px;align-items:center;flex-wrap:wrap;}
+  .pedido-total{font-family:var(--font-display);font-weight:800;font-size:17px;color:var(--navy-900);}
+  .estado{
+    display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.03em;
+  }
+  .estado.pendiente{background:#fff4d6;color:#93701a;}
+  .estado.confirmado{background:#d9f2e3;color:#1a7a44;}
+  .estado.cancelado{background:#fde2e2;color:#a12c2c;}
+
+  .vacio{text-align:center;color:var(--steel-600);padding:30px 10px;font-size:14px;}
+  .loader{text-align:center;color:var(--steel-600);padding:40px 10px;}
+
+  .linkline{margin-top:16px;text-align:center;font-size:13px;color:var(--steel-600);}
+  .linkline a{color:var(--accent);font-weight:600;}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a href="/"><img src="logoblanco.png" alt="ARD Suplementos"></a>
+    <a class="volver" href="/">← Volver a la tienda</a>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div id="vista-loader" class="card"><div class="loader">Cargando…</div></div>
+
+  <!-- ====== NO LOGUEADO: login / registro ====== -->
+  <div id="vista-auth" class="card" style="display:none;">
+    <div class="auth-wrap">
+      <h1>Mi cuenta</h1>
+      <p class="sub" id="auth-sub">Ingresá para ver el historial de tus compras.</p>
+
+      <div class="tabs" style="margin-top:22px;">
+        <button type="button" class="tab active" data-tab="login">Ingresar</button>
+        <button type="button" class="tab" data-tab="registro">Crear cuenta</button>
+      </div>
+
+      <!-- Login -->
+      <form id="form-login">
+        <div class="field">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="login-pass">Contraseña</label>
+          <input type="password" id="login-pass" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn" id="btn-login">Ingresar</button>
+        <div class="msg" id="msg-login"></div>
+        <div class="linkline">¿No tenés cuenta? <a href="#" data-ir="registro">Creá una acá</a></div>
+      </form>
+
+      <!-- Registro -->
+      <form id="form-registro" style="display:none;">
+        <div class="field">
+          <label for="reg-nombre">Nombre y apellido</label>
+          <input type="text" id="reg-nombre" autocomplete="name" required>
+        </div>
+        <div class="field">
+          <label for="reg-email">Email</label>
+          <input type="email" id="reg-email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="reg-tel">Teléfono (WhatsApp)</label>
+          <input type="tel" id="reg-tel" autocomplete="tel" placeholder="Ej: 3834 123456">
+        </div>
+        <div class="field">
+          <label for="reg-pass">Contraseña (mínimo 6 caracteres)</label>
+          <input type="password" id="reg-pass" autocomplete="new-password" required minlength="6">
+        </div>
+        <button type="submit" class="btn" id="btn-registro">Crear cuenta</button>
+        <div class="msg" id="msg-registro"></div>
+        <div class="linkline">¿Ya tenés cuenta? <a href="#" data-ir="login">Iniciá sesión</a></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====== LOGUEADO: datos + compras ====== -->
+  <div id="vista-cuenta" style="display:none;">
+    <div class="card">
+      <div class="cuenta-head">
+        <div>
+          <h1>Hola<span id="cuenta-nombre"></span></h1>
+          <div class="cuenta-mail" id="cuenta-email"></div>
+        </div>
+        <button type="button" class="btn btn-ghost" id="btn-logout" style="width:auto;">Cerrar sesión</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Mis compras</h2>
+      <div id="pedidos-lista"><div class="loader">Cargando tus compras…</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Cambiar contraseña</h2>
+      <form id="form-pass" style="max-width:420px;">
+        <div class="field">
+          <label for="pass-actual">Contraseña actual</label>
+          <input type="password" id="pass-actual" autocomplete="current-password" required>
+        </div>
+        <div class="field">
+          <label for="pass-nueva">Nueva contraseña</label>
+          <input type="password" id="pass-nueva" autocomplete="new-password" required minlength="6">
+        </div>
+        <button type="submit" class="btn btn-ghost" id="btn-pass" style="width:auto;">Guardar</button>
+        <div class="msg" id="msg-pass"></div>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var params = new URLSearchParams(location.search);
+  var redirect = params.get('redirect');
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  function formatearPrecio(v){
+    try { return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(v); }
+    catch(e){ return '$' + v; }
+  }
+  function formatearFecha(iso){
+    if(!iso) return '';
+    try {
+      return new Date(iso).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+    } catch(e){ return ''; }
+  }
+
+  function mostrarVista(cual){
+    $('vista-loader').style.display = cual === 'loader' ? '' : 'none';
+    $('vista-auth').style.display   = cual === 'auth'   ? '' : 'none';
+    $('vista-cuenta').style.display = cual === 'cuenta' ? '' : 'none';
+  }
+
+  function irDespuesDeLogin(){
+    if (redirect && redirect.charAt(0) === '/' && redirect.charAt(1) !== '/') {
+      location.href = redirect;
+    } else {
+      location.href = '/cuenta.html';
+    }
+  }
+
+  // ---------- Tabs ----------
+  var tabs = document.querySelectorAll('.tab');
+  function activarTab(nombre){
+    tabs.forEach(function(t){ t.classList.toggle('active', t.dataset.tab === nombre); });
+    $('form-login').style.display = nombre === 'login' ? '' : 'none';
+    $('form-registro').style.display = nombre === 'registro' ? '' : 'none';
+  }
+  tabs.forEach(function(t){ t.addEventListener('click', function(){ activarTab(t.dataset.tab); }); });
+  document.querySelectorAll('[data-ir]').forEach(function(a){
+    a.addEventListener('click', function(e){ e.preventDefault(); activarTab(a.dataset.ir); });
+  });
+
+  function setMsg(el, texto, tipo){
+    el.textContent = texto || '';
+    el.className = 'msg' + (texto ? ' ' + tipo : '');
+  }
+
+  // ---------- Login ----------
+  $('form-login').addEventListener('submit', function(e){
+    e.preventDefault();
+    var btn = $('btn-login');
+    setMsg($('msg-login'), '', '');
+    btn.disabled = true; btn.textContent = 'Ingresando…';
+    fetch('/api/account/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email: $('login-email').value.trim(), password: $('login-pass').value })
+    }).then(function(r){ return r.json().then(function(d){ return { ok:r.ok, d:d }; }); })
+      .then(function(res){
+        if(!res.ok){ setMsg($('msg-login'), res.d.error || 'No se pudo iniciar sesión.', 'error'); btn.disabled=false; btn.textContent='Ingresar'; return; }
+        irDespuesDeLogin();
+      })
+      .catch(function(){ setMsg($('msg-login'), 'Error de conexión. Probá de nuevo.', 'error'); btn.disabled=false; btn.textContent='Ingresar'; });
+  });
+
+  // ---------- Registro ----------
+  $('form-registro').addEventListener('submit', function(e){
+    e.preventDefault();
+    var btn = $('btn-registro');
+    setMsg($('msg-registro'), '', '');
+    if ($('reg-pass').value.length < 6){
+      setMsg($('msg-registro'), 'La contraseña debe tener al menos 6 caracteres.', 'error');
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Creando…';
+    fetch('/api/account/register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name: $('reg-nombre').value.trim(),
+        email: $('reg-email').value.trim(),
+        phone: $('reg-tel').value.trim(),
+        password: $('reg-pass').value
+      })
+    }).then(function(r){ return r.json().then(function(d){ return { ok:r.ok, d:d }; }); })
+      .then(function(res){
+        if(!res.ok){ setMsg($('msg-registro'), res.d.error || 'No se pudo crear la cuenta.', 'error'); btn.disabled=false; btn.textContent='Crear cuenta'; return; }
+        irDespuesDeLogin();
+      })
+      .catch(function(){ setMsg($('msg-registro'), 'Error de conexión. Probá de nuevo.', 'error'); btn.disabled=false; btn.textContent='Crear cuenta'; });
+  });
+
+  // ---------- Logout ----------
+  $('btn-logout').addEventListener('click', function(){
+    fetch('/api/account/logout', { method:'POST' }).then(function(){ location.href = '/'; });
+  });
+
+  // ---------- Cambiar contraseña ----------
+  $('form-pass').addEventListener('submit', function(e){
+    e.preventDefault();
+    var btn = $('btn-pass');
+    setMsg($('msg-pass'), '', '');
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    fetch('/api/account/change-password', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ currentPassword: $('pass-actual').value, newPassword: $('pass-nueva').value })
+    }).then(function(r){ return r.json().then(function(d){ return { ok:r.ok, d:d }; }); })
+      .then(function(res){
+        btn.disabled = false; btn.textContent = 'Guardar';
+        if(!res.ok){ setMsg($('msg-pass'), res.d.error || 'No se pudo cambiar la contraseña.', 'error'); return; }
+        setMsg($('msg-pass'), 'Contraseña actualizada.', 'ok');
+        $('form-pass').reset();
+      })
+      .catch(function(){ btn.disabled=false; btn.textContent='Guardar'; setMsg($('msg-pass'), 'Error de conexión.', 'error'); });
+  });
+
+  // ---------- Render de compras ----------
+  function pintarPedidos(pedidos){
+    var cont = $('pedidos-lista');
+    if(!pedidos.length){
+      cont.innerHTML = '<div class="vacio">Todavía no hiciste ninguna compra con esta cuenta.</div>';
+      return;
+    }
+    cont.innerHTML = pedidos.map(function(p){
+      var items = (p.items || []).map(function(it){
+        return '<li>' + (Number(it.qty)||1) + 'x ' + escapar(it.name || 'Producto') +
+          (it.flavor ? ' (' + escapar(it.flavor) + ')' : '') + '</li>';
+      }).join('');
+      var est = (p.status || 'pendiente');
+      return '<div class="pedido">' +
+        '<div class="pedido-top">' +
+          '<span class="pedido-num">Pedido N.º ' + escapar(String(p.orderNumber || '—')) + '</span>' +
+          '<span class="pedido-fecha">' + formatearFecha(p.createdAt) + '</span>' +
+        '</div>' +
+        (items ? '<ul class="pedido-items">' + items + '</ul>' : '') +
+        '<div class="pedido-bottom">' +
+          '<span class="estado ' + est + '">' + est + '</span>' +
+          '<span class="pedido-total">' + formatearPrecio(p.total) + '</span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+  function escapar(s){
+    return String(s).replace(/[&<>"]/g, function(c){
+      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c];
+    });
+  }
+
+  function cargarPedidos(){
+    fetch('/api/account/orders', { headers:{'Accept':'application/json'} })
+      .then(function(r){ return r.ok ? r.json() : []; })
+      .then(pintarPedidos)
+      .catch(function(){ $('pedidos-lista').innerHTML = '<div class="vacio">No pudimos cargar tus compras.</div>'; });
+  }
+
+  // ---------- Arranque ----------
+  fetch('/api/account/me', { headers:{'Accept':'application/json'} })
+    .then(function(r){ return r.ok ? r.json() : { account:null }; })
+    .then(function(d){
+      var acc = d && d.account;
+      if (acc){
+        if (redirect && redirect.charAt(0) === '/' && redirect.charAt(1) !== '/') { location.href = redirect; return; }
+        $('cuenta-nombre').textContent = acc.name ? (', ' + acc.name.split(' ')[0]) : '';
+        $('cuenta-email').textContent = acc.email;
+        mostrarVista('cuenta');
+        cargarPedidos();
+      } else {
+        if (redirect) $('auth-sub').textContent = 'Ingresá o creá tu cuenta para finalizar la compra.';
+        mostrarVista('auth');
+      }
+    })
+    .catch(function(){ mostrarVista('auth'); });
+})();
+</script>
+
+</body>
+</html>

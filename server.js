@@ -453,6 +453,26 @@ function requireAuth(req, res, next) {
   return res.status(401).json({ error: 'No autorizado' });
 }
 
+// Igual que requireAuth pero para las cuentas de clientes del sitio.
+function requireCustomer(req, res, next) {
+  if (req.session && req.session.accountId) return next();
+  return res.status(401).json({ error: 'Iniciá sesión para continuar' });
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Nunca devolvemos el hash de la contraseña ni el token de verificación.
+function mapAccount(row) {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name || '',
+    phone: row.phone || '',
+    emailVerified: !!row.email_verified,
+    createdAt: row.created_at,
+  };
+}
+
 // ---------- SEO: sitemap.xml dinámico ----------
 // Incluye las páginas fijas más una entrada por cada producto publicado,
 // para que Google indexe cada ficha. Se regenera en cada visita del bot.
@@ -528,6 +548,16 @@ const publicWriteLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Registro / inicio de sesión de clientes: frena fuerza bruta sobre las
+// contraseñas sin molestar el uso normal.
+const accountAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { error: 'Demasiados intentos. Probá de nuevo en unos minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ---------- Auth ----------
 app.post('/api/admin/login', loginLimiter, async (req, res) => {
   try {
@@ -597,6 +627,203 @@ app.post('/api/admin/change-password', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al cambiar la contraseña' });
+  }
+});
+
+// ============================================================
+// ---------- Cuentas de clientes (login del sitio) ----------
+// ============================================================
+// Sesión basada en cookie (la misma infraestructura que el panel admin,
+// pero con la marca `accountId` en vez de `isAdmin`). Sirve para que el
+// comprador vea el historial de sus compras y para exigir login al
+// finalizar un pedido.
+
+app.post('/api/account/register', accountAuthLimiter, async (req, res) => {
+  try {
+    const { email, password, name, phone } = req.body || {};
+
+    const emailNorm = String(email || '').trim().toLowerCase();
+    if (!EMAIL_RE.test(emailNorm)) {
+      return res.status(400).json({ error: 'Ingresá un email válido.' });
+    }
+    if (!password || String(password).length < 6) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres.' });
+    }
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ error: 'Ingresá tu nombre.' });
+    }
+
+    const { data: existente, error: errBuscar } = await supabase
+      .from('customer_accounts')
+      .select('id')
+      .eq('email', emailNorm)
+      .maybeSingle();
+    if (errBuscar) throw errBuscar;
+    if (existente) {
+      return res.status(409).json({ error: 'Ya existe una cuenta con ese email. Probá iniciar sesión.' });
+    }
+
+    const telNorm = normalizarTelefono(phone);
+    let customerId = null;
+    if (telNorm) {
+      try {
+        const cliente = await buscarOCrearCliente({ name, phone: telNorm });
+        customerId = cliente ? cliente.id : null;
+      } catch (e) {
+        console.error('No se pudo vincular la cuenta con un cliente del CRM:', e.message);
+      }
+    }
+
+    const nuevo = {
+      email: emailNorm,
+      password_hash: bcrypt.hashSync(String(password), 10),
+      name: String(name).trim().slice(0, 80),
+      phone: telNorm || null,
+      email_verified: false,
+      verify_token: crypto.randomBytes(24).toString('hex'),
+      customer_id: customerId,
+    };
+
+    const { data, error } = await supabase.from('customer_accounts').insert(nuevo).select().single();
+    if (error) throw error;
+
+    req.session.accountId = data.id;
+    req.session.accountEmail = data.email;
+    res.status(201).json({ ok: true, account: mapAccount(data) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'No pudimos crear tu cuenta. Probá de nuevo en un rato.' });
+  }
+});
+
+app.post('/api/account/login', accountAuthLimiter, async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    const emailNorm = String(email || '').trim().toLowerCase();
+    if (!emailNorm || !password) {
+      return res.status(400).json({ error: 'Completá email y contraseña.' });
+    }
+
+    const { data: cuenta, error } = await supabase
+      .from('customer_accounts')
+      .select('*')
+      .eq('email', emailNorm)
+      .maybeSingle();
+    if (error) throw error;
+    if (!cuenta || !cuenta.password_hash || !bcrypt.compareSync(String(password), cuenta.password_hash)) {
+      return res.status(401).json({ error: 'Email o contraseña incorrectos.' });
+    }
+
+    req.session.accountId = cuenta.id;
+    req.session.accountEmail = cuenta.email;
+    res.json({ ok: true, account: mapAccount(cuenta) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al iniciar sesión.' });
+  }
+});
+
+app.post('/api/account/logout', (req, res) => {
+  if (req.session) {
+    delete req.session.accountId;
+    delete req.session.accountEmail;
+  }
+  res.json({ ok: true });
+});
+
+app.get('/api/account/me', async (req, res) => {
+  try {
+    if (!req.session || !req.session.accountId) return res.json({ account: null });
+    const { data, error } = await supabase
+      .from('customer_accounts')
+      .select('*')
+      .eq('id', req.session.accountId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      delete req.session.accountId;
+      delete req.session.accountEmail;
+      return res.json({ account: null });
+    }
+    res.json({ account: mapAccount(data) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al leer la sesión.' });
+  }
+});
+
+app.post('/api/account/change-password', requireCustomer, accountAuthLimiter, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Completá ambos campos.' });
+    }
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres.' });
+    }
+
+    const { data: cuenta, error } = await supabase
+      .from('customer_accounts')
+      .select('id, password_hash')
+      .eq('id', req.session.accountId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!cuenta || !cuenta.password_hash || !bcrypt.compareSync(String(currentPassword), cuenta.password_hash)) {
+      return res.status(401).json({ error: 'La contraseña actual no es correcta.' });
+    }
+
+    const { error: updErr } = await supabase
+      .from('customer_accounts')
+      .update({ password_hash: bcrypt.hashSync(String(newPassword), 10) })
+      .eq('id', cuenta.id);
+    if (updErr) throw updErr;
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al cambiar la contraseña.' });
+  }
+});
+
+// Historial de compras de la cuenta logueada. Trae los pedidos vinculados
+// por account_id y, además, los pedidos viejos que coincidan por teléfono
+// (compras hechas antes de tener cuenta).
+app.get('/api/account/orders', requireCustomer, async (req, res) => {
+  try {
+    const { data: cuenta } = await supabase
+      .from('customer_accounts')
+      .select('id, phone')
+      .eq('id', req.session.accountId)
+      .maybeSingle();
+
+    const porCuenta = await supabase
+      .from('orders')
+      .select('*')
+      .eq('account_id', req.session.accountId)
+      .order('created_at', { ascending: false });
+
+    const pedidos = new Map();
+    (porCuenta.data || []).forEach((o) => pedidos.set(o.id, o));
+
+    const telNorm = normalizarTelefono(cuenta && cuenta.phone);
+    if (telNorm) {
+      const porTelefono = await supabase
+        .from('orders')
+        .select('*')
+        .is('account_id', null)
+        .order('created_at', { ascending: false });
+      (porTelefono.data || []).forEach((o) => {
+        if (normalizarTelefono(o.customer_phone) === telNorm) pedidos.set(o.id, o);
+      });
+    }
+
+    const lista = [...pedidos.values()]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .map(mapOrder);
+    res.json(lista);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener tus compras.' });
   }
 });
 
@@ -913,6 +1140,7 @@ function mapOrder(row) {
     customerName: row.customer_name,
     customerPhone: row.customer_phone,
     customerId: row.customer_id,
+    accountId: row.account_id || null,
     items: row.items || [],
     total: Number(row.total),
     status: row.status,
@@ -964,7 +1192,7 @@ async function registrarCompraDePedido(order) {
 // ---------- Pedidos: API pública ----------
 // El storefront pega acá justo antes (o al mismo tiempo) de abrir el link de WhatsApp,
 // así queda registrado en el panel aunque el cliente no confirme nada más.
-app.post('/api/orders', publicWriteLimiter, async (req, res) => {
+app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) => {
   try {
     const { customerName, customerPhone, customerId, items, notes, channel } = req.body || {};
     const canal = channel === 'mercadopago' ? 'mercadopago' : 'whatsapp';
@@ -972,6 +1200,18 @@ app.post('/api/orders', publicWriteLimiter, async (req, res) => {
     if (!customerName || !customerPhone || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'Faltan datos del pedido (nombre, teléfono o items)' });
     }
+
+    // El pedido queda a nombre de la cuenta logueada. De paso, si la cuenta
+    // todavía no tenía teléfono guardado, se lo completamos con este.
+    const accountId = req.session.accountId;
+    try {
+      const { data: cuenta } = await supabase
+        .from('customer_accounts').select('id, phone').eq('id', accountId).maybeSingle();
+      if (cuenta && !cuenta.phone && customerPhone) {
+        await supabase.from('customer_accounts')
+          .update({ phone: normalizarTelefono(customerPhone) || null }).eq('id', accountId);
+      }
+    } catch (e) { /* no bloquea el pedido */ }
 
     // No confiamos en el precio que manda el navegador (el carrito lo guarda
     // en localStorage y viaja tal cual en el POST): alguien podría editar el
@@ -996,6 +1236,7 @@ app.post('/api/orders', publicWriteLimiter, async (req, res) => {
       customer_name: String(customerName).trim(),
       customer_phone: String(customerPhone).trim(),
       customer_id: customerId || null,
+      account_id: accountId,
       items: itemsValidados,
       total,
       notes: notes ? String(notes).trim() : '',
@@ -1077,7 +1318,7 @@ app.delete('/api/admin/orders/:id', requireAuth, async (req, res) => {
 
 // Crea una preferencia de Checkout Pro para un pedido ya registrado y
 // devuelve el link de pago (`initPoint`). El carrito redirige al comprador ahí.
-app.post('/api/orders/:id/pagar', publicWriteLimiter, async (req, res) => {
+app.post('/api/orders/:id/pagar', requireCustomer, publicWriteLimiter, async (req, res) => {
   try {
     if (!MP_ACCESS_TOKEN) {
       return res.status(503).json({ error: 'Los pagos online no están disponibles en este momento' });
@@ -1090,6 +1331,9 @@ app.post('/api/orders/:id/pagar', publicWriteLimiter, async (req, res) => {
       .maybeSingle();
     if (error) throw error;
     if (!order) return res.status(404).json({ error: 'Pedido no encontrado' });
+    if (order.account_id && order.account_id !== req.session.accountId) {
+      return res.status(403).json({ error: 'Este pedido no es de tu cuenta' });
+    }
     if (order.status === 'confirmado') {
       return res.status(409).json({ error: 'Este pedido ya fue pagado' });
     }
