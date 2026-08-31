@@ -473,9 +473,21 @@
         if (Number(p.stock) <= 0) chips.push('<span class="chip sin-stock">Sin stock</span>');
 
         const precioEfectivoHtml = formatearPrecio(p.price) + (p.oldPrice ? ' <span style="text-decoration:line-through;color:#9aa8bb;font-size:12px;">' + formatearPrecio(p.oldPrice) + '</span>' : '');
-        const lineasPrecio = ['<div>' + precioEfectivoHtml + '</div>'];
-        if (p.creditPrice) lineasPrecio.push('<div style="font-size:12px;color:#6b7686;">' + formatearPrecio(p.creditPrice) + ' 1 pago crédito</div>');
-        if (p.cardPrice) lineasPrecio.push('<div style="font-size:12px;color:#6b7686;">' + formatearPrecio(p.cardPrice) + ' base cuotas</div>');
+        const lineasPrecio = ['<div>' + precioEfectivoHtml + ' <span style="font-size:11px;color:#9aa8bb;">efvo/transf</span></div>'];
+
+        let planes = Array.isArray(p.paymentPlans) ? p.paymentPlans : [];
+        if (!planes.length && (p.creditPrice || (p.installments > 1))) {
+          planes = [];
+          if (p.creditPrice) planes.push({ cuotas: 1, precio: p.creditPrice });
+          if (p.installments > 1) planes.push({ cuotas: p.installments, precio: p.cardPrice || p.price });
+        }
+        planes
+          .slice()
+          .sort((a, b) => (Number(a.cuotas) || 0) - (Number(b.cuotas) || 0))
+          .forEach((pl) => {
+            const etiqueta = Number(pl.cuotas) === 1 ? '1 pago tarjeta' : (pl.cuotas + ' cuotas');
+            lineasPrecio.push('<div style="font-size:12px;color:#6b7686;">' + formatearPrecio(pl.precio) + ' <span style="color:#9aa8bb;font-size:11px;">' + etiqueta + '</span></div>');
+          });
         const precioHtml = lineasPrecio.join('');
 
         return (
@@ -594,6 +606,67 @@
     });
   }
 
+  // -------- Planes de pago con tarjeta (cuotas + precio total, con recargo) --------
+  function agregarFilaPlan(cuotas, precio) {
+    const cont = document.getElementById('planes-pago-filas');
+    const vacio = cont.querySelector('.planes-pago-vacio');
+    if (vacio) vacio.remove();
+
+    const fila = document.createElement('div');
+    fila.className = 'plan-fila';
+    fila.innerHTML =
+      '<input type="number" class="plan-cuotas" min="1" max="60" step="1" placeholder="Ej: 3" value="' + (cuotas != null ? cuotas : '') + '">' +
+      '<input type="number" class="plan-precio" min="0" step="1" placeholder="Precio total" value="' + (precio != null ? precio : '') + '">' +
+      '<button type="button" class="plan-quitar" aria-label="Quitar plan">&times;</button>';
+    fila.querySelector('.plan-quitar').addEventListener('click', () => {
+      fila.remove();
+      if (!cont.querySelector('.plan-fila')) renderPlanesVacio();
+    });
+    cont.appendChild(fila);
+  }
+
+  function renderPlanesVacio() {
+    const cont = document.getElementById('planes-pago-filas');
+    if (!cont.querySelector('.planes-pago-vacio')) {
+      cont.innerHTML = '<div class="planes-pago-vacio">Sin planes: el producto se vende solo en efectivo / transferencia.</div>';
+    }
+  }
+
+  function cargarPlanesEnForm(p) {
+    const cont = document.getElementById('planes-pago-filas');
+    cont.innerHTML = '';
+    let planes = Array.isArray(p && p.paymentPlans) ? p.paymentPlans.slice() : [];
+    // Compatibilidad: si todavía no tiene planes cargados, los armamos con los
+    // precios sueltos viejos para no perder lo que ya estaba.
+    if (!planes.length && p) {
+      if (p.creditPrice) planes.push({ cuotas: 1, precio: p.creditPrice });
+      if (p.installments && p.installments > 1) planes.push({ cuotas: p.installments, precio: p.cardPrice || p.price });
+    }
+    planes
+      .slice()
+      .sort((a, b) => (Number(a.cuotas) || 0) - (Number(b.cuotas) || 0))
+      .forEach((pl) => agregarFilaPlan(pl.cuotas, pl.precio));
+    if (!planes.length) renderPlanesVacio();
+  }
+
+  function leerPlanesDelForm() {
+    const filas = [...document.querySelectorAll('#planes-pago-filas .plan-fila')];
+    const vistas = new Set();
+    const planes = [];
+    filas.forEach((f) => {
+      const cuotas = Math.round(Number(f.querySelector('.plan-cuotas').value) || 0);
+      const precio = Math.round(Number(f.querySelector('.plan-precio').value) || 0);
+      if (cuotas >= 1 && cuotas <= 60 && precio > 0 && !vistas.has(cuotas)) {
+        vistas.add(cuotas);
+        planes.push({ cuotas, precio });
+      }
+    });
+    planes.sort((a, b) => a.cuotas - b.cuotas);
+    return planes;
+  }
+
+  document.getElementById('plan-agregar-btn').addEventListener('click', () => agregarFilaPlan());
+
   // -------- Modal: abrir / cerrar --------
   function limpiarFormulario() {
     editandoId = null;
@@ -601,6 +674,7 @@
     document.getElementById('producto-id').value = '';
     document.getElementById('activo').checked = true;
     document.getElementById('destacado').checked = false;
+    cargarPlanesEnForm(null);
     imagenesExistentes = [];
     imagenesNuevas = [];
     renderImagenesGrid();
@@ -624,12 +698,10 @@
     document.getElementById('marca').value = p.brand || '';
     document.getElementById('categoria').value = p.category;
     document.getElementById('precio').value = p.price;
-    document.getElementById('precio-credito').value = p.creditPrice || '';
-    document.getElementById('precio-tarjeta').value = p.cardPrice || '';
     document.getElementById('precio-anterior').value = p.oldPrice || '';
     document.getElementById('stock').value = p.stock;
     document.getElementById('sabores').value = p.flavors || '';
-    document.getElementById('cuotas').value = p.installments || '';
+    cargarPlanesEnForm(p);
     document.getElementById('descripcion').value = p.description || '';
     document.getElementById('destacado').checked = !!p.featured;
     document.getElementById('activo').checked = !!p.active;
@@ -667,12 +739,10 @@
     formData.append('brand', document.getElementById('marca').value.trim());
     formData.append('category', document.getElementById('categoria').value.trim());
     formData.append('price', document.getElementById('precio').value);
-    formData.append('cardPrice', document.getElementById('precio-tarjeta').value);
-    formData.append('creditPrice', document.getElementById('precio-credito').value);
     formData.append('oldPrice', document.getElementById('precio-anterior').value);
     formData.append('stock', document.getElementById('stock').value || '0');
     formData.append('flavors', document.getElementById('sabores').value.trim());
-    formData.append('installments', document.getElementById('cuotas').value);
+    formData.append('paymentPlans', JSON.stringify(leerPlanesDelForm()));
     formData.append('description', document.getElementById('descripcion').value.trim());
     formData.append('featured', document.getElementById('destacado').checked);
     formData.append('active', document.getElementById('activo').checked);
@@ -770,9 +840,11 @@
           ? ' <span class="pago-mp-badge" style="background:#1a7a44;" title="Compra hecha desde una cuenta registrada del sitio">CUENTA</span>'
           : '';
 
-        const modoTexto = { efectivo: 'Efectivo / transf.', credito: '1 pago crédito', cuotas: (p.chosenInstallments || '') + ' cuotas' };
-        const badgeModo = p.priceMode
-          ? ' <span class="pago-mp-badge" style="background:#6b4fa1;" title="Forma de pago elegida por el cliente">' + escaparHTML((modoTexto[p.priceMode] || p.priceMode).trim()) + '</span>'
+        let modoTxt = '';
+        if (p.priceMode === 'efectivo') modoTxt = 'Efectivo / transf.';
+        else if (p.priceMode === 'tarjeta' || p.chosenInstallments) modoTxt = Number(p.chosenInstallments) === 1 ? '1 pago tarjeta' : ((p.chosenInstallments || '?') + ' cuotas');
+        const badgeModo = modoTxt
+          ? ' <span class="pago-mp-badge" style="background:#6b4fa1;" title="Forma de pago elegida por el cliente">' + escaparHTML(modoTxt) + '</span>'
           : '';
 
         return (

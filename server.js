@@ -217,6 +217,46 @@ async function borrarImagenPorUrl(url) {
   }
 }
 
+// Planes de pago con tarjeta: [{ cuotas, precio }]. Cada plan tiene su
+// propio precio total (con el recargo ya incluido). Se limpia, se ordena
+// por cantidad de cuotas y se descartan entradas inválidas o repetidas.
+function normalizarPlanesPago(valor) {
+  let arr = valor;
+  if (typeof arr === 'string') {
+    try { arr = JSON.parse(arr); } catch (e) { arr = []; }
+  }
+  if (!Array.isArray(arr)) return [];
+  const vistas = new Set();
+  return arr
+    .map((p) => ({ cuotas: Math.round(Number(p && p.cuotas) || 0), precio: Math.round((Number(p && p.precio) || 0) * 100) / 100 }))
+    .filter((p) => {
+      if (!Number.isFinite(p.cuotas) || p.cuotas < 1 || p.cuotas > 60) return false;
+      if (!Number.isFinite(p.precio) || p.precio <= 0) return false;
+      if (vistas.has(p.cuotas)) return false;
+      vistas.add(p.cuotas);
+      return true;
+    })
+    .sort((a, b) => a.cuotas - b.cuotas)
+    .slice(0, 12);
+}
+
+// Precio unitario de un producto para una cantidad de cuotas dada.
+// 0 (o sin planes) = efectivo/transferencia. Si el producto no tiene un
+// plan para esa cantidad exacta, cae al precio de efectivo (no regala el
+// recargo, pero tampoco rompe un carrito con productos mezclados).
+function precioSegunCuotas(prod, cuotas) {
+  const efectivo = Number(prod.price) || 0;
+  const n = Math.round(Number(cuotas) || 0);
+  if (n < 1) return efectivo;
+  const planes = normalizarPlanesPago(prod.payment_plans);
+  const plan = planes.find((p) => p.cuotas === n);
+  if (plan) return plan.precio;
+  // Compatibilidad con productos viejos que todavía usan las columnas sueltas.
+  if (n === 1 && prod.credit_price != null && Number(prod.credit_price) > 0) return Number(prod.credit_price);
+  if (n > 1 && prod.card_price != null && Number(prod.card_price) > 0) return Number(prod.card_price);
+  return efectivo;
+}
+
 // ---------- Mapeo de filas de la base (snake_case) al formato que usa el frontend (camelCase) ----------
 function mapProducto(row) {
   return {
@@ -234,6 +274,7 @@ function mapProducto(row) {
     images: Array.isArray(row.images) ? row.images : (row.image ? [row.image] : []),
     flavors: row.flavors || '',
     installments: row.installments !== null && row.installments !== undefined ? Number(row.installments) : null,
+    paymentPlans: normalizarPlanesPago(row.payment_plans),
     featured: row.featured,
     active: row.active,
     createdAt: row.created_at,
@@ -993,10 +1034,12 @@ app.get('/api/admin/products/:id', requireAuth, async (req, res) => {
 
 app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), manejarErrorImagen, async (req, res) => {
   try {
-    const { name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, description, featured, active, imageUrl, flavors, installments } = req.body;
+    const { name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, description, featured, active, imageUrl, flavors, installments, paymentPlans } = req.body;
     if (!name || !category || price === undefined || price === '') {
       return res.status(400).json({ error: 'Nombre, categoría y precio son obligatorios' });
     }
+
+    const planes = normalizarPlanesPago(paymentPlans);
 
     let images = [];
     if (req.files && req.files.length) {
@@ -1020,6 +1063,7 @@ app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), maneja
       images,
       flavors: flavors ? String(flavors).trim() : '',
       installments: installments ? Number(installments) : null,
+      payment_plans: planes,
       featured: featured === 'true' || featured === true,
       active: active === undefined ? true : active === 'true' || active === true,
     };
@@ -1044,7 +1088,7 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), man
     if (findError) throw findError;
     if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
 
-    const { name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, description, featured, active, imagenesExistentes, flavors, installments } =
+    const { name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, description, featured, active, imagenesExistentes, flavors, installments, paymentPlans } =
       req.body;
 
     const cambios = {};
@@ -1059,6 +1103,7 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), man
     if (description !== undefined) cambios.description = String(description).trim();
     if (flavors !== undefined) cambios.flavors = String(flavors).trim();
     if (installments !== undefined) cambios.installments = installments === '' ? null : Number(installments);
+    if (paymentPlans !== undefined) cambios.payment_plans = normalizarPlanesPago(paymentPlans);
     if (featured !== undefined) cambios.featured = featured === 'true' || featured === true;
     if (active !== undefined) cambios.active = active === 'true' || active === true;
 
@@ -1192,23 +1237,10 @@ async function registrarCompraDePedido(order) {
 }
 
 // ---------- Formas de pago del checkout ----------
-// Devuelve el precio unitario que corresponde a un producto según cómo
-// eligió pagar el cliente. Con fallback: si no cargaron el precio de esa
-// modalidad, se usa el inmediato anterior (crédito -> efectivo, cuotas ->
-// crédito -> efectivo), así la opción sigue disponible aunque no todos los
-// productos tengan los 3 precios cargados.
-const MODOS_PAGO = ['efectivo', 'credito', 'cuotas'];
-function precioSegunModo(prod, modo) {
-  const efectivo = Number(prod.price) || 0;
-  const credito = prod.credit_price != null ? Number(prod.credit_price) : null;
-  const cuotasBase = prod.card_price != null ? Number(prod.card_price) : null;
-  if (modo === 'credito') return credito != null ? credito : efectivo;
-  if (modo === 'cuotas') return cuotasBase != null ? cuotasBase : (credito != null ? credito : efectivo);
-  return efectivo;
-}
-
-// Cotización del carrito para las 3 modalidades. La usa el checkout para
-// mostrar cuánto sale pagando de cada forma antes de confirmar.
+// Cotiza el carrito: el total en efectivo/transferencia y el total de cada
+// plan de cuotas con tarjeta (cada plan con su recargo propio). Un plan de
+// N cuotas se ofrece si al menos un producto del carrito lo tiene cargado;
+// para los productos que no lo tengan, ese ítem va a su precio de efectivo.
 app.post('/api/orders/quote', requireCustomer, async (req, res) => {
   try {
     const { items } = req.body || {};
@@ -1218,34 +1250,46 @@ app.post('/api/orders/quote', requireCustomer, async (req, res) => {
 
     const ids = [...new Set(items.map((it) => it.productId).filter(Boolean))];
     const { data: productosDb, error } = ids.length
-      ? await supabase.from('products').select('id, price, credit_price, card_price, installments').in('id', ids)
+      ? await supabase.from('products').select('id, price, credit_price, card_price, installments, payment_plans').in('id', ids)
       : { data: [], error: null };
     if (error) throw error;
     const porId = new Map((productosDb || []).map((p) => [p.id, p]));
 
-    const totales = { efectivo: 0, credito: 0, cuotas: 0 };
-    let hayCredito = false;
-    let hayCuotas = false;
-    let cuotasMax = 0;
+    const round = (n) => Math.round(n * 100) / 100;
 
+    // Todas las cantidades de cuotas ofrecidas por algún producto del carrito.
+    const cuotasOfrecidas = new Set();
+    items.forEach((it) => {
+      const prod = porId.get(it.productId);
+      if (!prod) return;
+      normalizarPlanesPago(prod.payment_plans).forEach((p) => cuotasOfrecidas.add(p.cuotas));
+      if (prod.credit_price != null && Number(prod.credit_price) > 0) cuotasOfrecidas.add(1);
+      if (Number(prod.installments) > 1 && (prod.card_price != null || prod.price != null)) cuotasOfrecidas.add(Number(prod.installments));
+    });
+
+    let totalEfectivo = 0;
     items.forEach((it) => {
       const qty = Math.max(1, Number(it.qty) || 1);
       const prod = porId.get(it.productId) || { price: Number(it.price) || 0 };
-      MODOS_PAGO.forEach((m) => { totales[m] += precioSegunModo(prod, m) * qty; });
-      if (prod.credit_price != null) hayCredito = true;
-      const cuo = Number(prod.installments) || 0;
-      if (cuo > 1) { hayCuotas = true; cuotasMax = Math.max(cuotasMax, cuo); }
+      totalEfectivo += (Number(prod.price) || 0) * qty;
     });
 
-    const round = (n) => Math.round(n * 100) / 100;
+    const planes = [...cuotasOfrecidas]
+      .sort((a, b) => a - b)
+      .map((n) => {
+        let total = 0;
+        items.forEach((it) => {
+          const qty = Math.max(1, Number(it.qty) || 1);
+          const prod = porId.get(it.productId) || { price: Number(it.price) || 0 };
+          total += precioSegunCuotas(prod, n) * qty;
+        });
+        total = round(total);
+        return { cuotas: n, total, cuotaValor: round(total / n) };
+      });
+
     res.json({
-      modes: {
-        efectivo: { total: round(totales.efectivo), disponible: true },
-        credito: { total: round(totales.credito), disponible: true, conPrecioPropio: hayCredito },
-        cuotas: hayCuotas
-          ? { total: round(totales.cuotas), disponible: true, installments: cuotasMax, cuotaValor: round(totales.cuotas / cuotasMax) }
-          : { disponible: false },
-      },
+      efectivo: { total: round(totalEfectivo) },
+      planes,
     });
   } catch (err) {
     console.error(err);
@@ -1258,9 +1302,11 @@ app.post('/api/orders/quote', requireCustomer, async (req, res) => {
 // así queda registrado en el panel aunque el cliente no confirme nada más.
 app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) => {
   try {
-    const { customerName, customerPhone, customerId, items, notes, channel, priceMode } = req.body || {};
-    const modo = MODOS_PAGO.includes(priceMode) ? priceMode : 'efectivo';
-    // Efectivo/transferencia se coordina por WhatsApp; crédito y cuotas van sí o sí por Mercado Pago.
+    const { customerName, customerPhone, customerId, items, notes, channel, installments: cuotasBody } = req.body || {};
+    // 0 / vacío = efectivo o transferencia; N >= 1 = pago con tarjeta en N cuotas.
+    const cuotas = Math.max(0, Math.round(Number(cuotasBody) || 0));
+    const modo = cuotas >= 1 ? 'tarjeta' : 'efectivo';
+    // Efectivo/transferencia se coordina por WhatsApp; con tarjeta va sí o sí por Mercado Pago.
     const canal = modo === 'efectivo'
       ? (channel === 'mercadopago' ? 'mercadopago' : 'whatsapp')
       : 'mercadopago';
@@ -1287,21 +1333,17 @@ app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) =>
     // base y recalculamos el total con el precio real y vigente.
     const ids = [...new Set(items.map((it) => it.productId).filter(Boolean))];
     const { data: productosDb, error: errProductos } = ids.length
-      ? await supabase.from('products').select('id, name, price, credit_price, card_price, installments').in('id', ids)
+      ? await supabase.from('products').select('id, name, price, credit_price, card_price, installments, payment_plans').in('id', ids)
       : { data: [], error: null };
     if (errProductos) throw errProductos;
 
     const prodPorId = new Map((productosDb || []).map((p) => [p.id, p]));
 
-    // El precio unitario lo define la modalidad de pago elegida, siempre
+    // El precio unitario lo define la cantidad de cuotas elegida, siempre
     // recalculado contra la base de datos (nunca se confía en el navegador).
-    let cuotasElegidas = 0;
     const itemsValidados = items.map((it) => {
       const prod = prodPorId.get(it.productId);
-      const precioReal = prod ? precioSegunModo(prod, modo) : (Number(it.price) || 0);
-      if (prod && modo === 'cuotas') {
-        cuotasElegidas = Math.max(cuotasElegidas, Number(prod.installments) || 0);
-      }
+      const precioReal = prod ? precioSegunCuotas(prod, cuotas) : (Number(it.price) || 0);
       return { ...it, price: precioReal };
     });
 
@@ -1318,7 +1360,7 @@ app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) =>
       status: 'pendiente',
       sent_via: canal,
       price_mode: modo,
-      chosen_installments: modo === 'cuotas' && cuotasElegidas > 1 ? cuotasElegidas : null,
+      chosen_installments: cuotas >= 1 ? cuotas : null,
     };
 
     const { data, error } = await supabase.from('orders').insert(nuevo).select().single();
@@ -1445,17 +1487,13 @@ app.post('/api/orders/:id/pagar', requireCustomer, publicWriteLimiter, async (re
       metadata: { order_id: order.id, order_number: order.order_number, price_mode: order.price_mode || 'efectivo' },
     };
 
-    // El monto de `items` ya viene calculado con el precio de la modalidad
-    // elegida. Además le decimos a Mercado Pago en cuántas cuotas cobrar:
-    //  - crédito en 1 pago  -> forzamos 1 cuota
-    //  - en cuotas          -> fijamos la cantidad elegida como default y tope
-    if (order.price_mode === 'credito') {
-      preferencia.payment_methods = { installments: 1, default_installments: 1 };
-    } else if (order.price_mode === 'cuotas' && Number(order.chosen_installments) > 1) {
-      preferencia.payment_methods = {
-        installments: Number(order.chosen_installments),
-        default_installments: Number(order.chosen_installments),
-      };
+    // El monto de `items` ya viene calculado con el precio del plan elegido
+    // (con su recargo). Además fijamos en Mercado Pago la cantidad de cuotas
+    // exacta: tope y default en el mismo número, así el cliente paga en las
+    // cuotas que corresponden a ese precio y no en otras.
+    const cuotasPref = Number(order.chosen_installments) || 0;
+    if (cuotasPref >= 1) {
+      preferencia.payment_methods = { installments: cuotasPref, default_installments: cuotasPref };
     }
     // MP rechaza notification_url y auto_return si apuntan a localhost, así que
     // en local no los mandamos (el estado del pedido se puede ajustar a mano

@@ -339,8 +339,9 @@
           (it.flavor ? ' (' + escapar(it.flavor) + ')' : '') + '</li>';
       }).join('');
       var est = (p.status || 'pendiente');
-      var modos = { efectivo: 'Efectivo o transferencia', credito: '1 pago con crédito', cuotas: (p.chosenInstallments || '') + ' cuotas con tarjeta' };
-      var modoTxt = p.priceMode ? (modos[p.priceMode] || p.priceMode).trim() : '';
+      var modoTxt = '';
+      if (p.priceMode === 'efectivo') modoTxt = 'Efectivo o transferencia';
+      else if (p.priceMode === 'tarjeta' || p.chosenInstallments) modoTxt = (Number(p.chosenInstallments) === 1 ? '1 pago con tarjeta' : (p.chosenInstallments || '') + ' cuotas con tarjeta');
       return '<div class="pedido">' +
         '<div class="pedido-top">' +
           '<span class="pedido-num">Pedido N.º ' + escapar(String(p.orderNumber || '—')) + '</span>' +

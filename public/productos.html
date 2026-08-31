@@ -625,11 +625,29 @@
     catch(e){ return '$' + valor; }
   }
 
-  function textoCuotas(p){
-    const base = p.cardPrice || p.price;
-    if (!p.installments || !base) return '';
-    const valorCuota = base / p.installments;
-    return p.installments + ' cuotas de ' + formatearPrecio(valorCuota);
+  // Planes de pago con tarjeta ([{cuotas, precio}]), con fallback a los
+  // precios sueltos viejos por si el producto todavía no se re-editó.
+  function planesTarjeta(p){
+    let planes = Array.isArray(p.paymentPlans) ? p.paymentPlans.slice() : [];
+    if (!planes.length){
+      if (p.creditPrice) planes.push({ cuotas:1, precio:Number(p.creditPrice) });
+      if (p.installments && p.installments > 1) planes.push({ cuotas:Number(p.installments), precio:Number(p.cardPrice || p.price) });
+    }
+    return planes
+      .map(pl => ({ cuotas:Number(pl.cuotas)||0, precio:Number(pl.precio)||0 }))
+      .filter(pl => pl.cuotas >= 1 && pl.precio > 0)
+      .sort((a,b) => a.cuotas - b.cuotas);
+  }
+
+  function htmlTarjetaCard(p){
+    const planes = planesTarjeta(p);
+    if (!planes.length) return '';
+    const uno = planes.find(pl => pl.cuotas === 1);
+    const masCuotas = planes.filter(pl => pl.cuotas > 1).pop();
+    let out = '';
+    if (uno) out += '<div class="producto-credito">1 pago tarjeta: <strong>' + formatearPrecio(uno.precio) + '</strong></div>';
+    if (masCuotas) out += '<div class="producto-cuotas">' + masCuotas.cuotas + ' cuotas de ' + formatearPrecio(masCuotas.precio / masCuotas.cuotas) + '</div>';
+    return out;
   }
 
   function iconoPlaceholder(){
@@ -658,8 +676,7 @@
             (tieneOferta ? '<span class="producto-precio-anterior">' + formatearPrecio(p.oldPrice) + '</span>' : '') +
             '<span class="producto-precio-nota">Precio en efectivo o transferencia</span>' +
           '</div>' +
-          (p.creditPrice ? '<div class="producto-credito">1 pago crédito: <strong>' + formatearPrecio(p.creditPrice) + '</strong></div>' : '') +
-          (textoCuotas(p) ? '<div class="producto-cuotas">' + textoCuotas(p) + '</div>' : '') +
+          htmlTarjetaCard(p) +
           '<span class="producto-stock' + (sinStock ? ' sin-stock' : '') + '">' +
             (sinStock ? 'Sin stock' : ('Stock: ' + p.stock)) +
           '</span>' +

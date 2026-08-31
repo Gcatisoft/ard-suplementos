@@ -572,11 +572,28 @@
     catch(e){ return '$' + valor; }
   }
 
-  function textoCuotas(p){
-    const base = p.cardPrice || p.price;
-    if (!p.installments || !base) return '';
-    const valorCuota = base / p.installments;
-    return p.installments + ' cuotas de ' + formatearPrecio(valorCuota) + ' sin interés';
+  // Planes de pago con tarjeta: [{cuotas, precio}] con su recargo. Con
+  // fallback a los precios sueltos viejos por si el producto no se re-editó.
+  function planesTarjeta(p){
+    let planes = Array.isArray(p.paymentPlans) ? p.paymentPlans.slice() : [];
+    if (!planes.length){
+      if (p.creditPrice) planes.push({ cuotas:1, precio:Number(p.creditPrice) });
+      if (p.installments && p.installments > 1) planes.push({ cuotas:Number(p.installments), precio:Number(p.cardPrice || p.price) });
+    }
+    return planes
+      .map(pl => ({ cuotas:Number(pl.cuotas)||0, precio:Number(pl.precio)||0 }))
+      .filter(pl => pl.cuotas >= 1 && pl.precio > 0)
+      .sort((a,b) => a.cuotas - b.cuotas);
+  }
+
+  function htmlPlanesTarjeta(p){
+    const planes = planesTarjeta(p);
+    if (!planes.length) return '';
+    const filas = planes.map(pl => {
+      if (pl.cuotas === 1) return '<li>1 pago: <strong>' + formatearPrecio(pl.precio) + '</strong></li>';
+      return '<li>' + pl.cuotas + ' cuotas de <strong>' + formatearPrecio(pl.precio / pl.cuotas) + '</strong> <span style="color:#9aa8bb;">(total ' + formatearPrecio(pl.precio) + ')</span></li>';
+    }).join('');
+    return '<div class="detalle-credito"><div style="font-weight:700;margin-bottom:4px;">Con tarjeta</div><ul style="margin:0;padding-left:18px;line-height:1.7;">' + filas + '</ul></div>';
   }
 
   function listaSabores(p){
@@ -648,7 +665,7 @@
     if (p.featured) badgesHtml += '<span class="detalle-badge">Destacado</span>';
     if (tieneOferta) badgesHtml += '<span class="detalle-badge oferta">Oferta</span>';
 
-    const cuotasTexto = textoCuotas(p);
+    const planesHtml = htmlPlanesTarjeta(p);
     const sabores = listaSabores(p);
 
     const wrap = document.getElementById('detalle-wrap');
@@ -666,8 +683,7 @@
               (tieneOferta ? '<span class="detalle-precio-anterior">' + formatearPrecio(p.oldPrice) + '</span>' : '') +
             '</div>' +
             '<div class="detalle-precio-nota">Precio en efectivo o transferencia</div>' +
-            (p.creditPrice ? '<div class="detalle-credito">1 pago con crédito: <strong>' + formatearPrecio(p.creditPrice) + '</strong></div>' : '') +
-            (cuotasTexto ? '<div class="detalle-cuotas">💳 ' + cuotasTexto + '</div>' : '') +
+            planesHtml +
           '</div>' +
           (sabores.length ?
             '<div class="detalle-sabores">' +

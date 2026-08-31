@@ -463,6 +463,47 @@
     .imagen-tile,
     .imagen-agregar-tile { width: 78px; height: 78px; }
   }
+
+  /* ===== Planes de pago con tarjeta ===== */
+  .planes-pago-head,
+  .plan-fila {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr 32px;
+    gap: 8px;
+    align-items: center;
+  }
+  .planes-pago-head {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #6b7686;
+    margin-bottom: 6px;
+  }
+  .plan-fila { margin-bottom: 8px; }
+  .plan-fila input {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .plan-quitar {
+    width: 32px;
+    height: 32px;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 8px;
+    background: #fff;
+    color: #a12c2c;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .plan-quitar:hover { background: #fde2e2; }
+  .planes-pago-vacio { font-size: 13px; color: #6b7686; margin-bottom: 8px; }
+  @media (max-width: 480px) {
+    .planes-pago-head { display: none; }
+    .plan-fila { grid-template-columns: 1fr 1fr 32px; }
+  }
 </style>
 </head>
 <body>
@@ -783,20 +824,25 @@
         </div>
 
         <div class="form-group">
-          <label for="precio-credito">Precio 1 pago con crédito (ARS)</label>
-          <input type="number" id="precio-credito" min="0" step="1" placeholder="Dejalo vacío si es el mismo precio">
-          <div class="form-hint">Precio para el que paga en 1 pago con tarjeta de crédito. Contemplá acá el costo del posnet. Si lo dejás vacío, no se muestra este precio.</div>
-        </div>
-
-        <div class="form-group">
-          <label for="precio-tarjeta">Precio base para cuotas (ARS)</label>
-          <input type="number" id="precio-tarjeta" min="0" step="1" placeholder="Dejalo vacío si es el mismo precio">
-          <div class="form-hint">Se usa solo para calcular las cuotas sin interés de abajo. Si lo dejás vacío, las cuotas se calculan sobre el precio en efectivo/transferencia.</div>
-        </div>
-
-        <div class="form-group">
           <label for="precio-anterior">Precio anterior (opcional)</label>
           <input type="number" id="precio-anterior" min="0" step="1" placeholder="Para mostrar oferta">
+        </div>
+
+        <div class="form-group full">
+          <label>Precios con tarjeta (cada plan con su recargo)</label>
+          <div class="planes-pago" id="planes-pago">
+            <div class="planes-pago-head">
+              <span>Cantidad de cuotas</span>
+              <span>Precio TOTAL que paga el cliente</span>
+              <span></span>
+            </div>
+            <div id="planes-pago-filas"></div>
+            <button type="button" class="btn btn-ghost btn-sm" id="plan-agregar-btn" style="width:auto;margin-top:8px;">+ Agregar plan</button>
+          </div>
+          <div class="form-hint">
+            El precio de acá es el <strong>total final</strong> que paga quien elige esa cantidad de cuotas, con el recargo ya incluido — no tiene por qué coincidir con el de efectivo/transferencia.
+            Ej: <em>1 → $12.000</em>, <em>3 → $13.500</em>, <em>6 → $15.000</em>. Dejá la lista vacía si el producto solo se vende en efectivo/transferencia.
+          </div>
         </div>
 
         <div class="form-group">
@@ -808,12 +854,6 @@
           <label for="sabores">Sabores disponibles</label>
           <input type="text" id="sabores" placeholder="Ej: Chocolate, Vainilla, Frutilla">
           <div class="form-hint">Separá cada sabor con una coma. Dejalo vacío si el producto no tiene variantes de sabor.</div>
-        </div>
-
-        <div class="form-group full">
-          <label for="cuotas">Cuotas sin interés</label>
-          <input type="number" id="cuotas" min="0" step="1" placeholder="Ej: 3">
-          <div class="form-hint">Cantidad de cuotas. Se calcula sobre el "precio base para cuotas" (o el precio en efectivo/transferencia si no cargaste uno) y se muestra como "3 cuotas de $X".</div>
         </div>
 
         <div class="form-group full">

@@ -1670,10 +1670,17 @@ function desbloquearScrollFondo(){
     catch(e){ return '$' + valor; }
   }
   function textoCuotas(p){
-    const base = p.cardPrice || p.price;
-    if (!p.installments || !base) return '';
-    const valorCuota = base / p.installments;
-    return p.installments + ' cuotas de ' + formatearPrecio(valorCuota);
+    let planes = Array.isArray(p.paymentPlans) ? p.paymentPlans.slice() : [];
+    if (!planes.length && p.installments && p.installments > 1){
+      planes = [{ cuotas:Number(p.installments), precio:Number(p.cardPrice || p.price) }];
+    }
+    planes = planes
+      .map(pl => ({ cuotas:Number(pl.cuotas)||0, precio:Number(pl.precio)||0 }))
+      .filter(pl => pl.cuotas > 1 && pl.precio > 0)
+      .sort((a,b) => a.cuotas - b.cuotas);
+    if (!planes.length) return '';
+    const pl = planes[planes.length - 1];
+    return pl.cuotas + ' cuotas de ' + formatearPrecio(pl.precio / pl.cuotas);
   }
   function iconoPlaceholder(){
     return '<svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">' +
