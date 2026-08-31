@@ -14,6 +14,8 @@ create table if not exists public.products (
   category     text not null,
   price        numeric(12,2) not null default 0,
   old_price    numeric(12,2),
+  card_price   numeric(12,2),   -- precio base para cuotas con tarjeta
+  credit_price numeric(12,2),   -- precio en 1 pago con crédito (incluye costo de posnet)
   stock        integer not null default 0,
   description  text default '',
   image        text default '',

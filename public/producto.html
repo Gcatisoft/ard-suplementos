@@ -293,6 +293,10 @@
     background:rgba(47,111,176,0.1); border:1.5px solid var(--accent);
     font-family:var(--font-body); font-weight:800; font-size:16px; color:var(--accent);
   }
+  .detalle-credito{
+    font-family:var(--font-body); font-weight:600; font-size:13px; color:var(--steel-600); margin-top:6px;
+  }
+  .detalle-credito strong{ color:var(--navy-900); font-weight:800; }
   .detalle-sabores{ margin:14px 0; }
   .detalle-sabores-label{
     font-family:var(--font-cond); font-weight:700; text-transform:uppercase; letter-spacing:0.02em;
@@ -602,6 +606,7 @@
               (tieneOferta ? '<span class="detalle-precio-anterior">' + formatearPrecio(p.oldPrice) + '</span>' : '') +
             '</div>' +
             '<div class="detalle-precio-nota">Precio en efectivo o transferencia</div>' +
+            (p.creditPrice ? '<div class="detalle-credito">1 pago con crédito: <strong>' + formatearPrecio(p.creditPrice) + '</strong></div>' : '') +
             (cuotasTexto ? '<div class="detalle-cuotas">💳 ' + cuotasTexto + '</div>' : '') +
           '</div>' +
           (sabores.length ?

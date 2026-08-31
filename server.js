@@ -227,6 +227,7 @@ function mapProducto(row) {
     price: Number(row.price),
     oldPrice: row.old_price !== null && row.old_price !== undefined ? Number(row.old_price) : null,
     cardPrice: row.card_price !== null && row.card_price !== undefined ? Number(row.card_price) : null,
+    creditPrice: row.credit_price !== null && row.credit_price !== undefined ? Number(row.credit_price) : null,
     stock: row.stock,
     description: row.description || '',
     image: row.image || '',
@@ -712,7 +713,7 @@ app.get('/api/admin/products/:id', requireAuth, async (req, res) => {
 
 app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), manejarErrorImagen, async (req, res) => {
   try {
-    const { name, brand, category, price, oldPrice, cardPrice, stock, description, featured, active, imageUrl, flavors, installments } = req.body;
+    const { name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, description, featured, active, imageUrl, flavors, installments } = req.body;
     if (!name || !category || price === undefined || price === '') {
       return res.status(400).json({ error: 'Nombre, categoría y precio son obligatorios' });
     }
@@ -732,6 +733,7 @@ app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), maneja
       price: Number(price) || 0,
       old_price: oldPrice ? Number(oldPrice) : null,
       card_price: cardPrice ? Number(cardPrice) : null,
+      credit_price: creditPrice ? Number(creditPrice) : null,
       stock: stock !== undefined && stock !== '' ? Number(stock) : 0,
       description: description ? String(description).trim() : '',
       image: images[0] || '',
@@ -762,7 +764,7 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), man
     if (findError) throw findError;
     if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
 
-    const { name, brand, category, price, oldPrice, cardPrice, stock, description, featured, active, imagenesExistentes, flavors, installments } =
+    const { name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, description, featured, active, imagenesExistentes, flavors, installments } =
       req.body;
 
     const cambios = {};
@@ -772,6 +774,7 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), man
     if (price !== undefined && price !== '') cambios.price = Number(price);
     if (oldPrice !== undefined) cambios.old_price = oldPrice === '' ? null : Number(oldPrice);
     if (cardPrice !== undefined) cambios.card_price = cardPrice === '' ? null : Number(cardPrice);
+    if (creditPrice !== undefined) cambios.credit_price = creditPrice === '' ? null : Number(creditPrice);
     if (stock !== undefined && stock !== '') cambios.stock = Number(stock);
     if (description !== undefined) cambios.description = String(description).trim();
     if (flavors !== undefined) cambios.flavors = String(flavors).trim();
@@ -1213,6 +1216,46 @@ app.post('/api/reviews', publicWriteLimiter, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al guardar la reseña' });
+  }
+});
+
+// ---------- Suscripción al newsletter (popup del home) ----------
+app.post('/api/subscribe', publicWriteLimiter, async (req, res) => {
+  try {
+    const { email, name, birthday } = req.body || {};
+
+    const emailNorm = String(email || '').trim().toLowerCase();
+    if (!emailNorm || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNorm)) {
+      return res.status(400).json({ error: 'Ingresá un email válido.' });
+    }
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ error: 'Ingresá tu nombre.' });
+    }
+
+    const birthdayNorm = String(birthday || '').trim();
+    if (birthdayNorm && !/^\d{2}\/\d{2}$/.test(birthdayNorm)) {
+      return res.status(400).json({ error: 'El cumpleaños tiene que tener el formato DD/MM.' });
+    }
+
+    const nuevo = {
+      email: emailNorm,
+      name: String(name).trim().slice(0, 80),
+      birthday: birthdayNorm || null,
+      verified: false,
+      verify_token: crypto.randomBytes(24).toString('hex'),
+    };
+
+    const { error } = await supabase.from('subscribers').insert(nuevo);
+
+    // 23505 = unique_violation: el email ya estaba suscripto. No lo tratamos
+    // como error para no revelar quién está en la lista y para que el popup
+    // muestre igual el mensaje de éxito.
+    if (error && error.code !== '23505') throw error;
+
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'No pudimos registrar tu suscripción. Probá de nuevo en un rato.' });
   }
 });
 

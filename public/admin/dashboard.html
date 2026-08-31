@@ -777,14 +777,20 @@
         </div>
 
         <div class="form-group">
-          <label for="precio">Precio efectivo / transferencia (ARS) *</label>
+          <label for="precio">Precio 1 pago efectivo / transferencia (ARS) *</label>
           <input type="number" id="precio" min="0" step="1" required placeholder="0">
         </div>
 
         <div class="form-group">
-          <label for="precio-tarjeta">Precio con tarjeta (ARS)</label>
+          <label for="precio-credito">Precio 1 pago con crédito (ARS)</label>
+          <input type="number" id="precio-credito" min="0" step="1" placeholder="Dejalo vacío si es el mismo precio">
+          <div class="form-hint">Precio para el que paga en 1 pago con tarjeta de crédito. Contemplá acá el costo del posnet. Si lo dejás vacío, no se muestra este precio.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="precio-tarjeta">Precio base para cuotas (ARS)</label>
           <input type="number" id="precio-tarjeta" min="0" step="1" placeholder="Dejalo vacío si es el mismo precio">
-          <div class="form-hint">Si lo dejás vacío, se muestra solo el precio efectivo/transferencia.</div>
+          <div class="form-hint">Se usa solo para calcular las cuotas sin interés de abajo. Si lo dejás vacío, las cuotas se calculan sobre el precio en efectivo/transferencia.</div>
         </div>
 
         <div class="form-group">
@@ -806,7 +812,7 @@
         <div class="form-group full">
           <label for="cuotas">Cuotas sin interés</label>
           <input type="number" id="cuotas" min="0" step="1" placeholder="Ej: 3">
-          <div class="form-hint">Cantidad de cuotas. Se calcula sobre el precio con tarjeta (o el precio normal si no cargaste uno) y se muestra como "3 cuotas de $X".</div>
+          <div class="form-hint">Cantidad de cuotas. Se calcula sobre el "precio base para cuotas" (o el precio en efectivo/transferencia si no cargaste uno) y se muestra como "3 cuotas de $X".</div>
         </div>
 
         <div class="form-group full">
