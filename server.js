@@ -11,6 +11,13 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { createClient } = require('@supabase/supabase-js');
 
+// nodemailer es opcional: si no está instalado (falta `npm install`) el
+// sitio sigue funcionando, solo que no se mandan correos.
+let nodemailer = null;
+try { nodemailer = require('nodemailer'); } catch (e) {
+  console.warn('[mail] nodemailer no está instalado. Corré `npm install` para habilitar el envío de correos.');
+}
+
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = process.env.SESSION_SECRET;
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -28,6 +35,52 @@ const MP_WEBHOOK_SECRET = process.env.MERCADOPAGO_WEBHOOK_SECRET || '';
 // .env; en local se deduce del request (y el webhook se omite porque MP no
 // puede llegar a localhost).
 const PUBLIC_URL = (process.env.PUBLIC_URL || '').replace(/\/$/, '');
+
+// ---------- Envío de correos (SMTP) ----------
+// Para las notificaciones de nuevos suscriptores del popup del home.
+// Con Gmail: SMTP_HOST=smtp.gmail.com, SMTP_PORT=465, SMTP_USER=tu-cuenta
+// @gmail.com y SMTP_PASS = una "Contraseña de aplicación" de 16 letras
+// (se genera en la cuenta de Google, requiere verificación en 2 pasos).
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+const SMTP_PORT = Number(process.env.SMTP_PORT) || 465;
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+// De dónde sale el correo y a dónde llegan las notificaciones al dueño.
+// Por defecto, la misma casilla configurada en SMTP_USER.
+const MAIL_FROM = process.env.MAIL_FROM || SMTP_USER;
+const MAIL_TO = process.env.MAIL_TO || SMTP_USER;
+
+let mailTransport = null;
+if (nodemailer && SMTP_USER && SMTP_PASS) {
+  mailTransport = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+  mailTransport.verify().then(
+    () => console.log('[mail] SMTP listo (' + SMTP_HOST + ')'),
+    (err) => console.warn('[mail] SMTP no responde:', err.message)
+  );
+} else {
+  console.warn('[mail] SMTP_USER / SMTP_PASS sin configurar: no se enviarán correos de suscripción.');
+}
+
+// Envía un correo. Nunca tira: si falla, lo loguea y devuelve false, así
+// una caída del SMTP no rompe la operación que lo disparó.
+async function enviarMail({ to, subject, text, replyTo }) {
+  if (!mailTransport || !to) {
+    console.warn('[mail] se omite (sin transporte o sin destinatario):', subject);
+    return false;
+  }
+  try {
+    await mailTransport.sendMail({ from: MAIL_FROM, to, subject, text, replyTo });
+    return true;
+  } catch (err) {
+    console.error('[mail] error al enviar "' + subject + '":', err.message);
+    return false;
+  }
+}
 
 // Sin fallback: si falta alguna de estas, el server no arranca. Un
 // SESSION_SECRET hardcodeado en el código sería público (queda en el
@@ -1675,7 +1728,35 @@ app.post('/api/subscribe', publicWriteLimiter, async (req, res) => {
     // 23505 = unique_violation: el email ya estaba suscripto. No lo tratamos
     // como error para no revelar quién está en la lista y para que el popup
     // muestre igual el mensaje de éxito.
-    if (error && error.code !== '23505') throw error;
+    const yaEstaba = error && error.code === '23505';
+    if (error && !yaEstaba) throw error;
+
+    // Aviso al dueño + gracias al suscriptor. No bloqueamos la respuesta:
+    // si el SMTP tarda o falla, la suscripción ya quedó guardada igual.
+    if (!yaEstaba) {
+      const cuando = new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Catamarca' });
+      enviarMail({
+        to: MAIL_TO,
+        replyTo: emailNorm,
+        subject: 'Nuevo suscriptor en el sitio: ' + nuevo.name,
+        text:
+          'Se suscribió alguien desde el popup de la web:\n\n' +
+          'Nombre: ' + nuevo.name + '\n' +
+          'Email: ' + emailNorm + '\n' +
+          'Cumpleaños (DD/MM): ' + (nuevo.birthday || '—') + '\n' +
+          'Fecha: ' + cuando + '\n',
+      });
+      enviarMail({
+        to: emailNorm,
+        replyTo: MAIL_TO || undefined,
+        subject: '¡Gracias por suscribirte a ARD Suplementos!',
+        text:
+          'Hola ' + nuevo.name + '!\n\n' +
+          'Ya quedaste en la lista de ARD Suplementos. Te vamos a escribir para coordinar tu beneficio de bienvenida.\n\n' +
+          'ARD Suplementos — Sarmiento 722, San Fernando del Valle de Catamarca\n' +
+          'WhatsApp: +54 9 383 499-3955\n',
+      });
+    }
 
     res.status(201).json({ ok: true });
   } catch (err) {
