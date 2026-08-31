@@ -339,12 +339,15 @@
           (it.flavor ? ' (' + escapar(it.flavor) + ')' : '') + '</li>';
       }).join('');
       var est = (p.status || 'pendiente');
+      var modos = { efectivo: 'Efectivo o transferencia', credito: '1 pago con crédito', cuotas: (p.chosenInstallments || '') + ' cuotas con tarjeta' };
+      var modoTxt = p.priceMode ? (modos[p.priceMode] || p.priceMode).trim() : '';
       return '<div class="pedido">' +
         '<div class="pedido-top">' +
           '<span class="pedido-num">Pedido N.º ' + escapar(String(p.orderNumber || '—')) + '</span>' +
           '<span class="pedido-fecha">' + formatearFecha(p.createdAt) + '</span>' +
         '</div>' +
         (items ? '<ul class="pedido-items">' + items + '</ul>' : '') +
+        (modoTxt ? '<div class="pedido-fecha" style="margin-top:8px;">Pago: ' + escapar(modoTxt) + '</div>' : '') +
         '<div class="pedido-bottom">' +
           '<span class="estado ' + est + '">' + est + '</span>' +
           '<span class="pedido-total">' + formatearPrecio(p.total) + '</span>' +

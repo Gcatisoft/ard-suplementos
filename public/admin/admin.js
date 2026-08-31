@@ -770,9 +770,14 @@
           ? ' <span class="pago-mp-badge" style="background:#1a7a44;" title="Compra hecha desde una cuenta registrada del sitio">CUENTA</span>'
           : '';
 
+        const modoTexto = { efectivo: 'Efectivo / transf.', credito: '1 pago crédito', cuotas: (p.chosenInstallments || '') + ' cuotas' };
+        const badgeModo = p.priceMode
+          ? ' <span class="pago-mp-badge" style="background:#6b4fa1;" title="Forma de pago elegida por el cliente">' + escaparHTML((modoTexto[p.priceMode] || p.priceMode).trim()) + '</span>'
+          : '';
+
         return (
           '<tr>' +
-          '<td>#' + String(p.orderNumber).padStart(4, '0') + badgePago + badgeCuenta + '</td>' +
+          '<td>#' + String(p.orderNumber).padStart(4, '0') + badgePago + badgeCuenta + badgeModo + '</td>' +
           '<td><strong>' + escaparHTML(p.customerName) + '</strong></td>' +
           '<td>' + escaparHTML(p.customerPhone) + '</td>' +
           '<td>' +

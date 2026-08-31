@@ -1141,6 +1141,8 @@ function mapOrder(row) {
     customerPhone: row.customer_phone,
     customerId: row.customer_id,
     accountId: row.account_id || null,
+    priceMode: row.price_mode || null,
+    chosenInstallments: row.chosen_installments || null,
     items: row.items || [],
     total: Number(row.total),
     status: row.status,
@@ -1189,13 +1191,79 @@ async function registrarCompraDePedido(order) {
   }
 }
 
+// ---------- Formas de pago del checkout ----------
+// Devuelve el precio unitario que corresponde a un producto según cómo
+// eligió pagar el cliente. Con fallback: si no cargaron el precio de esa
+// modalidad, se usa el inmediato anterior (crédito -> efectivo, cuotas ->
+// crédito -> efectivo), así la opción sigue disponible aunque no todos los
+// productos tengan los 3 precios cargados.
+const MODOS_PAGO = ['efectivo', 'credito', 'cuotas'];
+function precioSegunModo(prod, modo) {
+  const efectivo = Number(prod.price) || 0;
+  const credito = prod.credit_price != null ? Number(prod.credit_price) : null;
+  const cuotasBase = prod.card_price != null ? Number(prod.card_price) : null;
+  if (modo === 'credito') return credito != null ? credito : efectivo;
+  if (modo === 'cuotas') return cuotasBase != null ? cuotasBase : (credito != null ? credito : efectivo);
+  return efectivo;
+}
+
+// Cotización del carrito para las 3 modalidades. La usa el checkout para
+// mostrar cuánto sale pagando de cada forma antes de confirmar.
+app.post('/api/orders/quote', requireCustomer, async (req, res) => {
+  try {
+    const { items } = req.body || {};
+    if (!Array.isArray(items) || !items.length) {
+      return res.status(400).json({ error: 'Carrito vacío' });
+    }
+
+    const ids = [...new Set(items.map((it) => it.productId).filter(Boolean))];
+    const { data: productosDb, error } = ids.length
+      ? await supabase.from('products').select('id, price, credit_price, card_price, installments').in('id', ids)
+      : { data: [], error: null };
+    if (error) throw error;
+    const porId = new Map((productosDb || []).map((p) => [p.id, p]));
+
+    const totales = { efectivo: 0, credito: 0, cuotas: 0 };
+    let hayCredito = false;
+    let hayCuotas = false;
+    let cuotasMax = 0;
+
+    items.forEach((it) => {
+      const qty = Math.max(1, Number(it.qty) || 1);
+      const prod = porId.get(it.productId) || { price: Number(it.price) || 0 };
+      MODOS_PAGO.forEach((m) => { totales[m] += precioSegunModo(prod, m) * qty; });
+      if (prod.credit_price != null) hayCredito = true;
+      const cuo = Number(prod.installments) || 0;
+      if (cuo > 1) { hayCuotas = true; cuotasMax = Math.max(cuotasMax, cuo); }
+    });
+
+    const round = (n) => Math.round(n * 100) / 100;
+    res.json({
+      modes: {
+        efectivo: { total: round(totales.efectivo), disponible: true },
+        credito: { total: round(totales.credito), disponible: true, conPrecioPropio: hayCredito },
+        cuotas: hayCuotas
+          ? { total: round(totales.cuotas), disponible: true, installments: cuotasMax, cuotaValor: round(totales.cuotas / cuotasMax) }
+          : { disponible: false },
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'No se pudo cotizar el carrito' });
+  }
+});
+
 // ---------- Pedidos: API pública ----------
 // El storefront pega acá justo antes (o al mismo tiempo) de abrir el link de WhatsApp,
 // así queda registrado en el panel aunque el cliente no confirme nada más.
 app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) => {
   try {
-    const { customerName, customerPhone, customerId, items, notes, channel } = req.body || {};
-    const canal = channel === 'mercadopago' ? 'mercadopago' : 'whatsapp';
+    const { customerName, customerPhone, customerId, items, notes, channel, priceMode } = req.body || {};
+    const modo = MODOS_PAGO.includes(priceMode) ? priceMode : 'efectivo';
+    // Efectivo/transferencia se coordina por WhatsApp; crédito y cuotas van sí o sí por Mercado Pago.
+    const canal = modo === 'efectivo'
+      ? (channel === 'mercadopago' ? 'mercadopago' : 'whatsapp')
+      : 'mercadopago';
 
     if (!customerName || !customerPhone || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'Faltan datos del pedido (nombre, teléfono o items)' });
@@ -1219,14 +1287,21 @@ app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) =>
     // base y recalculamos el total con el precio real y vigente.
     const ids = [...new Set(items.map((it) => it.productId).filter(Boolean))];
     const { data: productosDb, error: errProductos } = ids.length
-      ? await supabase.from('products').select('id, name, price').in('id', ids)
+      ? await supabase.from('products').select('id, name, price, credit_price, card_price, installments').in('id', ids)
       : { data: [], error: null };
     if (errProductos) throw errProductos;
 
-    const precioPorId = new Map((productosDb || []).map((p) => [p.id, Number(p.price)]));
+    const prodPorId = new Map((productosDb || []).map((p) => [p.id, p]));
 
+    // El precio unitario lo define la modalidad de pago elegida, siempre
+    // recalculado contra la base de datos (nunca se confía en el navegador).
+    let cuotasElegidas = 0;
     const itemsValidados = items.map((it) => {
-      const precioReal = precioPorId.has(it.productId) ? precioPorId.get(it.productId) : Number(it.price) || 0;
+      const prod = prodPorId.get(it.productId);
+      const precioReal = prod ? precioSegunModo(prod, modo) : (Number(it.price) || 0);
+      if (prod && modo === 'cuotas') {
+        cuotasElegidas = Math.max(cuotasElegidas, Number(prod.installments) || 0);
+      }
       return { ...it, price: precioReal };
     });
 
@@ -1242,6 +1317,8 @@ app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) =>
       notes: notes ? String(notes).trim() : '',
       status: 'pendiente',
       sent_via: canal,
+      price_mode: modo,
+      chosen_installments: modo === 'cuotas' && cuotasElegidas > 1 ? cuotasElegidas : null,
     };
 
     const { data, error } = await supabase.from('orders').insert(nuevo).select().single();
@@ -1365,8 +1442,21 @@ app.post('/api/orders/:id/pagar', requireCustomer, publicWriteLimiter, async (re
         pending: `${base}/pago-pendiente.html${ref}`,
       },
       statement_descriptor: 'ARD SUPLEMENTOS',
-      metadata: { order_id: order.id, order_number: order.order_number },
+      metadata: { order_id: order.id, order_number: order.order_number, price_mode: order.price_mode || 'efectivo' },
     };
+
+    // El monto de `items` ya viene calculado con el precio de la modalidad
+    // elegida. Además le decimos a Mercado Pago en cuántas cuotas cobrar:
+    //  - crédito en 1 pago  -> forzamos 1 cuota
+    //  - en cuotas          -> fijamos la cantidad elegida como default y tope
+    if (order.price_mode === 'credito') {
+      preferencia.payment_methods = { installments: 1, default_installments: 1 };
+    } else if (order.price_mode === 'cuotas' && Number(order.chosen_installments) > 1) {
+      preferencia.payment_methods = {
+        installments: Number(order.chosen_installments),
+        default_installments: Number(order.chosen_installments),
+      };
+    }
     // MP rechaza notification_url y auto_return si apuntan a localhost, así que
     // en local no los mandamos (el estado del pedido se puede ajustar a mano
     // desde el panel mientras probás).

@@ -56,6 +56,14 @@
     return '/cuenta.html?redirect=' + encodeURIComponent(location.pathname + location.search);
   }
 
+  // Cotización del carrito por forma de pago (efectivo / crédito 1 pago / cuotas).
+  var quoteActual = null;
+  var MODO_LABELS = {
+    efectivo: 'Efectivo o transferencia',
+    credito: '1 pago con tarjeta de crédito',
+    cuotas: 'En cuotas con tarjeta'
+  };
+
   // Cada línea del carrito se identifica por producto + sabor (si tiene).
   // Así, dos sabores distintos del mismo producto quedan como líneas
   // separadas en vez de mezclarse en una sola.
@@ -194,6 +202,17 @@
     + '.ard-cart-field input,.ard-cart-field textarea{width:100%;box-sizing:border-box;padding:10px 12px;'
     + 'border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;}'
     + '.ard-cart-field textarea{resize:vertical;min-height:60px;}'
+    + '.ard-cart-modos{display:flex;flex-direction:column;gap:8px;margin:4px 0 14px;}'
+    + '.ard-cart-modos-titulo{font-size:12px;font-weight:700;color:#0d1b2a;margin-bottom:2px;}'
+    + '.ard-cart-modo{display:flex;align-items:flex-start;gap:10px;border:1px solid #ddd;border-radius:10px;'
+    + 'padding:10px 12px;cursor:pointer;transition:border-color .15s ease,background .15s ease;}'
+    + '.ard-cart-modo:hover{border-color:#009ee3;}'
+    + '.ard-cart-modo.sel{border-color:#009ee3;background:#f0f9fe;}'
+    + '.ard-cart-modo input{margin-top:2px;}'
+    + '.ard-cart-modo-txt{flex:1;min-width:0;}'
+    + '.ard-cart-modo-nombre{font-size:13px;font-weight:600;color:#0d1b2a;}'
+    + '.ard-cart-modo-detalle{font-size:11.5px;color:#5c7091;margin-top:1px;}'
+    + '.ard-cart-modo-precio{font-size:14px;font-weight:800;color:#0d1b2a;white-space:nowrap;}'
     + '.ard-cart-modal-actions{display:flex;flex-direction:column;gap:10px;margin-top:16px;}'
     + '.ard-cart-modal-actions button{border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;border:none;'
     + 'display:flex;align-items:center;justify-content:center;gap:8px;}'
@@ -282,10 +301,13 @@
           '<label for="ard-cart-notas">Notas (opcional)</label>' +
           '<textarea id="ard-cart-notas" placeholder="Alguna aclaración sobre tu pedido…"></textarea>' +
         '</div>' +
+        '<div class="ard-cart-modos" id="ard-cart-modos">' +
+          '<div class="ard-cart-modos-titulo">¿Cómo vas a pagar?</div>' +
+          '<div id="ard-cart-modos-lista"></div>' +
+        '</div>' +
         '<div class="ard-cart-error" id="ard-cart-error"></div>' +
         '<div class="ard-cart-modal-actions">' +
-          '<button class="ard-cart-pay-mp" id="ard-cart-pay-mp" type="button">' + ICON_CARD + ' Pagar online con Mercado Pago</button>' +
-          '<button class="ard-cart-modal-confirm" id="ard-cart-modal-confirm" type="button">' + ICON_WHATSAPP + ' Coordinar por WhatsApp</button>' +
+          '<button class="ard-cart-pay-mp" id="ard-cart-confirmar" type="button">Continuar</button>' +
           '<button class="ard-cart-modal-cancel" id="ard-cart-modal-cancel" type="button">Cancelar</button>' +
         '</div>' +
       '</div>' +
@@ -299,8 +321,7 @@
     location.href = urlLoginConRetorno();
   });
   modalOverlay.querySelector('#ard-cart-modal-cancel').addEventListener('click', cerrarModalCheckout);
-  modalOverlay.querySelector('#ard-cart-modal-confirm').addEventListener('click', function () { confirmarPedido('whatsapp'); });
-  modalOverlay.querySelector('#ard-cart-pay-mp').addEventListener('click', function () { confirmarPedido('mercadopago'); });
+  modalOverlay.querySelector('#ard-cart-confirmar').addEventListener('click', function () { confirmarPedido(); });
 
   var toast = document.createElement('div');
   toast.className = 'ard-cart-toast';
@@ -419,7 +440,9 @@
       if (nombreInput && !nombreInput.value) nombreInput.value = c.name || '';
       if (telInput && !telInput.value) telInput.value = c.phone || '';
       var como = document.getElementById('ard-cart-como');
-      if (como) como.textContent = 'Comprás como ' + c.email + '. Elegí cómo querés pagar.';
+      if (como) como.textContent = 'Comprás como ' + c.email + '.';
+
+      cargarModosPago();
 
       setTimeout(function () {
         var focusEl = (telInput && !telInput.value) ? telInput : nombreInput;
@@ -428,36 +451,142 @@
     });
   }
 
+  // Consulta al backend cuánto sale el carrito en cada forma de pago y
+  // dibuja las opciones. El precio real siempre lo define el servidor.
+  function cargarModosPago() {
+    var lista = document.getElementById('ard-cart-modos-lista');
+    lista.innerHTML = '<div style="font-size:12px;color:#5c7091;">Calculando precios…</div>';
+    quoteActual = null;
+    actualizarBotonConfirmar();
+
+    fetch('/api/orders/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: items.map(function (it) { return { productId: it.id, qty: it.qty }; })
+      })
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (q) {
+        if (!q || !q.modes) {
+          // Sin cotización: al menos dejamos efectivo/transferencia.
+          quoteActual = { modes: { efectivo: { total: getTotal(), disponible: true }, credito: { disponible: false }, cuotas: { disponible: false } } };
+        } else {
+          quoteActual = q;
+        }
+        renderModosPago();
+      })
+      .catch(function () {
+        quoteActual = { modes: { efectivo: { total: getTotal(), disponible: true }, credito: { disponible: false }, cuotas: { disponible: false } } };
+        renderModosPago();
+      });
+  }
+
+  function renderModosPago() {
+    var lista = document.getElementById('ard-cart-modos-lista');
+    var modes = quoteActual.modes;
+    var orden = ['efectivo', 'credito', 'cuotas'];
+    var html = '';
+    var primero = null;
+
+    orden.forEach(function (m) {
+      var info = modes[m];
+      if (!info || !info.disponible) return;
+      if (!primero) primero = m;
+
+      var detalle;
+      if (m === 'efectivo') detalle = 'Se coordina por WhatsApp';
+      else if (m === 'credito') detalle = 'Pago online con Mercado Pago';
+      else detalle = info.installments + ' cuotas de ' + formatearPrecio(info.cuotaValor) + ' · Mercado Pago';
+
+      html +=
+        '<label class="ard-cart-modo" data-modo="' + m + '">' +
+          '<input type="radio" name="ard-cart-modo" value="' + m + '">' +
+          '<span class="ard-cart-modo-txt">' +
+            '<span class="ard-cart-modo-nombre">' + MODO_LABELS[m] + '</span>' +
+            '<span class="ard-cart-modo-detalle">' + detalle + '</span>' +
+          '</span>' +
+          '<span class="ard-cart-modo-precio">' + formatearPrecio(info.total) + '</span>' +
+        '</label>';
+    });
+
+    lista.innerHTML = html;
+    lista.querySelectorAll('input[name="ard-cart-modo"]').forEach(function (r) {
+      r.addEventListener('change', function () {
+        lista.querySelectorAll('.ard-cart-modo').forEach(function (el) {
+          el.classList.toggle('sel', el.getAttribute('data-modo') === r.value);
+        });
+        actualizarBotonConfirmar();
+      });
+    });
+
+    // Selección por defecto: la primera disponible (efectivo).
+    if (primero) {
+      var rp = lista.querySelector('input[value="' + primero + '"]');
+      if (rp) { rp.checked = true; rp.dispatchEvent(new Event('change')); }
+    }
+    actualizarBotonConfirmar();
+  }
+
+  function modoSeleccionado() {
+    var r = modalOverlay.querySelector('input[name="ard-cart-modo"]:checked');
+    return r ? r.value : 'efectivo';
+  }
+
+  function actualizarBotonConfirmar() {
+    var btn = document.getElementById('ard-cart-confirmar');
+    if (!btn) return;
+    if (!quoteActual) { btn.disabled = true; btn.textContent = 'Calculando…'; return; }
+    btn.disabled = false;
+    var m = modoSeleccionado();
+    if (m === 'efectivo') {
+      btn.className = 'ard-cart-modal-confirm';
+      btn.innerHTML = ICON_WHATSAPP + ' Coordinar por WhatsApp';
+    } else {
+      btn.className = 'ard-cart-pay-mp';
+      btn.innerHTML = ICON_CARD + ' Pagar con Mercado Pago';
+    }
+  }
+
   function cerrarModalCheckout() {
     modalOverlay.classList.remove('open');
   }
 
-  function construirMensajeWhatsapp(pedido, nombre) {
+  function totalDelModo(modo) {
+    if (quoteActual && quoteActual.modes[modo] && typeof quoteActual.modes[modo].total === 'number') {
+      return quoteActual.modes[modo].total;
+    }
+    return getTotal();
+  }
+
+  function construirMensajeWhatsapp(pedido, nombre, modo) {
     var lineas = [];
     lineas.push('Hola! Soy ' + nombre + ', quiero hacer este pedido:');
     lineas.push('');
     items.forEach(function (it) {
-      lineas.push('• ' + it.qty + 'x ' + it.name + (it.brand ? ' (' + it.brand + ')' : '') + (it.flavor ? ' - Sabor: ' + it.flavor : '') + ' — ' + formatearPrecio(it.price * it.qty));
+      lineas.push('• ' + it.qty + 'x ' + it.name + (it.brand ? ' (' + it.brand + ')' : '') + (it.flavor ? ' - Sabor: ' + it.flavor : ''));
     });
     lineas.push('');
-    lineas.push('Total: ' + formatearPrecio(getTotal()));
+    lineas.push('Forma de pago: ' + (MODO_LABELS[modo] || 'Efectivo o transferencia'));
+    lineas.push('Total: ' + formatearPrecio(totalDelModo(modo || 'efectivo')));
     if (pedido && pedido.orderNumber) {
       lineas.push('Pedido N.º: ' + pedido.orderNumber);
     }
     return lineas.join('\n');
   }
 
-  function confirmarPedido(canal) {
+  function confirmarPedido() {
     var nombreInput = document.getElementById('ard-cart-nombre');
     var telInput = document.getElementById('ard-cart-telefono');
     var notasInput = document.getElementById('ard-cart-notas');
     var errorEl = document.getElementById('ard-cart-error');
-    var mpBtn = document.getElementById('ard-cart-pay-mp');
-    var waBtn = document.getElementById('ard-cart-modal-confirm');
+    var btn = document.getElementById('ard-cart-confirmar');
 
     var nombre = (nombreInput.value || '').trim();
     var telefono = (telInput.value || '').trim();
     var notas = (notasInput.value || '').trim();
+    var modo = modoSeleccionado();
+    var canal = modo === 'efectivo' ? 'whatsapp' : 'mercadopago';
 
     if (!nombre || !telefono) {
       errorEl.textContent = 'Completá tu nombre y teléfono para continuar.';
@@ -473,14 +602,13 @@
         return { productId: it.id, name: it.name, brand: it.brand, flavor: it.flavor || '', price: it.price, qty: it.qty };
       }),
       notes: notas,
-      channel: canal
+      channel: canal,
+      priceMode: modo
     };
 
-    mpBtn.disabled = true;
-    waBtn.disabled = true;
-    var botonActivo = canal === 'mercadopago' ? mpBtn : waBtn;
-    var textoOriginal = botonActivo.innerHTML;
-    botonActivo.textContent = 'Un momento…';
+    btn.disabled = true;
+    var textoOriginal = btn.innerHTML;
+    btn.textContent = 'Un momento…';
 
     fetch('/api/orders', {
       method: 'POST',
@@ -500,21 +628,20 @@
         if (canal === 'mercadopago') {
           irAMercadoPago(pedido, nombre);
         } else {
-          finalizarCheckoutWhatsapp(pedido, nombre);
+          finalizarCheckoutWhatsapp(pedido, nombre, modo);
         }
       })
       .catch(function (err) {
         if (err && err.message === '__redirect__') return;
         if (canal === 'mercadopago') {
           mostrarToast('No se pudo iniciar el pago. Probá coordinar por WhatsApp.');
-          mpBtn.disabled = false;
-          waBtn.disabled = false;
-          botonActivo.innerHTML = textoOriginal;
+          btn.disabled = false;
+          btn.innerHTML = textoOriginal;
         } else {
           // Si falla el registro (sin conexión, backend caído, etc.) igual
           // dejamos que la venta se concrete por WhatsApp para no perderla.
           mostrarToast('No se pudo registrar el pedido, pero lo enviamos igual por WhatsApp');
-          finalizarCheckoutWhatsapp(null, nombre);
+          finalizarCheckoutWhatsapp(null, nombre, modo);
         }
       });
   }
@@ -542,16 +669,14 @@
   }
 
   function restaurarBotonesModal() {
-    var mpBtn = document.getElementById('ard-cart-pay-mp');
-    var waBtn = document.getElementById('ard-cart-modal-confirm');
-    mpBtn.disabled = false;
-    waBtn.disabled = false;
-    mpBtn.innerHTML = ICON_CARD + ' Pagar online con Mercado Pago';
-    waBtn.innerHTML = ICON_WHATSAPP + ' Coordinar por WhatsApp';
+    var btn = document.getElementById('ard-cart-confirmar');
+    if (!btn) return;
+    btn.disabled = false;
+    actualizarBotonConfirmar();
   }
 
-  function finalizarCheckoutWhatsapp(pedido, nombre) {
-    var mensaje = encodeURIComponent(construirMensajeWhatsapp(pedido, nombre));
+  function finalizarCheckoutWhatsapp(pedido, nombre, modo) {
+    var mensaje = encodeURIComponent(construirMensajeWhatsapp(pedido, nombre, modo));
     window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + mensaje, '_blank', 'noopener');
     clear();
     cerrarModalCheckout();
