@@ -453,6 +453,59 @@ function requireAuth(req, res, next) {
   return res.status(401).json({ error: 'No autorizado' });
 }
 
+// ---------- SEO: sitemap.xml dinámico ----------
+// Incluye las páginas fijas más una entrada por cada producto publicado,
+// para que Google indexe cada ficha. Se regenera en cada visita del bot.
+const SITE_URL = (process.env.SITE_URL || 'https://ardsuplementos.com.ar').replace(/\/$/, '');
+
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const hoy = new Date().toISOString().slice(0, 10);
+    const urls = [
+      { loc: SITE_URL + '/', changefreq: 'daily', priority: '1.0', lastmod: hoy },
+      { loc: SITE_URL + '/productos.html', changefreq: 'daily', priority: '0.9', lastmod: hoy },
+    ];
+
+    const { data: productos } = await supabase
+      .from('products')
+      .select('id, updated_at')
+      .eq('active', true);
+
+    (productos || []).forEach((p) => {
+      urls.push({
+        loc: SITE_URL + '/producto.html?id=' + encodeURIComponent(p.id),
+        changefreq: 'weekly',
+        priority: '0.7',
+        lastmod: p.updated_at ? new Date(p.updated_at).toISOString().slice(0, 10) : hoy,
+      });
+    });
+
+    const xml =
+      '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+      urls
+        .map(
+          (u) =>
+            '  <url><loc>' +
+            u.loc.replace(/&/g, '&amp;') +
+            '</loc><lastmod>' +
+            u.lastmod +
+            '</lastmod><changefreq>' +
+            u.changefreq +
+            '</changefreq><priority>' +
+            u.priority +
+            '</priority></url>'
+        )
+        .join('\n') +
+      '\n</urlset>\n';
+
+    res.type('application/xml').send(xml);
+  } catch (err) {
+    console.error('Error generando sitemap:', err);
+    res.status(500).type('text/plain').send('Error generando sitemap');
+  }
+});
+
 // ---------- Rate limiting ----------
 // Login: máximo 10 intentos cada 15 min por IP. Frena fuerza bruta sobre las
 // contraseñas de admin sin afectar el uso normal (nadie falla el login 10 veces).

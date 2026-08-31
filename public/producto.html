@@ -1,9 +1,22 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-AR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Producto — ARD Suplementos</title>
+<meta name="description" id="meta-description" content="Suplementos deportivos en Catamarca. Envíos a domicilio y retiro en local. Asesoramiento por WhatsApp.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="theme-color" content="#0a1626">
+<link rel="canonical" id="meta-canonical" href="https://ardsuplementos.com.ar/productos.html">
+<link rel="icon" href="/logoard.png" type="image/png">
+<meta property="og:type" content="product">
+<meta property="og:site_name" content="ARD Suplementos">
+<meta property="og:locale" content="es_AR">
+<meta property="og:title" id="meta-og-title" content="Producto — ARD Suplementos">
+<meta property="og:description" id="meta-og-description" content="Suplementos deportivos en Catamarca. Envíos a domicilio y retiro en local.">
+<meta property="og:url" id="meta-og-url" content="https://ardsuplementos.com.ar/productos.html">
+<meta property="og:image" id="meta-og-image" content="https://ardsuplementos.com.ar/ard12.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -575,8 +588,54 @@
       '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3"/><path d="M9 12h6M9 16h6"/></svg>';
   }
 
+  function actualizarSEO(p){
+    const url = 'https://ardsuplementos.com.ar/producto.html?id=' + encodeURIComponent(p.id);
+    const titulo = p.name + (p.brand ? ' — ' + p.brand : '') + ' | ARD Suplementos Catamarca';
+    const desc = (p.description && p.description.trim())
+      ? p.description.trim().replace(/\s+/g, ' ').slice(0, 300)
+      : (p.name + (p.brand ? ' de ' + p.brand : '') + '. Comprá suplementos deportivos en Catamarca con envío a domicilio y retiro en local. Consultá por WhatsApp.');
+    const img = p.image || 'https://ardsuplementos.com.ar/ard12.png';
+
+    document.title = titulo;
+    const set = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
+    set('meta-description', 'content', desc);
+    set('meta-canonical', 'href', url);
+    set('meta-og-title', 'content', titulo);
+    set('meta-og-description', 'content', desc);
+    set('meta-og-url', 'content', url);
+    set('meta-og-image', 'content', img);
+
+    const sinStock = Number(p.stock) <= 0;
+    const ld = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": p.name,
+      "image": img ? [img] : undefined,
+      "description": desc,
+      "sku": p.id,
+      "brand": p.brand ? { "@type": "Brand", "name": p.brand } : undefined,
+      "category": p.category || undefined,
+      "offers": {
+        "@type": "Offer",
+        "url": url,
+        "priceCurrency": "ARS",
+        "price": Number(p.price) || 0,
+        "availability": sinStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+        "seller": { "@type": "Organization", "name": "ARD Suplementos" }
+      }
+    };
+    let script = document.getElementById('ld-producto');
+    if (!script){
+      script = document.createElement('script');
+      script.type = 'application/ld+json';
+      script.id = 'ld-producto';
+      document.head.appendChild(script);
+    }
+    script.textContent = JSON.stringify(ld, (k, v) => v === undefined ? undefined : v);
+  }
+
   function pintarProducto(p){
-    document.title = p.name + ' — ARD Suplementos';
+    actualizarSEO(p);
 
     const tieneOferta = p.oldPrice && Number(p.oldPrice) > Number(p.price);
     const sinStock = Number(p.stock) <= 0;
