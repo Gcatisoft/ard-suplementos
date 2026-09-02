@@ -1334,7 +1334,7 @@
       <div class="sub-pop-ok" id="sub-pop-ok">
         <div class="sub-pop-ok-emoji">🎉</div>
         <div class="sub-pop-ok-title">¡Listo!</div>
-        <p class="sub-pop-ok-text">Te agregamos a la lista. Revisá tu correo (mirá también en Spam) — te escribimos para activar tu beneficio.</p>
+        <p class="sub-pop-ok-text">Te abrimos WhatsApp para que nos mandes el mensaje y activemos tu beneficio. Si no se abrió, escribinos al +54 9 383 499-3955.</p>
       </div>
     </div>
   </div>
@@ -1398,7 +1398,9 @@
     cumpleInput.value = v;
   });
 
-  form.addEventListener('submit', async function(e){
+  var WHATSAPP_POPUP = '5493834993955'; // WhatsApp de ARD Suplementos (383 499-3955)
+
+  form.addEventListener('submit', function(e){
     e.preventDefault();
     errorBox.classList.remove('visible');
 
@@ -1422,34 +1424,30 @@
       return;
     }
 
-    btn.disabled = true;
-    btn.textContent = 'Enviando…';
-
+    // Registrar la suscripción en segundo plano (no bloquea la apertura de
+    // WhatsApp, así el window.open queda dentro del gesto del usuario y no lo
+    // frena el bloqueador de pop-ups).
     try {
-      var res = await fetch('/api/subscribe', {
+      fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email, name: nombre, birthday: cumple })
-      });
-      var data = await res.json().catch(function(){ return {}; });
+      }).catch(function(){});
+    } catch (err){}
 
-      if (!res.ok){
-        errorBox.textContent = data.error || 'No pudimos registrar tu suscripción. Probá de nuevo en un rato.';
-        errorBox.classList.add('visible');
-        btn.disabled = false;
-        btn.textContent = '¡Si, Quiero!';
-        return;
-      }
+    // Abrir el WhatsApp de ARD Suplementos con los datos del formulario.
+    var mensaje = '¡Hola ARD Suplementos! Quiero mis $2500 de descuento para mi primera compra.\n\n' +
+      'Nombre: ' + nombre + '\n' +
+      'Email: ' + email +
+      (cumple ? '\nCumpleaños: ' + cumple : '');
+    var linkWhatsapp = 'https://wa.me/' + WHATSAPP_POPUP + '?text=' + encodeURIComponent(mensaje);
 
-      guardarEstado({ suscripto: true });
-      form.style.display = 'none';
-      okBox.classList.add('visible');
-    } catch (err){
-      errorBox.textContent = 'Error de conexión. Revisá tu internet e intentá otra vez.';
-      errorBox.classList.add('visible');
-      btn.disabled = false;
-      btn.textContent = '¡Si, Quiero!';
-    }
+    guardarEstado({ suscripto: true });
+    window.open(linkWhatsapp, '_blank', 'noopener');
+
+    btn.disabled = true;
+    form.style.display = 'none';
+    okBox.classList.add('visible');
   });
 
   if (deberiaMostrar()){
