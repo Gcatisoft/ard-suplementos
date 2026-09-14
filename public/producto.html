@@ -816,7 +816,8 @@
     fetch('/api/products/' + encodeURIComponent(id))
       .then(res => { if (!res.ok) throw new Error('No encontrado'); return res.json(); })
       .then(pintarProducto)
-      .catch(() => {
+      .catch((err) => {
+        console.error('No se pudo cargar el producto:', err);
         estado.textContent = 'No encontramos este producto. Puede que ya no esté disponible.';
       });
   }

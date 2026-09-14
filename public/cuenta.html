@@ -366,7 +366,7 @@
     fetch('/api/account/orders', { headers:{'Accept':'application/json'} })
       .then(function(r){ return r.ok ? r.json() : []; })
       .then(pintarPedidos)
-      .catch(function(){ $('pedidos-lista').innerHTML = '<div class="vacio">No pudimos cargar tus compras.</div>'; });
+      .catch(function(err){ console.error('Error al cargar los pedidos:', err); $('pedidos-lista').innerHTML = '<div class="vacio">No pudimos cargar tus compras.</div>'; });
   }
 
   // ---------- Arranque ----------

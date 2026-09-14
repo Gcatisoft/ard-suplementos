@@ -291,6 +291,7 @@
       renderStats();
       actualizarBadgeResenas();
     } catch (e) {
+      console.error('Error al verificar la sesión:', e);
       window.location.href = 'login.html';
     }
   }
@@ -395,6 +396,7 @@
       renderTabla();
       renderPaginacion();
     } catch (e) {
+      console.error('Error al cargar los productos:', e);
       tablaBody.innerHTML = '<tr><td colspan="8">Error al cargar los productos.</td></tr>';
     }
   }
@@ -813,6 +815,7 @@
       pedidos = await res.json();
       renderPedidos();
     } catch (e) {
+      console.error('Error al cargar los pedidos:', e);
       pedidosTablaBody.innerHTML = '<tr><td colspan="8">Error al cargar los pedidos.</td></tr>';
     }
   }
@@ -970,6 +973,7 @@
       renderClientesStats();
       renderClientes();
     } catch (e) {
+      console.error('Error al cargar los clientes:', e);
       clienteTablaBody.innerHTML = '<tr><td colspan="8">Error al cargar los clientes.</td></tr>';
     }
   }
@@ -1306,6 +1310,7 @@
       renderResenas();
       actualizarBadgeResenas();
     } catch (e) {
+      console.error('Error al cargar las reseñas:', e);
       resenasTablaBody.innerHTML = '<tr><td colspan="6">Error al cargar las reseñas.</td></tr>';
     }
   }
@@ -1438,6 +1443,7 @@
       novedades = await res.json();
       renderNovedades();
     } catch (e) {
+      console.error('Error al cargar las novedades:', e);
       novedadesGrid.innerHTML = '<div class="empty-state">Error al cargar las novedades.</div>';
     }
   }
@@ -1470,10 +1476,10 @@
           '<article class="novedad-card">' +
             '<div class="novedad-card-img">' + mediaHtml + '</div>' +
             '<div class="novedad-card-body">' +
-              (n.tag ? '<span class="novedad-tag">' + n.tag + '</span>' : '') +
-              '<div class="novedad-card-titulo">' + n.title + '</div>' +
+              (n.tag ? '<span class="novedad-tag">' + escaparHTML(n.tag) + '</span>' : '') +
+              '<div class="novedad-card-titulo">' + escaparHTML(n.title) + '</div>' +
               (n.price ? '<div class="novedad-card-precio">' + formatearPrecio(n.price) + (n.oldPrice && n.oldPrice > n.price ? ' <span class="novedad-card-precio-anterior">' + formatearPrecio(n.oldPrice) + '</span>' : '') + '</div>' : '') +
-              (n.content ? '<div class="novedad-card-contenido">' + n.content + '</div>' : '') +
+              (n.content ? '<div class="novedad-card-contenido">' + escaparHTML(n.content) + '</div>' : '') +
               '<div class="novedad-card-footer">' +
                 '<div>' +
                   '<span class="estado-badge ' + (n.active ? 'confirmado' : 'pendiente') + '">' + (n.active ? 'Publicada' : 'Oculta') + '</span> ' +
@@ -1740,6 +1746,7 @@
       heroSlides = await res.json();
       renderHeroSlides();
     } catch (e) {
+      console.error('Error al cargar las imágenes del hero:', e);
       heroSlidesGrid.innerHTML = '<div class="empty-state">Error al cargar las imágenes del hero.</div>';
     }
   }
@@ -1758,7 +1765,7 @@
           '<article class="hero-slide-card">' +
             '<div class="hero-slide-card-img"><img src="' + s.image + '" alt=""></div>' +
             '<div class="hero-slide-card-body">' +
-              (s.link ? '<div class="hero-slide-card-link">→ ' + s.link + '</div>' : '<div class="hero-slide-card-link">Sin link (solo decorativa)</div>') +
+              (s.link ? '<div class="hero-slide-card-link">→ ' + escaparHTML(s.link) + '</div>' : '<div class="hero-slide-card-link">Sin link (solo decorativa)</div>') +
               '<div class="hero-slide-card-footer">' +
                 '<div>' +
                   '<span class="estado-badge ' + (s.active ? 'confirmado' : 'pendiente') + '">' + (s.active ? 'Visible' : 'Oculta') + '</span>' +
@@ -1973,6 +1980,7 @@
       renderStatsGenerales(data);
       renderTopProductos(data.topProductos || []);
     } catch (e) {
+      console.error('Error al cargar las estadísticas:', e);
       topProductosBody.innerHTML = '<tr><td colspan="3">Error al cargar las estadísticas.</td></tr>';
     }
   }
