@@ -3108,8 +3108,8 @@ app.get('/api/admin/marketing/stats', requireAuth, async (req, res) => {
         .sort((a, b) => b.ventas - a.ventas);
     }
 
-    // Campañas activas (que tienen cupones activos)
-    const { data: campanasActivas } = await supabase
+    // Cupones activos
+    const { count: cuponesActivos } = await supabase
       .from('coupons')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'activo');
@@ -3118,7 +3118,7 @@ app.get('/api/admin/marketing/stats', requireAuth, async (req, res) => {
       totalVentas:    Math.round(totalVentas * 100) / 100,
       totalDescuentos:Math.round(totalDescuentos * 100) / 100,
       totalUsos:      listaOrdenes.length,
-      campanasActivas:campanasActivas || 0,
+      campanasActivas: cuponesActivos || 0,
       tabla:          tablaSponsors,
     });
   } catch (err) {

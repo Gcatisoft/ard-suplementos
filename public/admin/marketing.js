@@ -43,7 +43,8 @@
     var el = document.getElementById(id);
     if (!el) return;
     el.textContent = msg;
-    el.style.display = msg ? '' : 'none';
+    if (msg) { el.classList.add('visible'); }
+    else      { el.classList.remove('visible'); }
   }
 
   function clearErr(id) { showErr(id, ''); }
@@ -355,6 +356,7 @@
       abrirCampanaDetalle(id, camp);
     } else if (action === 'camp-edit') {
       if (!camp) return;
+      await cargarSponsorsEnSelects();
       document.getElementById('campana-id').value      = camp.id;
       document.getElementById('campana-sponsor').value = camp.sponsorId;
       document.getElementById('campana-nombre').value  = camp.name;
@@ -387,7 +389,8 @@
   });
 
   // Modal nueva campaña
-  document.getElementById('mk-camp-nuevo-btn') && document.getElementById('mk-camp-nuevo-btn').addEventListener('click', function () {
+  document.getElementById('mk-camp-nuevo-btn') && document.getElementById('mk-camp-nuevo-btn').addEventListener('click', async function () {
+    await cargarSponsorsEnSelects();
     document.getElementById('campana-id').value     = '';
     document.getElementById('campana-sponsor').value= '';
     document.getElementById('campana-nombre').value = '';
