@@ -313,6 +313,7 @@
     novedades: document.getElementById('tab-novedades'),
     hero: document.getElementById('tab-hero'),
     stats: document.getElementById('tab-stats'),
+    marketing: document.getElementById('tab-marketing'),
   };
 
   let pedidosCargados = false;
