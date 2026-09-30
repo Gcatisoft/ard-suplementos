@@ -59,6 +59,8 @@
   // Cotización del carrito: total en efectivo + un plan por cada cantidad
   // de cuotas con tarjeta (cada uno con su recargo).
   var quoteActual = null;
+  // Cupón aplicado actualmente (null si ninguno).
+  var cuponActual = null; // { code, discountType, discountValue, discountAmount, campaignId, sponsorId }
   function labelCuotas(n) {
     if (!n || n < 1) return 'Efectivo o transferencia';
     if (n === 1) return '1 pago con tarjeta';
@@ -234,6 +236,16 @@
     + '.ard-add-to-cart:hover{background:#e04d16;}'
     + '.ard-add-to-cart svg{width:14px;height:14px;stroke:#fff;flex:0 0 auto;}'
     + '.ard-add-to-cart:disabled{opacity:.5;cursor:not-allowed;}'
+    + '.ard-cupon-row{display:flex;gap:8px;}'
+    + '.ard-cupon-row input{flex:1;}'
+    + '.ard-cupon-btn{background:#0d1b2a;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}'
+    + '.ard-cupon-btn:disabled{opacity:.5;cursor:default;}'
+    + '.ard-cupon-info{font-size:12px;margin-top:6px;min-height:1em;}'
+    + '.ard-cupon-info.ok{color:#219653;}'
+    + '.ard-cupon-info.err{color:#c0392b;}'
+    + '.ard-descuento-box{background:#f0f9f0;border:1px solid #b7ebc0;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;}'
+    + '.ard-descuento-row{display:flex;justify-content:space-between;color:#5c7091;margin-bottom:4px;}'
+    + '.ard-descuento-total{display:flex;justify-content:space-between;font-weight:700;color:#0d1b2a;font-size:14px;margin-top:4px;}'
     + '@media (max-width:480px){.ard-cart-panel{width:100vw;}}';
 
   var styleTag = document.createElement('style');
@@ -302,6 +314,15 @@
           '<label for="ard-cart-notas">Notas (opcional)</label>' +
           '<textarea id="ard-cart-notas" placeholder="Alguna aclaración sobre tu pedido…"></textarea>' +
         '</div>' +
+        '<div class="ard-cart-field">' +
+          '<label for="ard-cart-cupon">Cupón de descuento (opcional)</label>' +
+          '<div class="ard-cupon-row">' +
+            '<input type="text" id="ard-cart-cupon" placeholder="Ej: JUAN10" autocomplete="off">' +
+            '<button type="button" id="ard-cart-cupon-btn" class="ard-cupon-btn">Aplicar</button>' +
+          '</div>' +
+          '<div id="ard-cart-cupon-info" class="ard-cupon-info"></div>' +
+        '</div>' +
+        '<div id="ard-cart-descuento-box" class="ard-descuento-box" style="display:none;"></div>' +
         '<div class="ard-cart-modos" id="ard-cart-modos">' +
           '<div class="ard-cart-modos-titulo">¿Cómo vas a pagar?</div>' +
           '<div id="ard-cart-modos-lista"></div>' +
@@ -323,6 +344,10 @@
   });
   modalOverlay.querySelector('#ard-cart-modal-cancel').addEventListener('click', cerrarModalCheckout);
   modalOverlay.querySelector('#ard-cart-confirmar').addEventListener('click', function () { confirmarPedido(); });
+  modalOverlay.querySelector('#ard-cart-cupon-btn').addEventListener('click', function () { aplicarCupon(); });
+  modalOverlay.querySelector('#ard-cart-cupon').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); aplicarCupon(); }
+  });
 
   var toast = document.createElement('div');
   toast.className = 'ard-cart-toast';
@@ -420,6 +445,7 @@
     cerrarPanel();
     document.getElementById('ard-cart-error').classList.remove('visible');
     restaurarBotonesModal();
+    resetCupon();
     modalOverlay.classList.add('open');
 
     var gate = document.getElementById('ard-cart-login-gate');
@@ -452,6 +478,112 @@
     });
   }
 
+  // Lee el cookie de atribución de campaña (seteado por las landing pages /:slug).
+  function leerCookieCampana() {
+    try {
+      var cookies = document.cookie.split(';');
+      for (var i = 0; i < cookies.length; i++) {
+        var c = cookies[i].trim();
+        var prefix = 'ard_campaign=';
+        if (c.indexOf(prefix) === 0) {
+          return JSON.parse(decodeURIComponent(c.slice(prefix.length)));
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function resetCupon() {
+    cuponActual = null;
+    var infoEl = document.getElementById('ard-cart-cupon-info');
+    var boxEl  = document.getElementById('ard-cart-descuento-box');
+    var inp    = document.getElementById('ard-cart-cupon');
+    if (infoEl) { infoEl.textContent = ''; infoEl.className = 'ard-cupon-info'; }
+    if (boxEl)  { boxEl.style.display = 'none'; boxEl.innerHTML = ''; }
+    if (inp)    { inp.value = ''; inp.readOnly = false; }
+    var btn = document.getElementById('ard-cart-cupon-btn');
+    if (btn) { btn.textContent = 'Aplicar'; btn.disabled = false; }
+  }
+
+  function mostrarDescuentoBox() {
+    var boxEl = document.getElementById('ard-cart-descuento-box');
+    if (!boxEl || !cuponActual) return;
+    var subtotal = getTotal();
+    boxEl.style.display = '';
+    boxEl.innerHTML =
+      '<div class="ard-descuento-row"><span>Subtotal</span><span>' + formatearPrecio(subtotal) + '</span></div>' +
+      '<div class="ard-descuento-row"><span>Descuento (' + cuponActual.code + ')</span>' +
+        '<span style="color:#219653;">− ' + formatearPrecio(cuponActual.discountAmount) + '</span></div>' +
+      '<div class="ard-descuento-total"><span>Total</span><span>' + formatearPrecio(Math.max(0, subtotal - cuponActual.discountAmount)) + '</span></div>';
+  }
+
+  function aplicarCupon() {
+    var inp = document.getElementById('ard-cart-cupon');
+    var infoEl = document.getElementById('ard-cart-cupon-info');
+    var btn = document.getElementById('ard-cart-cupon-btn');
+    if (!inp) return;
+
+    var code = inp.value.trim().toUpperCase();
+    if (!code) { infoEl.textContent = 'Ingresá el código del cupón.'; infoEl.className = 'ard-cupon-info err'; return; }
+
+    // Si ya hay un cupón aplicado con ese mismo código, quitar
+    if (cuponActual && cuponActual.code === code) {
+      resetCupon();
+      cargarModosPago();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '…';
+    infoEl.textContent = '';
+    infoEl.className = 'ard-cupon-info';
+
+    fetch('/api/coupons/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code, subtotal: getTotal() })
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (!res.ok || !res.data.valid) {
+          infoEl.textContent = (res.data && res.data.error) ? res.data.error : 'Cupón inválido o vencido.';
+          infoEl.className = 'ard-cupon-info err';
+          btn.disabled = false;
+          btn.textContent = 'Aplicar';
+          return;
+        }
+        var d = res.data;
+        var subtotal = getTotal();
+        var discountAmount = d.discountType === 'porcentaje'
+          ? Math.round(subtotal * (d.discountValue / 100))
+          : Math.min(d.discountValue, subtotal);
+
+        cuponActual = {
+          code: code,
+          discountType: d.discountType,
+          discountValue: d.discountValue,
+          discountAmount: discountAmount,
+          campaignId: d.campaignId || null,
+          sponsorId: d.sponsorId || null
+        };
+
+        infoEl.textContent = '¡Cupón aplicado! Ahorrás ' + formatearPrecio(discountAmount) + '.';
+        infoEl.className = 'ard-cupon-info ok';
+        inp.readOnly = true;
+        btn.textContent = 'Quitar';
+        btn.disabled = false;
+
+        mostrarDescuentoBox();
+        cargarModosPago();
+      })
+      .catch(function () {
+        infoEl.textContent = 'No se pudo validar el cupón. Intentá de nuevo.';
+        infoEl.className = 'ard-cupon-info err';
+        btn.disabled = false;
+        btn.textContent = 'Aplicar';
+      });
+  }
+
   // Consulta al backend cuánto sale el carrito en efectivo y en cada plan
   // de cuotas. El precio real siempre lo define el servidor.
   function cargarModosPago() {
@@ -460,11 +592,13 @@
     quoteActual = null;
     actualizarBotonConfirmar();
 
+    var discountAmount = cuponActual ? cuponActual.discountAmount : 0;
     fetch('/api/orders/quote', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        items: items.map(function (it) { return { productId: it.id, qty: it.qty }; })
+        items: items.map(function (it) { return { productId: it.id, qty: it.qty }; }),
+        discountAmount: discountAmount
       })
     })
       .then(function (r) { return r.ok ? r.json() : null; })
@@ -541,10 +675,11 @@
   }
 
   function totalDeCuotas(cuotas) {
-    if (!quoteActual) return getTotal();
-    if (cuotas < 1) return quoteActual.efectivo.total;
+    var discount = cuponActual ? cuponActual.discountAmount : 0;
+    if (!quoteActual) return Math.max(0, getTotal() - discount);
+    if (cuotas < 1) return Math.max(0, quoteActual.efectivo.total - discount);
     var plan = (quoteActual.planes || []).filter(function (p) { return p.cuotas === cuotas; })[0];
-    return plan ? plan.total : getTotal();
+    return plan ? Math.max(0, plan.total - discount) : Math.max(0, getTotal() - discount);
   }
 
   function construirMensajeWhatsapp(pedido, nombre, cuotas) {
@@ -555,6 +690,10 @@
       lineas.push('• ' + it.qty + 'x ' + it.name + (it.brand ? ' (' + it.brand + ')' : '') + (it.flavor ? ' - Sabor: ' + it.flavor : ''));
     });
     lineas.push('');
+    if (cuponActual) {
+      lineas.push('Subtotal: ' + formatearPrecio(getTotal()));
+      lineas.push('Descuento (cupón ' + cuponActual.code + '): − ' + formatearPrecio(cuponActual.discountAmount));
+    }
     lineas.push('Forma de pago: ' + labelCuotas(cuotas || 0));
     lineas.push('Total: ' + formatearPrecio(totalDeCuotas(cuotas || 0)));
     if (pedido && pedido.orderNumber) {
@@ -583,6 +722,13 @@
     }
     errorEl.classList.remove('visible');
 
+    // Atribución de campaña: primero el cupón (si tiene campaignId),
+    // luego el cookie de landing page.
+    var cookieCamp = leerCookieCampana();
+    var campanaId = (cuponActual && cuponActual.campaignId)
+      ? cuponActual.campaignId
+      : (cookieCamp && cookieCamp.id ? cookieCamp.id : null);
+
     var payload = {
       customerName: nombre,
       customerPhone: telefono,
@@ -591,7 +737,9 @@
       }),
       notes: notas,
       channel: canal,
-      installments: cuotas
+      installments: cuotas,
+      couponCode: cuponActual ? cuponActual.code : null,
+      campaignId: campanaId
     };
 
     btn.disabled = true;

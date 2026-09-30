@@ -464,6 +464,45 @@
     .imagen-agregar-tile { width: 78px; height: 78px; }
   }
 
+  /* ===== Marketing module ===== */
+  .mk-panel { display: none; }
+  .mk-panel.active { display: block; }
+
+  .mk-estado-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .mk-estado-badge.activo, .mk-estado-badge.activa { background: #d9f2e3; color: #1a7a44; }
+  .mk-estado-badge.inactivo, .mk-estado-badge.desactivado, .mk-estado-badge.desactivada { background: #fde2e2; color: #a12c2c; }
+  .mk-estado-badge.programado, .mk-estado-badge.programada { background: #e8f0ff; color: #3159c9; }
+  .mk-estado-badge.vencido, .mk-estado-badge.vencida { background: #f2f4f8; color: #6b7686; }
+
+  .mk-code {
+    font-family: monospace;
+    font-size: 13px;
+    font-weight: 700;
+    background: #f2f4f8;
+    padding: 2px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
+  }
+
+  .mk-tipo-badge {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #3159c9;
+    background: #e8f0ff;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+
   /* ===== Planes de pago con tarjeta ===== */
   .planes-pago-head,
   .plan-fila {
@@ -534,6 +573,7 @@
     <button type="button" class="tab-btn" data-tab="novedades">Novedades</button>
     <button type="button" class="tab-btn" data-tab="hero">Imágenes del hero</button>
     <button type="button" class="tab-btn" data-tab="stats">Estadísticas</button>
+    <button type="button" class="tab-btn" data-tab="marketing">Marketing</button>
   </nav>
 
   <!-- ================= TAB: PRODUCTOS ================= -->
@@ -786,7 +826,410 @@
     </div>
   </section>
 
+  <!-- ================= TAB: MARKETING ================= -->
+  <section class="tab-panel" id="tab-marketing">
+
+    <nav class="tabs-nav" style="margin-top:0;">
+      <button type="button" class="tab-btn active" data-mktab="resumen">Resumen</button>
+      <button type="button" class="tab-btn" data-mktab="sponsors">Sponsors</button>
+      <button type="button" class="tab-btn" data-mktab="campanas">Campañas</button>
+      <button type="button" class="tab-btn" data-mktab="cupones">Cupones</button>
+    </nav>
+
+    <!-- ---- Resumen ---- -->
+    <div class="mk-panel active" id="mk-resumen">
+
+      <div class="stats-grid-2" id="mk-stats-cards">
+        <div class="stat-card-2"><div class="num" id="mk-stat-ventas">$0</div><div class="label">Ventas con cupones</div></div>
+        <div class="stat-card-2"><div class="num" id="mk-stat-descuentos">$0</div><div class="label">Descuentos otorgados</div></div>
+        <div class="stat-card-2"><div class="num" id="mk-stat-usos">0</div><div class="label">Cupones utilizados</div></div>
+        <div class="stat-card-2"><div class="num" id="mk-stat-activas">0</div><div class="label">Cupones activos</div></div>
+      </div>
+
+      <div class="pedidos-toolbar">
+        <div class="filters">
+          <input type="date" id="mk-filtro-desde" title="Desde">
+          <input type="date" id="mk-filtro-hasta" title="Hasta">
+          <select id="mk-filtro-sponsor"><option value="">Todos los sponsors</option></select>
+          <select id="mk-filtro-tipo-sponsor"><option value="">Todos los tipos</option>
+            <option value="persona">Persona</option><option value="gimnasio">Gimnasio</option>
+            <option value="club">Club</option><option value="influencer">Influencer</option>
+            <option value="asociacion">Asociación</option><option value="empresa">Empresa</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="mk-filtrar-btn">Filtrar</button>
+      </div>
+
+      <div class="section-title">Ventas por sponsor</div>
+      <div class="tabla-wrap">
+        <table class="top-productos-tabla">
+          <thead><tr>
+            <th>Sponsor</th><th>Tipo</th><th>Usos</th><th>Ventas</th><th>Descuentos</th>
+          </tr></thead>
+          <tbody id="mk-tabla-sponsors-body"></tbody>
+        </table>
+        <div class="empty-state" id="mk-tabla-sponsors-empty" style="display:none;">No hay ventas con cupones para el período seleccionado.</div>
+      </div>
+    </div>
+
+    <!-- ---- Sponsors ---- -->
+    <div class="mk-panel" id="mk-sponsors">
+      <div class="dash-toolbar">
+        <div class="filters">
+          <input type="search" id="mk-sponsor-buscar" placeholder="Buscar sponsor…">
+          <select id="mk-sponsor-filtro-tipo">
+            <option value="">Todos los tipos</option>
+            <option value="persona">Persona</option><option value="gimnasio">Gimnasio</option>
+            <option value="club">Club</option><option value="influencer">Influencer</option>
+            <option value="asociacion">Asociación</option><option value="empresa">Empresa</option>
+            <option value="otro">Otro</option>
+          </select>
+          <select id="mk-sponsor-filtro-estado">
+            <option value="">Todos</option>
+            <option value="activo">Activos</option>
+            <option value="inactivo">Inactivos</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="mk-sponsor-nuevo-btn" style="width:auto;">+ Nuevo sponsor</button>
+      </div>
+      <div class="tabla-wrap">
+        <table class="top-productos-tabla">
+          <thead><tr>
+            <th>Nombre</th><th>Tipo</th><th>Contacto</th><th>Estado</th><th></th>
+          </tr></thead>
+          <tbody id="mk-sponsors-body"></tbody>
+        </table>
+        <div class="empty-state" id="mk-sponsors-empty" style="display:none;">No hay sponsors cargados.</div>
+      </div>
+    </div>
+
+    <!-- ---- Campañas ---- -->
+    <div class="mk-panel" id="mk-campanas">
+      <div class="dash-toolbar">
+        <div class="filters">
+          <select id="mk-camp-filtro-sponsor"><option value="">Todos los sponsors</option></select>
+          <select id="mk-camp-filtro-estado">
+            <option value="">Todos los estados</option>
+            <option value="activa">Activas</option><option value="programada">Programadas</option>
+            <option value="vencida">Vencidas</option><option value="desactivada">Desactivadas</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="mk-camp-nuevo-btn" style="width:auto;">+ Nueva campaña</button>
+      </div>
+      <div class="tabla-wrap">
+        <table class="top-productos-tabla">
+          <thead><tr>
+            <th>Sponsor</th><th>Campaña</th><th>Link</th><th>Período</th><th>Estado</th><th></th>
+          </tr></thead>
+          <tbody id="mk-campanas-body"></tbody>
+        </table>
+        <div class="empty-state" id="mk-campanas-empty" style="display:none;">No hay campañas cargadas.</div>
+      </div>
+    </div>
+
+    <!-- ---- Cupones ---- -->
+    <div class="mk-panel" id="mk-cupones">
+      <div class="dash-toolbar">
+        <div class="filters">
+          <select id="mk-cup-filtro-sponsor"><option value="">Todos los sponsors</option></select>
+          <select id="mk-cup-filtro-estado">
+            <option value="">Todos los estados</option>
+            <option value="activo">Activos</option><option value="programado">Programados</option>
+            <option value="vencido">Vencidos</option><option value="desactivado">Desactivados</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="mk-cup-nuevo-btn" style="width:auto;">+ Nuevo cupón</button>
+      </div>
+      <div class="tabla-wrap">
+        <table class="top-productos-tabla">
+          <thead><tr>
+            <th>Código</th><th>Sponsor</th><th>Campaña</th><th>Descuento</th><th>Vigencia</th><th>Estado</th><th></th>
+          </tr></thead>
+          <tbody id="mk-cupones-body"></tbody>
+        </table>
+        <div class="empty-state" id="mk-cupones-empty" style="display:none;">No hay cupones cargados.</div>
+      </div>
+    </div>
+
+  </section>
+
 </main>
+
+<!-- ============ MODAL SPONSOR ============ -->
+<div class="modal-overlay" id="modal-overlay-sponsor">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <h2 id="modal-sponsor-title">Nuevo sponsor</h2>
+      <button class="modal-close" id="modal-sponsor-close" type="button">✕</button>
+    </div>
+    <div class="error-msg" id="form-sponsor-error"></div>
+    <form id="sponsor-form">
+      <input type="hidden" id="sponsor-id">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="sponsor-nombre">Nombre *</label>
+          <input type="text" id="sponsor-nombre" required placeholder="Ej: Juan Pérez">
+        </div>
+        <div class="form-group">
+          <label for="sponsor-tipo">Tipo *</label>
+          <select id="sponsor-tipo" required>
+            <option value="persona">Persona</option>
+            <option value="gimnasio">Gimnasio</option>
+            <option value="club">Club</option>
+            <option value="influencer">Influencer</option>
+            <option value="asociacion">Asociación</option>
+            <option value="empresa">Empresa</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="sponsor-estado">Estado</label>
+          <select id="sponsor-estado">
+            <option value="activo">Activo</option>
+            <option value="inactivo">Inactivo</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label for="sponsor-descripcion">Descripción</label>
+          <textarea id="sponsor-descripcion" placeholder="Breve descripción…"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="sponsor-contacto">Nombre de contacto</label>
+          <input type="text" id="sponsor-contacto" placeholder="Ej: Juan Pérez">
+        </div>
+        <div class="form-group">
+          <label for="sponsor-email">Email</label>
+          <input type="email" id="sponsor-email" placeholder="juan@example.com">
+        </div>
+        <div class="form-group full">
+          <label for="sponsor-telefono">Teléfono</label>
+          <input type="text" id="sponsor-telefono" placeholder="Ej: 3834123456">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-sponsor-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" style="width:auto;">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL CAMPAÑA ============ -->
+<div class="modal-overlay" id="modal-overlay-campana">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <h2 id="modal-campana-title">Nueva campaña</h2>
+      <button class="modal-close" id="modal-campana-close" type="button">✕</button>
+    </div>
+    <div class="error-msg" id="form-campana-error"></div>
+    <form id="campana-form">
+      <input type="hidden" id="campana-id">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="campana-sponsor">Sponsor *</label>
+          <select id="campana-sponsor" required>
+            <option value="">Seleccioná un sponsor</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label for="campana-nombre">Nombre de la campaña *</label>
+          <input type="text" id="campana-nombre" required placeholder="Ej: Juan - Octubre">
+        </div>
+        <div class="form-group full">
+          <label for="campana-slug">Link personalizado</label>
+          <input type="text" id="campana-slug" placeholder="Ej: juan-oct">
+          <div class="form-hint">Solo letras minúsculas, números y guiones. El link será: ardsuplementos.com/<strong>juan-oct</strong></div>
+        </div>
+        <div class="form-group">
+          <label for="campana-inicio">Fecha inicio</label>
+          <input type="date" id="campana-inicio">
+        </div>
+        <div class="form-group">
+          <label for="campana-fin">Fecha fin</label>
+          <input type="date" id="campana-fin">
+        </div>
+        <div class="form-group full">
+          <label for="campana-estado">Estado</label>
+          <select id="campana-estado">
+            <option value="activa">Activa</option>
+            <option value="programada">Programada</option>
+            <option value="desactivada">Desactivada</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-campana-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" style="width:auto;">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL RENOVAR CAMPAÑA ============ -->
+<div class="modal-overlay" id="modal-overlay-renovar">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <h2>Renovar campaña</h2>
+      <button class="modal-close" id="modal-renovar-close" type="button">✕</button>
+    </div>
+    <div class="error-msg" id="form-renovar-error"></div>
+    <form id="renovar-form">
+      <input type="hidden" id="renovar-campaign-id">
+      <p id="renovar-desc" style="font-size:13px;color:#5c6b82;margin:0 0 14px;"></p>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="renovar-nombre">Nombre de la nueva campaña *</label>
+          <input type="text" id="renovar-nombre" required placeholder="Ej: Juan - Noviembre">
+        </div>
+        <div class="form-group full">
+          <label for="renovar-slug">Nuevo link personalizado</label>
+          <input type="text" id="renovar-slug" placeholder="Ej: juan-nov">
+        </div>
+        <div class="form-group">
+          <label for="renovar-inicio">Fecha inicio</label>
+          <input type="date" id="renovar-inicio">
+        </div>
+        <div class="form-group">
+          <label for="renovar-fin">Fecha fin</label>
+          <input type="date" id="renovar-fin">
+        </div>
+        <div class="form-group full">
+          <label for="renovar-cup-code">Código del nuevo cupón (opcional)</label>
+          <input type="text" id="renovar-cup-code" placeholder="Ej: JUAN5NOV">
+        </div>
+        <div class="form-group">
+          <label for="renovar-cup-tipo">Tipo de descuento</label>
+          <select id="renovar-cup-tipo">
+            <option value="porcentaje">Porcentaje (%)</option>
+            <option value="monto_fijo">Monto fijo ($)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="renovar-cup-valor">Valor del descuento</label>
+          <input type="number" id="renovar-cup-valor" min="0" step="0.01" placeholder="0">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-renovar-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" style="width:auto;">Crear campaña nueva</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL CUPÓN ============ -->
+<div class="modal-overlay" id="modal-overlay-cupon">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h2 id="modal-cupon-title">Nuevo cupón</h2>
+      <button class="modal-close" id="modal-cupon-close" type="button">✕</button>
+    </div>
+    <div class="error-msg" id="form-cupon-error"></div>
+    <form id="cupon-form">
+      <input type="hidden" id="cupon-id">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="cupon-campana">Campaña *</label>
+          <select id="cupon-campana" required>
+            <option value="">Seleccioná una campaña</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label for="cupon-codigo">Código *</label>
+          <input type="text" id="cupon-codigo" required placeholder="Ej: JUAN5" style="text-transform:uppercase;">
+          <div class="form-hint">El código se guarda en mayúsculas. Sin espacios ni caracteres especiales.</div>
+        </div>
+        <div class="form-group">
+          <label for="cupon-tipo">Tipo de descuento *</label>
+          <select id="cupon-tipo" required>
+            <option value="porcentaje">Porcentaje (%)</option>
+            <option value="monto_fijo">Monto fijo ($)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="cupon-valor">Valor *</label>
+          <input type="number" id="cupon-valor" min="0.01" step="0.01" required placeholder="5">
+        </div>
+        <div class="form-group">
+          <label for="cupon-inicio">Fecha inicio</label>
+          <input type="date" id="cupon-inicio">
+        </div>
+        <div class="form-group">
+          <label for="cupon-fin">Fecha fin</label>
+          <input type="date" id="cupon-fin">
+        </div>
+        <div class="form-group full">
+          <label for="cupon-estado">Estado</label>
+          <select id="cupon-estado">
+            <option value="activo">Activo</option>
+            <option value="programado">Programado</option>
+            <option value="desactivado">Desactivado</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-cupon-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" style="width:auto;">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL DETALLE SPONSOR ============ -->
+<div class="modal-overlay" id="modal-overlay-sponsor-detalle">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-header">
+      <h2 id="modal-sponsor-detalle-title">Detalle sponsor</h2>
+      <button class="modal-close" id="modal-sponsor-detalle-close" type="button">✕</button>
+    </div>
+    <div id="sponsor-detalle-content">
+      <div class="stats-grid-2" id="sponsor-detalle-cards" style="margin-bottom:16px;"></div>
+      <div class="section-title">Campañas</div>
+      <div class="tabla-wrap" style="box-shadow:none;">
+        <table class="top-productos-tabla">
+          <thead><tr>
+            <th>Campaña</th><th>Usos</th><th>Ventas</th><th>Descuentos</th>
+          </tr></thead>
+          <tbody id="sponsor-detalle-campanas-body"></tbody>
+        </table>
+      </div>
+      <div class="section-title" style="margin-top:20px;">Productos vendidos</div>
+      <div class="tabla-wrap" style="box-shadow:none;">
+        <table class="top-productos-tabla">
+          <thead><tr><th>Producto</th><th>Unidades</th></tr></thead>
+          <tbody id="sponsor-detalle-productos-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" id="cerrar-sponsor-detalle-btn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL DETALLE CAMPAÑA ============ -->
+<div class="modal-overlay" id="modal-overlay-campana-detalle">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-header">
+      <h2 id="modal-campana-detalle-title">Detalle campaña</h2>
+      <button class="modal-close" id="modal-campana-detalle-close" type="button">✕</button>
+    </div>
+    <div id="campana-detalle-content">
+      <div class="stats-grid-2" id="campana-detalle-cards" style="margin-bottom:16px;"></div>
+      <div class="section-title">Productos vendidos</div>
+      <div class="tabla-wrap" style="box-shadow:none;">
+        <table class="top-productos-tabla">
+          <thead><tr><th>Producto</th><th>Unidades</th></tr></thead>
+          <tbody id="campana-detalle-productos-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" id="cerrar-campana-detalle-btn">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <!-- ============ MODAL PRODUCTO ============ -->
 <div class="modal-overlay" id="modal-overlay">
@@ -1190,5 +1633,6 @@
 </div>
 
 <script src="admin.js"></script>
+<script src="marketing.js"></script>
 </body>
 </html>

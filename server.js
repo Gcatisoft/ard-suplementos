@@ -547,6 +547,22 @@ function requireAuth(req, res, next) {
   return res.status(401).json({ error: 'No autorizado' });
 }
 
+// Parsea la cabecera Cookie sin necesitar cookie-parser.
+function parseCookies(req) {
+  const result = {};
+  const header = req.headers.cookie || '';
+  header.split(';').forEach((part) => {
+    const idx = part.indexOf('=');
+    if (idx < 0) return;
+    const key = part.slice(0, idx).trim();
+    const val = part.slice(idx + 1).trim();
+    if (key) {
+      try { result[key] = decodeURIComponent(val); } catch { result[key] = val; }
+    }
+  });
+  return result;
+}
+
 // Igual que requireAuth pero para las cuentas de clientes del sitio.
 function requireCustomer(req, res, next) {
   if (req.session && req.session.accountId) return next();
@@ -1242,12 +1258,21 @@ function mapOrder(row) {
     priceMode: row.price_mode || null,
     chosenInstallments: row.chosen_installments || null,
     items: row.items || [],
+    subtotal: row.subtotal != null ? Number(row.subtotal) : null,
     total: Number(row.total),
     status: row.status,
     notes: row.notes || '',
     sentVia: row.sent_via,
     mpStatus: row.mp_status || null,
     mpPaymentId: row.mp_payment_id || null,
+    // Campos de marketing
+    couponId: row.coupon_id || null,
+    campaignId: row.campaign_id || null,
+    sponsorId: row.sponsor_id || null,
+    couponCode: row.coupon_code || null,
+    discountType: row.discount_type || null,
+    discountPct: row.discount_pct != null ? Number(row.discount_pct) : null,
+    discountAmount: row.discount_amount != null ? Number(row.discount_amount) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -1355,7 +1380,7 @@ app.post('/api/orders/quote', requireCustomer, async (req, res) => {
 // así queda registrado en el panel aunque el cliente no confirme nada más.
 app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) => {
   try {
-    const { customerName, customerPhone, customerId, items, notes, channel, installments: cuotasBody } = req.body || {};
+    const { customerName, customerPhone, customerId, items, notes, channel, installments: cuotasBody, couponCode, campaignId: campaignIdBody } = req.body || {};
     // 0 / vacío = efectivo o transferencia; N >= 1 = pago con tarjeta en N cuotas.
     const cuotas = Math.max(0, Math.round(Number(cuotasBody) || 0));
     const modo = cuotas >= 1 ? 'tarjeta' : 'efectivo';
@@ -1400,7 +1425,47 @@ app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) =>
       return { ...it, price: precioReal };
     });
 
-    const total = itemsValidados.reduce((acc, it) => acc + (Number(it.price) || 0) * (Number(it.qty) || 0), 0);
+    const subtotal = itemsValidados.reduce((acc, it) => acc + (Number(it.price) || 0) * (Number(it.qty) || 0), 0);
+
+    // ---------- Aplicar cupón (validación en backend, nunca se confía en el frontend) ----------
+    let cuponAplicado = null;
+    let descuentoMonto = 0;
+    let descuentoPct = null;
+    let total = subtotal;
+    let couponIdFinal = null;
+    let campaignIdFinal = null;
+    let sponsorIdFinal = null;
+
+    // Intentar atribución por cookie de campaña (si no viene cupón explícito, usar la campaña de la cookie)
+    const cookieCampaign = (() => {
+      try {
+        const cookies = parseCookies(req);
+        return cookies.ard_campaign ? JSON.parse(cookies.ard_campaign) : null;
+      } catch { return null; }
+    })();
+
+    if (couponCode) {
+      const resultCupon = await validarCupon(couponCode);
+      if (!resultCupon.valid) {
+        return res.status(400).json({ error: resultCupon.error });
+      }
+      cuponAplicado = resultCupon.coupon;
+      const desc = calcularDescuento(cuponAplicado, subtotal);
+      descuentoMonto = desc.monto;
+      descuentoPct   = desc.pct;
+      total          = desc.total;
+      couponIdFinal  = cuponAplicado.id;
+      campaignIdFinal= cuponAplicado.campaign_id;
+      sponsorIdFinal = cuponAplicado.sponsor_id;
+    } else if (campaignIdBody || (cookieCampaign && cookieCampaign.id)) {
+      // Atribución por link/cookie: no hay descuento, pero se vincula la orden a la campaña
+      campaignIdFinal = campaignIdBody || cookieCampaign.id;
+      sponsorIdFinal  = cookieCampaign && cookieCampaign.sponsorId;
+      if (!sponsorIdFinal && campaignIdFinal) {
+        const { data: camp } = await supabase.from('campaigns').select('sponsor_id').eq('id', campaignIdFinal).maybeSingle();
+        if (camp) sponsorIdFinal = camp.sponsor_id;
+      }
+    }
 
     const nuevo = {
       customer_name: String(customerName).trim(),
@@ -1408,12 +1473,21 @@ app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) =>
       customer_id: customerId || null,
       account_id: accountId,
       items: itemsValidados,
-      total,
+      subtotal: Math.round(subtotal * 100) / 100,
+      total:    Math.round(total * 100) / 100,
       notes: notes ? String(notes).trim() : '',
       status: 'pendiente',
       sent_via: canal,
       price_mode: modo,
       chosen_installments: cuotas >= 1 ? cuotas : null,
+      // Campos de marketing (snapshot histórico)
+      coupon_id:       couponIdFinal || null,
+      campaign_id:     campaignIdFinal || null,
+      sponsor_id:      sponsorIdFinal || null,
+      coupon_code:     cuponAplicado ? cuponAplicado.code : null,
+      discount_type:   cuponAplicado ? cuponAplicado.discount_type : null,
+      discount_pct:    descuentoPct,
+      discount_amount: descuentoMonto > 0 ? Math.round(descuentoMonto * 100) / 100 : null,
     };
 
     const { data, error } = await supabase.from('orders').insert(nuevo).select().single();
@@ -1510,6 +1584,10 @@ app.post('/api/orders/:id/pagar', requireCustomer, publicWriteLimiter, async (re
       return res.status(409).json({ error: 'Este pedido ya fue pagado' });
     }
 
+    // Construir items para Mercado Pago.
+    // Si hay descuento de cupón, lo representamos como un ítem de precio negativo
+    // (o directamente ajustamos el precio del primer item para que el total coincida
+    // con order.total). La estrategia más limpia es incluir un ítem de descuento.
     const itemsMP = (order.items || [])
       .map((it) => ({
         title: String((it.name || 'Producto') + (it.flavor ? ' - ' + it.flavor : '')).slice(0, 250),
@@ -1521,6 +1599,17 @@ app.post('/api/orders/:id/pagar', requireCustomer, publicWriteLimiter, async (re
 
     if (!itemsMP.length) {
       return res.status(400).json({ error: 'El pedido no tiene productos con precio válido' });
+    }
+
+    // Si el pedido tiene descuento de cupón, agregar un ítem de descuento
+    // para que el total que recibe Mercado Pago sea el correcto (order.total).
+    if (order.discount_amount && Number(order.discount_amount) > 0) {
+      itemsMP.push({
+        title: 'Descuento cupón ' + (order.coupon_code || ''),
+        quantity: 1,
+        unit_price: -Math.round(Number(order.discount_amount) * 100) / 100,
+        currency_id: 'ARS',
+      });
     }
 
     const base = urlBase(req);
@@ -2338,6 +2427,739 @@ app.delete('/api/admin/customers/:customerId/purchases/:purchaseId', requireAuth
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al eliminar la venta' });
+  }
+});
+
+// ============================================================
+// ---------- MÓDULO DE MARKETING ----------
+// Sponsors · Campañas · Cupones · Estadísticas · Links
+// ============================================================
+
+// ---------- Helpers de mapeo ----------
+function mapSponsor(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    description: row.description || '',
+    contact: row.contact || '',
+    email: row.email || '',
+    phone: row.phone || '',
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapCampaign(row) {
+  return {
+    id: row.id,
+    sponsorId: row.sponsor_id,
+    sponsorName: row.sponsor_name || '',
+    name: row.name,
+    slug: row.slug || '',
+    startDate: row.start_date || null,
+    endDate: row.end_date || null,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapCoupon(row) {
+  return {
+    id: row.id,
+    campaignId: row.campaign_id,
+    campaignName: row.campaign_name || '',
+    sponsorId: row.sponsor_id,
+    sponsorName: row.sponsor_name || '',
+    code: row.code,
+    discountType: row.discount_type,
+    discountValue: Number(row.discount_value),
+    startDate: row.start_date || null,
+    endDate: row.end_date || null,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+// Valida si un cupón está activo y no vencido según sus fechas y estado.
+// Devuelve { valid, coupon, error }.
+async function validarCupon(code) {
+  if (!code) return { valid: false, error: 'Código vacío' };
+  const codeLimpio = String(code).trim().toUpperCase();
+
+  const { data: coupon, error } = await supabase
+    .from('coupons')
+    .select('*, campaigns(name, slug, status), sponsors(name)')
+    .eq('code', codeLimpio)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!coupon) return { valid: false, error: 'Código de descuento no válido' };
+  if (coupon.status === 'desactivado') return { valid: false, error: 'Este cupón fue desactivado' };
+  if (coupon.status === 'vencido') return { valid: false, error: 'Este cupón ya venció' };
+
+  const hoy = new Date().toISOString().slice(0, 10);
+  if (coupon.start_date && coupon.start_date > hoy) {
+    return { valid: false, error: 'Este cupón todavía no está disponible' };
+  }
+  if (coupon.end_date && coupon.end_date < hoy) {
+    // Marcar como vencido automáticamente
+    await supabase.from('coupons').update({ status: 'vencido' }).eq('id', coupon.id);
+    return { valid: false, error: 'Este cupón ya venció' };
+  }
+
+  return { valid: true, coupon };
+}
+
+// Calcula el importe del descuento sobre un subtotal.
+function calcularDescuento(coupon, subtotal) {
+  if (coupon.discount_type === 'porcentaje') {
+    const pct = Number(coupon.discount_value) || 0;
+    const monto = Math.round((subtotal * pct) / 100 * 100) / 100;
+    return { pct, monto, total: Math.max(0, Math.round((subtotal - monto) * 100) / 100) };
+  }
+  // monto_fijo
+  const monto = Math.min(Number(coupon.discount_value) || 0, subtotal);
+  const pct = subtotal > 0 ? Math.round((monto / subtotal) * 10000) / 100 : 0;
+  return { pct, monto: Math.round(monto * 100) / 100, total: Math.max(0, Math.round((subtotal - monto) * 100) / 100) };
+}
+
+// ---------- Validación pública de cupones (para el checkout) ----------
+app.post('/api/coupons/validate', async (req, res) => {
+  try {
+    const { code, subtotal } = req.body || {};
+    const subtotalNum = Math.max(0, Number(subtotal) || 0);
+
+    const result = await validarCupon(code);
+    if (!result.valid) return res.status(400).json({ error: result.error });
+
+    const { coupon } = result;
+    const descuento = calcularDescuento(coupon, subtotalNum);
+
+    res.json({
+      ok: true,
+      code: coupon.code,
+      discountType: coupon.discount_type,
+      discountValue: Number(coupon.discount_value),
+      discountPct: descuento.pct,
+      discountAmount: descuento.monto,
+      total: descuento.total,
+      campaignName: coupon.campaigns?.name || '',
+      sponsorName: coupon.sponsors?.name || '',
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al validar el cupón' });
+  }
+});
+
+// ---------- Sponsors CRUD (admin) ----------
+app.get('/api/admin/sponsors', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('sponsors')
+      .select('*')
+      .order('name', { ascending: true });
+    if (error) throw error;
+    res.json((data || []).map(mapSponsor));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener los sponsors' });
+  }
+});
+
+app.get('/api/admin/sponsors/:id', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('sponsors')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Sponsor no encontrado' });
+    res.json(mapSponsor(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener el sponsor' });
+  }
+});
+
+app.post('/api/admin/sponsors', requireAuth, async (req, res) => {
+  try {
+    const { name, type, description, contact, email, phone, status } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
+
+    const { data, error } = await supabase
+      .from('sponsors')
+      .insert({
+        name: String(name).trim(),
+        type: type || 'otro',
+        description: description ? String(description).trim() : '',
+        contact: contact ? String(contact).trim() : '',
+        email: email ? String(email).trim().toLowerCase() : '',
+        phone: phone ? String(phone).trim() : '',
+        status: status || 'activo',
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    res.status(201).json(mapSponsor(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear el sponsor' });
+  }
+});
+
+app.put('/api/admin/sponsors/:id', requireAuth, async (req, res) => {
+  try {
+    const { name, type, description, contact, email, phone, status } = req.body || {};
+    const cambios = {};
+    if (name !== undefined) cambios.name = String(name).trim();
+    if (type !== undefined) cambios.type = type;
+    if (description !== undefined) cambios.description = String(description).trim();
+    if (contact !== undefined) cambios.contact = String(contact).trim();
+    if (email !== undefined) cambios.email = String(email).trim().toLowerCase();
+    if (phone !== undefined) cambios.phone = String(phone).trim();
+    if (status !== undefined) cambios.status = status;
+
+    const { data, error } = await supabase
+      .from('sponsors')
+      .update(cambios)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Sponsor no encontrado' });
+    res.json(mapSponsor(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar el sponsor' });
+  }
+});
+
+app.delete('/api/admin/sponsors/:id', requireAuth, async (req, res) => {
+  try {
+    const { error } = await supabase.from('sponsors').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar el sponsor' });
+  }
+});
+
+// Estadísticas por sponsor (para el detalle)
+app.get('/api/admin/sponsors/:id/stats', requireAuth, async (req, res) => {
+  try {
+    const { dateFrom, dateTo } = req.query;
+
+    let query = supabase
+      .from('orders')
+      .select('id, subtotal, total, discount_amount, coupon_code, campaign_id, items, status, created_at')
+      .eq('sponsor_id', req.params.id)
+      .eq('status', 'confirmado');
+
+    if (dateFrom) query = query.gte('created_at', dateFrom);
+    if (dateTo)   query = query.lte('created_at', dateTo + 'T23:59:59');
+
+    const { data: orders, error } = await query;
+    if (error) throw error;
+
+    const totalVentas      = (orders || []).reduce((a, o) => a + (Number(o.total) || 0), 0);
+    const totalDescuentos  = (orders || []).reduce((a, o) => a + (Number(o.discount_amount) || 0), 0);
+    const totalSubtotales  = (orders || []).reduce((a, o) => a + (Number(o.subtotal) || Number(o.total) || 0), 0);
+
+    // Usos por campaña
+    const porCampana = new Map();
+    (orders || []).forEach((o) => {
+      if (!o.campaign_id) return;
+      const acc = porCampana.get(o.campaign_id) || { usos: 0, ventas: 0, descuentos: 0 };
+      acc.usos++;
+      acc.ventas    += Number(o.total) || 0;
+      acc.descuentos+= Number(o.discount_amount) || 0;
+      porCampana.set(o.campaign_id, acc);
+    });
+
+    // Traer nombres de campañas
+    const campaignIds = [...porCampana.keys()];
+    let campanas = [];
+    if (campaignIds.length) {
+      const { data: cs } = await supabase
+        .from('campaigns')
+        .select('id, name')
+        .in('id', campaignIds);
+      const nombrePorId = new Map((cs || []).map((c) => [c.id, c.name]));
+      campanas = campaignIds.map((id) => ({
+        campaignId: id,
+        campaignName: nombrePorId.get(id) || id,
+        ...porCampana.get(id),
+      }));
+    }
+
+    // Productos vendidos
+    const productosMap = new Map();
+    (orders || []).forEach((o) => {
+      (o.items || []).forEach((it) => {
+        const key = it.name + (it.flavor ? ' · ' + it.flavor : '');
+        const acc = productosMap.get(key) || { name: key, units: 0 };
+        acc.units += Number(it.qty) || 1;
+        productosMap.set(key, acc);
+      });
+    });
+    const productos = [...productosMap.values()].sort((a, b) => b.units - a.units);
+
+    res.json({
+      totalUsos:      orders ? orders.length : 0,
+      totalVentas:    Math.round(totalVentas * 100) / 100,
+      totalDescuentos:Math.round(totalDescuentos * 100) / 100,
+      totalSubtotales:Math.round(totalSubtotales * 100) / 100,
+      campanas,
+      productos,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener estadísticas del sponsor' });
+  }
+});
+
+// ---------- Campaigns CRUD (admin) ----------
+app.get('/api/admin/campaigns', requireAuth, async (req, res) => {
+  try {
+    const { sponsorId } = req.query;
+    let query = supabase
+      .from('campaigns')
+      .select('*, sponsors(name)')
+      .order('created_at', { ascending: false });
+    if (sponsorId) query = query.eq('sponsor_id', sponsorId);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json((data || []).map((r) => mapCampaign({ ...r, sponsor_name: r.sponsors?.name || '' })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las campañas' });
+  }
+});
+
+app.get('/api/admin/campaigns/:id', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('campaigns')
+      .select('*, sponsors(name)')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Campaña no encontrada' });
+    res.json(mapCampaign({ ...data, sponsor_name: data.sponsors?.name || '' }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener la campaña' });
+  }
+});
+
+app.post('/api/admin/campaigns', requireAuth, async (req, res) => {
+  try {
+    const { sponsorId, name, slug, startDate, endDate, status } = req.body || {};
+    if (!sponsorId || !name) return res.status(400).json({ error: 'Sponsor y nombre son obligatorios' });
+
+    const slugLimpio = slug ? String(slug).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : null;
+
+    const { data, error } = await supabase
+      .from('campaigns')
+      .insert({
+        sponsor_id: sponsorId,
+        name: String(name).trim(),
+        slug: slugLimpio || null,
+        start_date: startDate || null,
+        end_date: endDate || null,
+        status: status || 'activa',
+      })
+      .select('*, sponsors(name)')
+      .single();
+    if (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'Ya existe una campaña con ese link personalizado' });
+      throw error;
+    }
+    res.status(201).json(mapCampaign({ ...data, sponsor_name: data.sponsors?.name || '' }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear la campaña' });
+  }
+});
+
+app.put('/api/admin/campaigns/:id', requireAuth, async (req, res) => {
+  try {
+    const { name, slug, startDate, endDate, status } = req.body || {};
+    const cambios = {};
+    if (name !== undefined) cambios.name = String(name).trim();
+    if (slug !== undefined) {
+      const slugLimpio = String(slug).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      cambios.slug = slugLimpio || null;
+    }
+    if (startDate !== undefined) cambios.start_date = startDate || null;
+    if (endDate !== undefined)   cambios.end_date   = endDate || null;
+    if (status !== undefined)    cambios.status     = status;
+
+    const { data, error } = await supabase
+      .from('campaigns')
+      .update(cambios)
+      .eq('id', req.params.id)
+      .select('*, sponsors(name)')
+      .single();
+    if (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'Ya existe una campaña con ese link personalizado' });
+      throw error;
+    }
+    if (!data) return res.status(404).json({ error: 'Campaña no encontrada' });
+    res.json(mapCampaign({ ...data, sponsor_name: data.sponsors?.name || '' }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar la campaña' });
+  }
+});
+
+app.delete('/api/admin/campaigns/:id', requireAuth, async (req, res) => {
+  try {
+    const { error } = await supabase.from('campaigns').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar la campaña' });
+  }
+});
+
+// Renovar campaña: crea una nueva a partir de la existente
+app.post('/api/admin/campaigns/:id/renovar', requireAuth, async (req, res) => {
+  try {
+    const { data: original, error: findErr } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (findErr) throw findErr;
+    if (!original) return res.status(404).json({ error: 'Campaña no encontrada' });
+
+    const { name, slug, startDate, endDate, couponCode, discountType, discountValue } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'El nombre de la nueva campaña es obligatorio' });
+
+    const slugLimpio = slug
+      ? String(slug).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+      : null;
+
+    const { data: nueva, error: createErr } = await supabase
+      .from('campaigns')
+      .insert({
+        sponsor_id: original.sponsor_id,
+        name: String(name).trim(),
+        slug: slugLimpio || null,
+        start_date: startDate || null,
+        end_date:   endDate   || null,
+        status: 'activa',
+      })
+      .select('*, sponsors(name)')
+      .single();
+    if (createErr) {
+      if (createErr.code === '23505') return res.status(409).json({ error: 'Ya existe una campaña con ese link' });
+      throw createErr;
+    }
+
+    // Si mandaron datos de cupón, crearlo automáticamente
+    let nuevoCupon = null;
+    if (couponCode) {
+      const codeLimpio = String(couponCode).trim().toUpperCase();
+      const { data: cup } = await supabase
+        .from('coupons')
+        .insert({
+          campaign_id: nueva.id,
+          sponsor_id: original.sponsor_id,
+          code: codeLimpio,
+          discount_type: discountType || 'porcentaje',
+          discount_value: Number(discountValue) || 0,
+          start_date: startDate || null,
+          end_date:   endDate   || null,
+          status: 'activo',
+        })
+        .select()
+        .single();
+      nuevoCupon = cup ? mapCoupon(cup) : null;
+    }
+
+    res.status(201).json({
+      campaign: mapCampaign({ ...nueva, sponsor_name: nueva.sponsors?.name || '' }),
+      coupon: nuevoCupon,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al renovar la campaña' });
+  }
+});
+
+// Estadísticas por campaña
+app.get('/api/admin/campaigns/:id/stats', requireAuth, async (req, res) => {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    let query = supabase
+      .from('orders')
+      .select('id, subtotal, total, discount_amount, items, status, created_at')
+      .eq('campaign_id', req.params.id)
+      .eq('status', 'confirmado');
+    if (dateFrom) query = query.gte('created_at', dateFrom);
+    if (dateTo)   query = query.lte('created_at', dateTo + 'T23:59:59');
+
+    const { data: orders, error } = await query;
+    if (error) throw error;
+
+    const totalVentas     = (orders || []).reduce((a, o) => a + (Number(o.total) || 0), 0);
+    const totalDescuentos = (orders || []).reduce((a, o) => a + (Number(o.discount_amount) || 0), 0);
+
+    const productosMap = new Map();
+    (orders || []).forEach((o) => {
+      (o.items || []).forEach((it) => {
+        const key = it.name + (it.flavor ? ' · ' + it.flavor : '');
+        const acc = productosMap.get(key) || { name: key, units: 0 };
+        acc.units += Number(it.qty) || 1;
+        productosMap.set(key, acc);
+      });
+    });
+
+    res.json({
+      totalUsos:      orders ? orders.length : 0,
+      totalVentas:    Math.round(totalVentas * 100) / 100,
+      totalDescuentos:Math.round(totalDescuentos * 100) / 100,
+      ticketPromedio: orders && orders.length ? Math.round((totalVentas / orders.length) * 100) / 100 : 0,
+      productos: [...productosMap.values()].sort((a, b) => b.units - a.units),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener estadísticas de la campaña' });
+  }
+});
+
+// ---------- Coupons CRUD (admin) ----------
+app.get('/api/admin/coupons', requireAuth, async (req, res) => {
+  try {
+    const { campaignId, sponsorId } = req.query;
+    let query = supabase
+      .from('coupons')
+      .select('*, campaigns(name), sponsors(name)')
+      .order('created_at', { ascending: false });
+    if (campaignId) query = query.eq('campaign_id', campaignId);
+    if (sponsorId)  query = query.eq('sponsor_id', sponsorId);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json((data || []).map((r) => mapCoupon({
+      ...r,
+      campaign_name: r.campaigns?.name || '',
+      sponsor_name:  r.sponsors?.name  || '',
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener los cupones' });
+  }
+});
+
+app.get('/api/admin/coupons/:id', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('coupons')
+      .select('*, campaigns(name), sponsors(name)')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Cupón no encontrado' });
+    res.json(mapCoupon({ ...data, campaign_name: data.campaigns?.name || '', sponsor_name: data.sponsors?.name || '' }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener el cupón' });
+  }
+});
+
+app.post('/api/admin/coupons', requireAuth, async (req, res) => {
+  try {
+    const { campaignId, code, discountType, discountValue, startDate, endDate, status } = req.body || {};
+    if (!campaignId || !code) return res.status(400).json({ error: 'Campaña y código son obligatorios' });
+    if (!discountValue || Number(discountValue) <= 0) return res.status(400).json({ error: 'El valor del descuento debe ser mayor a 0' });
+
+    // Traer sponsor_id de la campaña
+    const { data: camp } = await supabase.from('campaigns').select('sponsor_id').eq('id', campaignId).maybeSingle();
+    if (!camp) return res.status(404).json({ error: 'Campaña no encontrada' });
+
+    const { data, error } = await supabase
+      .from('coupons')
+      .insert({
+        campaign_id:    campaignId,
+        sponsor_id:     camp.sponsor_id,
+        code:           String(code).trim().toUpperCase(),
+        discount_type:  discountType || 'porcentaje',
+        discount_value: Number(discountValue),
+        start_date:     startDate || null,
+        end_date:       endDate   || null,
+        status:         status    || 'activo',
+      })
+      .select('*, campaigns(name), sponsors(name)')
+      .single();
+    if (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'Ya existe un cupón con ese código' });
+      throw error;
+    }
+    res.status(201).json(mapCoupon({ ...data, campaign_name: data.campaigns?.name || '', sponsor_name: data.sponsors?.name || '' }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear el cupón' });
+  }
+});
+
+app.put('/api/admin/coupons/:id', requireAuth, async (req, res) => {
+  try {
+    const { code, discountType, discountValue, startDate, endDate, status } = req.body || {};
+    const cambios = {};
+    if (code !== undefined)          cambios.code           = String(code).trim().toUpperCase();
+    if (discountType !== undefined)  cambios.discount_type  = discountType;
+    if (discountValue !== undefined) cambios.discount_value = Number(discountValue);
+    if (startDate !== undefined)     cambios.start_date     = startDate || null;
+    if (endDate !== undefined)       cambios.end_date       = endDate   || null;
+    if (status !== undefined)        cambios.status         = status;
+
+    const { data, error } = await supabase
+      .from('coupons')
+      .update(cambios)
+      .eq('id', req.params.id)
+      .select('*, campaigns(name), sponsors(name)')
+      .single();
+    if (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'Ya existe un cupón con ese código' });
+      throw error;
+    }
+    if (!data) return res.status(404).json({ error: 'Cupón no encontrado' });
+    res.json(mapCoupon({ ...data, campaign_name: data.campaigns?.name || '', sponsor_name: data.sponsors?.name || '' }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar el cupón' });
+  }
+});
+
+app.delete('/api/admin/coupons/:id', requireAuth, async (req, res) => {
+  try {
+    const { error } = await supabase.from('coupons').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar el cupón' });
+  }
+});
+
+// ---------- Estadísticas generales de Marketing ----------
+app.get('/api/admin/marketing/stats', requireAuth, async (req, res) => {
+  try {
+    const { dateFrom, dateTo, sponsorId, campaignId, couponCode, sponsorType } = req.query;
+
+    let query = supabase
+      .from('orders')
+      .select('id, subtotal, total, discount_amount, coupon_code, campaign_id, sponsor_id, items, status, created_at')
+      .eq('status', 'confirmado')
+      .not('coupon_code', 'is', null);
+
+    if (dateFrom)   query = query.gte('created_at', dateFrom);
+    if (dateTo)     query = query.lte('created_at', dateTo + 'T23:59:59');
+    if (sponsorId)  query = query.eq('sponsor_id', sponsorId);
+    if (campaignId) query = query.eq('campaign_id', campaignId);
+    if (couponCode) query = query.eq('coupon_code', String(couponCode).toUpperCase());
+
+    const { data: orders, error } = await query;
+    if (error) throw error;
+
+    const listaOrdenes = orders || [];
+
+    const totalVentas     = listaOrdenes.reduce((a, o) => a + (Number(o.total) || 0), 0);
+    const totalDescuentos = listaOrdenes.reduce((a, o) => a + (Number(o.discount_amount) || 0), 0);
+
+    // Agrupar por sponsor
+    const porSponsor = new Map();
+    listaOrdenes.forEach((o) => {
+      if (!o.sponsor_id) return;
+      const acc = porSponsor.get(o.sponsor_id) || { usos: 0, ventas: 0, descuentos: 0 };
+      acc.usos++;
+      acc.ventas     += Number(o.total) || 0;
+      acc.descuentos += Number(o.discount_amount) || 0;
+      porSponsor.set(o.sponsor_id, acc);
+    });
+
+    // Traer nombres de sponsors
+    let tablaSponsors = [];
+    const sponsorIds = [...porSponsor.keys()];
+    if (sponsorIds.length) {
+      let sQuery = supabase.from('sponsors').select('id, name, type').in('id', sponsorIds);
+      if (sponsorType) sQuery = sQuery.eq('type', sponsorType);
+      const { data: sRows } = await sQuery;
+      tablaSponsors = (sRows || [])
+        .filter((s) => porSponsor.has(s.id))
+        .map((s) => ({
+          sponsorId:   s.id,
+          sponsorName: s.name,
+          sponsorType: s.type,
+          ...porSponsor.get(s.id),
+        }))
+        .sort((a, b) => b.ventas - a.ventas);
+    }
+
+    // Campañas activas (que tienen cupones activos)
+    const { data: campanasActivas } = await supabase
+      .from('coupons')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'activo');
+
+    res.json({
+      totalVentas:    Math.round(totalVentas * 100) / 100,
+      totalDescuentos:Math.round(totalDescuentos * 100) / 100,
+      totalUsos:      listaOrdenes.length,
+      campanasActivas:campanasActivas || 0,
+      tabla:          tablaSponsors,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las estadísticas de marketing' });
+  }
+});
+
+// ---------- Landing de campaña por slug ----------
+// Cuando alguien entra a ardsuplementos.com/juan-oct, se guarda la campaña
+// en una cookie y se redirige al home. Al hacer el checkout, la orden
+// queda vinculada a esa campaña aunque el usuario no haya ingresado el código.
+// IMPORTANTE: esta ruta va DESPUÉS de todos los archivos estáticos y rutas
+// definidas, para no pisar /api/*, /admin, ni las páginas .html.
+app.get('/:slug([a-z0-9][a-z0-9-]{1,60})', async (req, res, next) => {
+  try {
+    const slug = req.params.slug.toLowerCase();
+
+    // Evitar conflictos con rutas ya definidas
+    const reservados = ['admin', 'api', 'sitemap.xml', 'robots.txt'];
+    if (reservados.includes(slug)) return next();
+
+    const { data: campaign, error } = await supabase
+      .from('campaigns')
+      .select('id, name, slug, sponsor_id, status')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    if (error || !campaign) return next();
+
+    // Guardar atribución en cookie (dura 30 días)
+    res.cookie('ard_campaign', JSON.stringify({ id: campaign.id, sponsorId: campaign.sponsor_id, slug }), {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      httpOnly: false, // necesita ser leída por JS del carrito
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    });
+
+    res.redirect('/');
+  } catch (err) {
+    next();
   }
 });
 
