@@ -304,7 +304,7 @@
   // ====================================================
   // -------- Tabs --------
   // ====================================================
-  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabBtns = document.querySelectorAll('.tab-btn[data-tab]');
   const tabPanels = {
     productos: document.getElementById('tab-productos'),
     pedidos: document.getElementById('tab-pedidos'),
