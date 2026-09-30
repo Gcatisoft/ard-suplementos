@@ -208,7 +208,7 @@
       document.getElementById('sponsor-telefono').value     = sp.phone || '';
       document.getElementById('modal-sponsor-title').textContent = 'Editar sponsor';
       clearErr('form-sponsor-error');
-      document.getElementById('modal-overlay-sponsor').classList.add('open');
+      document.getElementById('modal-overlay-sponsor').classList.add('visible');
     } else if (btn.getAttribute('data-action') === 'sponsor-del') {
       if (!confirm('¿Eliminar el sponsor "' + (sp ? sp.name : '') + '"?\nSe eliminarán también sus campañas y cupones.')) return;
       try {
@@ -231,14 +231,14 @@
     document.getElementById('sponsor-telefono').value    = '';
     document.getElementById('modal-sponsor-title').textContent = 'Nuevo sponsor';
     clearErr('form-sponsor-error');
-    document.getElementById('modal-overlay-sponsor').classList.add('open');
+    document.getElementById('modal-overlay-sponsor').classList.add('visible');
   });
 
   document.getElementById('modal-sponsor-close') && document.getElementById('modal-sponsor-close').addEventListener('click', function () {
-    document.getElementById('modal-overlay-sponsor').classList.remove('open');
+    document.getElementById('modal-overlay-sponsor').classList.remove('visible');
   });
   document.getElementById('cancelar-sponsor-btn') && document.getElementById('cancelar-sponsor-btn').addEventListener('click', function () {
-    document.getElementById('modal-overlay-sponsor').classList.remove('open');
+    document.getElementById('modal-overlay-sponsor').classList.remove('visible');
   });
 
   document.getElementById('sponsor-form') && document.getElementById('sponsor-form').addEventListener('submit', async function (e) {
@@ -260,7 +260,7 @@
       } else {
         await api('/api/admin/sponsors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       }
-      document.getElementById('modal-overlay-sponsor').classList.remove('open');
+      document.getElementById('modal-overlay-sponsor').classList.remove('visible');
       await cargarSponsors();
       cargarSponsorsEnSelects();
     } catch (err) { showErr('form-sponsor-error', err.message); }
@@ -273,7 +273,7 @@
     document.getElementById('sponsor-detalle-cards').innerHTML = '<div style="font-size:13px;color:#5c6b82;">Cargando…</div>';
     document.getElementById('sponsor-detalle-campanas-body').innerHTML = '';
     document.getElementById('sponsor-detalle-productos-body').innerHTML = '';
-    document.getElementById('modal-overlay-sponsor-detalle').classList.add('open');
+    document.getElementById('modal-overlay-sponsor-detalle').classList.add('visible');
     try {
       var data = await api('/api/admin/sponsors/' + sponsorId + '/stats');
       document.getElementById('sponsor-detalle-cards').innerHTML =
@@ -294,10 +294,10 @@
   }
 
   document.getElementById('modal-sponsor-detalle-close') && document.getElementById('modal-sponsor-detalle-close').addEventListener('click', function () {
-    document.getElementById('modal-overlay-sponsor-detalle').classList.remove('open');
+    document.getElementById('modal-overlay-sponsor-detalle').classList.remove('visible');
   });
   document.getElementById('cerrar-sponsor-detalle-btn') && document.getElementById('cerrar-sponsor-detalle-btn').addEventListener('click', function () {
-    document.getElementById('modal-overlay-sponsor-detalle').classList.remove('open');
+    document.getElementById('modal-overlay-sponsor-detalle').classList.remove('visible');
   });
 
   // ---------- CAMPAÑAS ----------
@@ -364,7 +364,7 @@
       document.getElementById('campana-estado').value  = camp.status;
       document.getElementById('modal-campana-title').textContent = 'Editar campaña';
       clearErr('form-campana-error');
-      document.getElementById('modal-overlay-campana').classList.add('open');
+      document.getElementById('modal-overlay-campana').classList.add('visible');
     } else if (action === 'camp-renovar') {
       if (!camp) return;
       document.getElementById('renovar-campaign-id').value = camp.id;
@@ -376,7 +376,7 @@
       document.getElementById('renovar-cup-code').value = '';
       document.getElementById('renovar-cup-valor').value= '';
       clearErr('form-renovar-error');
-      document.getElementById('modal-overlay-renovar').classList.add('open');
+      document.getElementById('modal-overlay-renovar').classList.add('visible');
     } else if (action === 'camp-del') {
       if (!confirm('¿Eliminar la campaña "' + (camp ? camp.name : '') + '"?')) return;
       try {
@@ -397,14 +397,14 @@
     document.getElementById('campana-estado').value = 'activa';
     document.getElementById('modal-campana-title').textContent = 'Nueva campaña';
     clearErr('form-campana-error');
-    document.getElementById('modal-overlay-campana').classList.add('open');
+    document.getElementById('modal-overlay-campana').classList.add('visible');
   });
 
   document.getElementById('modal-campana-close') && document.getElementById('modal-campana-close').addEventListener('click', function () {
-    document.getElementById('modal-overlay-campana').classList.remove('open');
+    document.getElementById('modal-overlay-campana').classList.remove('visible');
   });
   document.getElementById('cancelar-campana-btn') && document.getElementById('cancelar-campana-btn').addEventListener('click', function () {
-    document.getElementById('modal-overlay-campana').classList.remove('open');
+    document.getElementById('modal-overlay-campana').classList.remove('visible');
   });
 
   document.getElementById('campana-form') && document.getElementById('campana-form').addEventListener('submit', async function (e) {
@@ -425,7 +425,7 @@
       } else {
         await api('/api/admin/campaigns', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       }
-      document.getElementById('modal-overlay-campana').classList.remove('open');
+      document.getElementById('modal-overlay-campana').classList.remove('visible');
       await cargarCampanas();
       cargarSponsorsEnSelects();
     } catch (err) { showErr('form-campana-error', err.message); }
@@ -433,10 +433,10 @@
 
   // Modal renovar campaña
   document.getElementById('modal-renovar-close') && document.getElementById('modal-renovar-close').addEventListener('click', function () {
-    document.getElementById('modal-overlay-renovar').classList.remove('open');
+    document.getElementById('modal-overlay-renovar').classList.remove('visible');
   });
   document.getElementById('cancelar-renovar-btn') && document.getElementById('cancelar-renovar-btn').addEventListener('click', function () {
-    document.getElementById('modal-overlay-renovar').classList.remove('open');
+    document.getElementById('modal-overlay-renovar').classList.remove('visible');
   });
 
   document.getElementById('renovar-form') && document.getElementById('renovar-form').addEventListener('submit', async function (e) {
@@ -454,7 +454,7 @@
     };
     try {
       await api('/api/admin/campaigns/' + id + '/renovar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      document.getElementById('modal-overlay-renovar').classList.remove('open');
+      document.getElementById('modal-overlay-renovar').classList.remove('visible');
       await cargarCampanas();
       await cargarCupones();
     } catch (err) { showErr('form-renovar-error', err.message); }
@@ -465,7 +465,7 @@
     document.getElementById('modal-campana-detalle-title').textContent = camp ? camp.name : 'Detalle campaña';
     document.getElementById('campana-detalle-cards').innerHTML = '<div style="font-size:13px;color:#5c6b82;">Cargando…</div>';
     document.getElementById('campana-detalle-productos-body').innerHTML = '';
-    document.getElementById('modal-overlay-campana-detalle').classList.add('open');
+    document.getElementById('modal-overlay-campana-detalle').classList.add('visible');
     try {
       var data = await api('/api/admin/campaigns/' + campId + '/stats');
       document.getElementById('campana-detalle-cards').innerHTML =
@@ -483,10 +483,10 @@
   }
 
   document.getElementById('modal-campana-detalle-close') && document.getElementById('modal-campana-detalle-close').addEventListener('click', function () {
-    document.getElementById('modal-overlay-campana-detalle').classList.remove('open');
+    document.getElementById('modal-overlay-campana-detalle').classList.remove('visible');
   });
   document.getElementById('cerrar-campana-detalle-btn') && document.getElementById('cerrar-campana-detalle-btn').addEventListener('click', function () {
-    document.getElementById('modal-overlay-campana-detalle').classList.remove('open');
+    document.getElementById('modal-overlay-campana-detalle').classList.remove('visible');
   });
 
   // ---------- CUPONES ----------
@@ -554,7 +554,7 @@
       document.getElementById('cupon-estado').value    = cup.status;
       document.getElementById('modal-cupon-title').textContent = 'Editar cupón';
       clearErr('form-cupon-error');
-      document.getElementById('modal-overlay-cupon').classList.add('open');
+      document.getElementById('modal-overlay-cupon').classList.add('visible');
     } else if (btn.getAttribute('data-action') === 'cup-del') {
       if (!confirm('¿Eliminar el cupón "' + (cup ? cup.code : '') + '"?')) return;
       try {
@@ -591,14 +591,14 @@
     document.getElementById('cupon-estado').value  = 'activo';
     document.getElementById('modal-cupon-title').textContent = 'Nuevo cupón';
     clearErr('form-cupon-error');
-    document.getElementById('modal-overlay-cupon').classList.add('open');
+    document.getElementById('modal-overlay-cupon').classList.add('visible');
   });
 
   document.getElementById('modal-cupon-close') && document.getElementById('modal-cupon-close').addEventListener('click', function () {
-    document.getElementById('modal-overlay-cupon').classList.remove('open');
+    document.getElementById('modal-overlay-cupon').classList.remove('visible');
   });
   document.getElementById('cancelar-cupon-btn') && document.getElementById('cancelar-cupon-btn').addEventListener('click', function () {
-    document.getElementById('modal-overlay-cupon').classList.remove('open');
+    document.getElementById('modal-overlay-cupon').classList.remove('visible');
   });
 
   document.getElementById('cupon-form') && document.getElementById('cupon-form').addEventListener('submit', async function (e) {
@@ -620,7 +620,7 @@
       } else {
         await api('/api/admin/coupons', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       }
-      document.getElementById('modal-overlay-cupon').classList.remove('open');
+      document.getElementById('modal-overlay-cupon').classList.remove('visible');
       await cargarCupones();
     } catch (err) { showErr('form-cupon-error', err.message); }
   });
