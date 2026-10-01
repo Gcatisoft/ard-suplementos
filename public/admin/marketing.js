@@ -53,6 +53,7 @@
   var sponsors = [];
   var campaigns = [];
   var coupons = [];
+  var clientes = [];
 
   // ---------- Sub-tabs de Marketing ----------
   function initMarketingTabs() {
@@ -70,6 +71,7 @@
         if (tab === 'sponsors')  cargarSponsors();
         if (tab === 'campanas')  cargarCampanas();
         if (tab === 'cupones')   cargarCupones();
+        if (tab === 'clientes')  cargarClientesMarketing();
       });
     });
   }
@@ -519,11 +521,15 @@
         ? c.discountValue + '%'
         : fmt(c.discountValue);
       var vigencia = (c.startDate ? fmtFecha(c.startDate) : '—') + ' → ' + (c.endDate ? fmtFecha(c.endDate) : 'Sin venc.');
+      var clienteTxt = c.customerName
+        ? '<span style="font-size:12px;color:#3159c9;">&#128100; ' + esc(c.customerName) + '</span>'
+        : '<span style="font-size:11px;color:#9aa8bb;">General</span>';
       return '<tr>' +
         '<td><span class="mk-code">' + esc(c.code) + '</span></td>' +
         '<td>' + esc(c.sponsorName) + '</td>' +
         '<td>' + esc(c.campaignName) + '</td>' +
         '<td><strong>' + esc(descText) + '</strong></td>' +
+        '<td>' + clienteTxt + '</td>' +
         '<td style="font-size:12px;">' + esc(vigencia) + '</td>' +
         '<td>' + badgeEstado(c.status) + '</td>' +
         '<td class="row-actions">' +
@@ -545,19 +551,12 @@
 
     if (btn.getAttribute('data-action') === 'cup-edit') {
       if (!cup) return;
-      // Cargar campañas en el select del modal
-      await cargarCampanasEnSelectCupon();
-      document.getElementById('cupon-id').value        = cup.id;
-      document.getElementById('cupon-campana').value   = cup.campaignId;
-      document.getElementById('cupon-codigo').value    = cup.code;
-      document.getElementById('cupon-tipo').value      = cup.discountType;
-      document.getElementById('cupon-valor').value     = cup.discountValue;
-      document.getElementById('cupon-inicio').value    = cup.startDate || '';
-      document.getElementById('cupon-fin').value       = cup.endDate || '';
-      document.getElementById('cupon-estado').value    = cup.status;
-      document.getElementById('modal-cupon-title').textContent = 'Editar cupón';
-      clearErr('form-cupon-error');
-      document.getElementById('modal-overlay-cupon').classList.add('visible');
+      abrirModalCupon({
+        id: cup.id, campaignId: cup.campaignId, code: cup.code,
+        discountType: cup.discountType, discountValue: cup.discountValue,
+        startDate: cup.startDate, endDate: cup.endDate, status: cup.status,
+        customerId: cup.customerId || '',
+      });
     } else if (btn.getAttribute('data-action') === 'cup-del') {
       if (!confirm('¿Eliminar el cupón "' + (cup ? cup.code : '') + '"?')) return;
       try {
@@ -566,6 +565,24 @@
       } catch (err) { alert(err.message); }
     }
   });
+
+  async function cargarClientesEnSelectCupon(preselectedId) {
+    var sel = document.getElementById('cupon-cliente');
+    if (!sel) return;
+    try {
+      if (!clientes.length) {
+        clientes = await api('/api/admin/customers');
+      }
+      while (sel.options.length > 1) sel.remove(1);
+      clientes.forEach(function (c) {
+        var opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name + (c.phone ? ' — ' + c.phone : '');
+        sel.appendChild(opt);
+      });
+      if (preselectedId) sel.value = preselectedId;
+    } catch (e) { console.error(e); }
+  }
 
   async function cargarCampanasEnSelectCupon() {
     var sel = document.getElementById('cupon-campana');
@@ -582,19 +599,26 @@
     } catch (e) { console.error(e); }
   }
 
-  document.getElementById('mk-cup-nuevo-btn') && document.getElementById('mk-cup-nuevo-btn').addEventListener('click', async function () {
+  async function abrirModalCupon(opts) {
+    opts = opts || {};
     await cargarCampanasEnSelectCupon();
-    document.getElementById('cupon-id').value      = '';
-    document.getElementById('cupon-campana').value = '';
-    document.getElementById('cupon-codigo').value  = '';
-    document.getElementById('cupon-tipo').value    = 'porcentaje';
-    document.getElementById('cupon-valor').value   = '';
-    document.getElementById('cupon-inicio').value  = '';
-    document.getElementById('cupon-fin').value     = '';
-    document.getElementById('cupon-estado').value  = 'activo';
-    document.getElementById('modal-cupon-title').textContent = 'Nuevo cupón';
+    await cargarClientesEnSelectCupon(opts.customerId || '');
+    document.getElementById('cupon-id').value       = opts.id || '';
+    document.getElementById('cupon-campana').value  = opts.campaignId || '';
+    document.getElementById('cupon-codigo').value   = opts.code || '';
+    document.getElementById('cupon-tipo').value     = opts.discountType || 'porcentaje';
+    document.getElementById('cupon-valor').value    = opts.discountValue || '';
+    document.getElementById('cupon-inicio').value   = opts.startDate || '';
+    document.getElementById('cupon-fin').value      = opts.endDate || '';
+    document.getElementById('cupon-estado').value   = opts.status || 'activo';
+    document.getElementById('cupon-cliente').value  = opts.customerId || '';
+    document.getElementById('modal-cupon-title').textContent = opts.id ? 'Editar cupón' : 'Nuevo cupón';
     clearErr('form-cupon-error');
     document.getElementById('modal-overlay-cupon').classList.add('visible');
+  }
+
+  document.getElementById('mk-cup-nuevo-btn') && document.getElementById('mk-cup-nuevo-btn').addEventListener('click', function () {
+    abrirModalCupon();
   });
 
   document.getElementById('modal-cupon-close') && document.getElementById('modal-cupon-close').addEventListener('click', function () {
@@ -616,6 +640,7 @@
       startDate:     document.getElementById('cupon-inicio').value,
       endDate:       document.getElementById('cupon-fin').value,
       status:        document.getElementById('cupon-estado').value,
+      customerId:    document.getElementById('cupon-cliente').value || null,
     };
     try {
       if (id) {
@@ -627,6 +652,94 @@
       await cargarCupones();
     } catch (err) { showErr('form-cupon-error', err.message); }
   });
+
+  // ---------- CLIENTES ----------
+  async function cargarClientesMarketing() {
+    try {
+      var [clientesData, cuponesData] = await Promise.all([
+        api('/api/admin/customers'),
+        api('/api/admin/coupons'),
+      ]);
+      clientes = clientesData || [];
+      coupons  = cuponesData  || [];
+      renderClientesMarketing();
+    } catch (e) { console.error(e); }
+  }
+
+  function renderClientesMarketing() {
+    var tbody = document.getElementById('mk-clientes-body');
+    var empty = document.getElementById('mk-clientes-empty');
+    if (!tbody) return;
+
+    var buscar   = ((document.getElementById('mk-cli-buscar') || {}).value || '').toLowerCase();
+    var filtCup  = (document.getElementById('mk-cli-filtro-cupones') || {}).value || '';
+
+    // Mapear cupones por customer_id para conteo
+    var cuponesXCliente = {};
+    coupons.forEach(function (cup) {
+      if (!cup.customerId) return;
+      if (!cuponesXCliente[cup.customerId]) cuponesXCliente[cup.customerId] = [];
+      cuponesXCliente[cup.customerId].push(cup);
+    });
+
+    var lista = clientes.filter(function (c) {
+      if (buscar && !c.name.toLowerCase().includes(buscar) && !(c.phone || '').includes(buscar)) return false;
+      var tiene = !!(cuponesXCliente[c.id] && cuponesXCliente[c.id].length);
+      if (filtCup === 'con' && !tiene) return false;
+      if (filtCup === 'sin' && tiene)  return false;
+      return true;
+    });
+
+    if (!lista.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = lista.map(function (c) {
+      var cups = cuponesXCliente[c.id] || [];
+      var cupsCells = cups.length
+        ? cups.slice(0, 3).map(function (cup) {
+            return '<span class="mk-code" style="font-size:11px;margin-right:3px;">' + esc(cup.code) + '</span>';
+          }).join('') + (cups.length > 3 ? '<span style="font-size:11px;color:#6b7686;">+' + (cups.length - 3) + '</span>' : '')
+        : '<span style="font-size:11px;color:#9aa8bb;">Ninguno</span>';
+
+      var gastado = c.totalGastado ? '$' + Math.round(c.totalGastado).toLocaleString('es-AR') : '—';
+      var ultimaCompra = c.ultimaCompra ? fmtFecha(c.ultimaCompra) : '—';
+
+      return '<tr>' +
+        '<td><strong>' + esc(c.name) + '</strong></td>' +
+        '<td>' + esc(c.phone || '—') + '</td>' +
+        '<td>' + gastado + '</td>' +
+        '<td>' + ultimaCompra + '</td>' +
+        '<td>' + cupsCells + '</td>' +
+        '<td class="row-actions">' +
+          '<button class="btn btn-ghost btn-sm" data-action="cli-asignar" data-id="' + esc(c.id) + '" data-name="' + esc(c.name) + '">Asignar cupón</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  document.getElementById('mk-cli-buscar') && document.getElementById('mk-cli-buscar').addEventListener('input', renderClientesMarketing);
+  document.getElementById('mk-cli-filtro-cupones') && document.getElementById('mk-cli-filtro-cupones').addEventListener('change', renderClientesMarketing);
+
+  document.getElementById('mk-clientes-body') && document.getElementById('mk-clientes-body').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-action]');
+    if (!btn || btn.getAttribute('data-action') !== 'cli-asignar') return;
+    var customerId = btn.getAttribute('data-id');
+    var customerName = btn.getAttribute('data-name');
+    // Cambiar al sub-tab Cupones y abrir el modal pre-llenado con el cliente
+    document.querySelectorAll('[data-mktab]').forEach(function (b) { b.classList.remove('active'); });
+    var btnCupones = document.querySelector('[data-mktab="cupones"]');
+    if (btnCupones) btnCupones.classList.add('active');
+    document.querySelectorAll('.mk-panel').forEach(function (p) { p.classList.remove('active'); });
+    var panelCupones = document.getElementById('mk-cupones');
+    if (panelCupones) panelCupones.classList.add('active');
+    // Abrir modal de nuevo cupón con el cliente pre-seleccionado
+    abrirModalCupon({ customerId: customerId, code: generarCodigoCupon(customerName) });
+  });
+
+  function generarCodigoCupon(nombre) {
+    var base = (nombre || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    return base || 'CUPON';
+  }
 
   // ---------- Enganche con el sistema de tabs principal ----------
   // admin.js gestiona los tabs. Cuando el usuario hace clic en "Marketing",

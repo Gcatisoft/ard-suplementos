@@ -2473,6 +2473,9 @@ function mapCoupon(row) {
     campaignName: row.campaign_name || '',
     sponsorId: row.sponsor_id,
     sponsorName: row.sponsor_name || '',
+    customerId: row.customer_id || null,
+    customerName: row.customer_name || null,
+    customerPhone: row.customer_phone || null,
     code: row.code,
     discountType: row.discount_type,
     discountValue: Number(row.discount_value),
@@ -2945,7 +2948,7 @@ app.get('/api/admin/coupons', requireAuth, async (req, res) => {
     const { campaignId, sponsorId } = req.query;
     let query = supabase
       .from('coupons')
-      .select('*, campaigns(name), sponsors(name)')
+      .select('*, campaigns(name), sponsors(name), customers(name, phone)')
       .order('created_at', { ascending: false });
     if (campaignId) query = query.eq('campaign_id', campaignId);
     if (sponsorId)  query = query.eq('sponsor_id', sponsorId);
@@ -2954,8 +2957,10 @@ app.get('/api/admin/coupons', requireAuth, async (req, res) => {
     if (error) throw error;
     res.json((data || []).map((r) => mapCoupon({
       ...r,
-      campaign_name: r.campaigns?.name || '',
-      sponsor_name:  r.sponsors?.name  || '',
+      campaign_name:  r.campaigns?.name  || '',
+      sponsor_name:   r.sponsors?.name   || '',
+      customer_name:  r.customers?.name  || null,
+      customer_phone: r.customers?.phone || null,
     })));
   } catch (err) {
     console.error(err);
@@ -2967,12 +2972,12 @@ app.get('/api/admin/coupons/:id', requireAuth, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('coupons')
-      .select('*, campaigns(name), sponsors(name)')
+      .select('*, campaigns(name), sponsors(name), customers(name, phone)')
       .eq('id', req.params.id)
       .maybeSingle();
     if (error) throw error;
     if (!data) return res.status(404).json({ error: 'Cupón no encontrado' });
-    res.json(mapCoupon({ ...data, campaign_name: data.campaigns?.name || '', sponsor_name: data.sponsors?.name || '' }));
+    res.json(mapCoupon({ ...data, campaign_name: data.campaigns?.name || '', sponsor_name: data.sponsors?.name || '', customer_name: data.customers?.name || null, customer_phone: data.customers?.phone || null }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al obtener el cupón' });
@@ -2981,7 +2986,7 @@ app.get('/api/admin/coupons/:id', requireAuth, async (req, res) => {
 
 app.post('/api/admin/coupons', requireAuth, async (req, res) => {
   try {
-    const { campaignId, code, discountType, discountValue, startDate, endDate, status } = req.body || {};
+    const { campaignId, code, discountType, discountValue, startDate, endDate, status, customerId } = req.body || {};
     if (!campaignId || !code) return res.status(400).json({ error: 'Campaña y código son obligatorios' });
     if (!discountValue || Number(discountValue) <= 0) return res.status(400).json({ error: 'El valor del descuento debe ser mayor a 0' });
 
@@ -2994,6 +2999,7 @@ app.post('/api/admin/coupons', requireAuth, async (req, res) => {
       .insert({
         campaign_id:    campaignId,
         sponsor_id:     camp.sponsor_id,
+        customer_id:    customerId || null,
         code:           String(code).trim().toUpperCase(),
         discount_type:  discountType || 'porcentaje',
         discount_value: Number(discountValue),
@@ -3001,13 +3007,13 @@ app.post('/api/admin/coupons', requireAuth, async (req, res) => {
         end_date:       endDate   || null,
         status:         status    || 'activo',
       })
-      .select('*, campaigns(name), sponsors(name)')
+      .select('*, campaigns(name), sponsors(name), customers(name, phone)')
       .single();
     if (error) {
       if (error.code === '23505') return res.status(409).json({ error: 'Ya existe un cupón con ese código' });
       throw error;
     }
-    res.status(201).json(mapCoupon({ ...data, campaign_name: data.campaigns?.name || '', sponsor_name: data.sponsors?.name || '' }));
+    res.status(201).json(mapCoupon({ ...data, campaign_name: data.campaigns?.name || '', sponsor_name: data.sponsors?.name || '', customer_name: data.customers?.name || null, customer_phone: data.customers?.phone || null }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al crear el cupón' });
@@ -3016,7 +3022,7 @@ app.post('/api/admin/coupons', requireAuth, async (req, res) => {
 
 app.put('/api/admin/coupons/:id', requireAuth, async (req, res) => {
   try {
-    const { code, discountType, discountValue, startDate, endDate, status } = req.body || {};
+    const { code, discountType, discountValue, startDate, endDate, status, customerId } = req.body || {};
     const cambios = {};
     if (code !== undefined)          cambios.code           = String(code).trim().toUpperCase();
     if (discountType !== undefined)  cambios.discount_type  = discountType;
@@ -3024,22 +3030,45 @@ app.put('/api/admin/coupons/:id', requireAuth, async (req, res) => {
     if (startDate !== undefined)     cambios.start_date     = startDate || null;
     if (endDate !== undefined)       cambios.end_date       = endDate   || null;
     if (status !== undefined)        cambios.status         = status;
+    if (customerId !== undefined)    cambios.customer_id    = customerId || null;
 
     const { data, error } = await supabase
       .from('coupons')
       .update(cambios)
       .eq('id', req.params.id)
-      .select('*, campaigns(name), sponsors(name)')
+      .select('*, campaigns(name), sponsors(name), customers(name, phone)')
       .single();
     if (error) {
       if (error.code === '23505') return res.status(409).json({ error: 'Ya existe un cupón con ese código' });
       throw error;
     }
     if (!data) return res.status(404).json({ error: 'Cupón no encontrado' });
-    res.json(mapCoupon({ ...data, campaign_name: data.campaigns?.name || '', sponsor_name: data.sponsors?.name || '' }));
+    res.json(mapCoupon({ ...data, campaign_name: data.campaigns?.name || '', sponsor_name: data.sponsors?.name || '', customer_name: data.customers?.name || null, customer_phone: data.customers?.phone || null }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al actualizar el cupón' });
+  }
+});
+
+// Cupones asignados a un cliente específico
+app.get('/api/admin/customers/:id/coupons', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('coupons')
+      .select('*, campaigns(name), sponsors(name), customers(name, phone)')
+      .eq('customer_id', req.params.id)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json((data || []).map((r) => mapCoupon({
+      ...r,
+      campaign_name:  r.campaigns?.name  || '',
+      sponsor_name:   r.sponsors?.name   || '',
+      customer_name:  r.customers?.name  || null,
+      customer_phone: r.customers?.phone || null,
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener los cupones del cliente' });
   }
 });
 

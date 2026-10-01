@@ -834,6 +834,7 @@
       <button type="button" class="tab-btn" data-mktab="sponsors">Sponsors</button>
       <button type="button" class="tab-btn" data-mktab="campanas">Campañas</button>
       <button type="button" class="tab-btn" data-mktab="cupones">Cupones</button>
+      <button type="button" class="tab-btn" data-mktab="clientes">Clientes</button>
     </nav>
 
     <!-- ---- Resumen ---- -->
@@ -944,11 +945,34 @@
       <div class="tabla-wrap">
         <table class="top-productos-tabla">
           <thead><tr>
-            <th>Código</th><th>Sponsor</th><th>Campaña</th><th>Descuento</th><th>Vigencia</th><th>Estado</th><th></th>
+            <th>Código</th><th>Sponsor</th><th>Campaña</th><th>Descuento</th><th>Cliente</th><th>Vigencia</th><th>Estado</th><th></th>
           </tr></thead>
           <tbody id="mk-cupones-body"></tbody>
         </table>
         <div class="empty-state" id="mk-cupones-empty" style="display:none;">No hay cupones cargados.</div>
+      </div>
+    </div>
+
+    <!-- ---- Clientes ---- -->
+    <div class="mk-panel" id="mk-clientes">
+      <div class="dash-toolbar">
+        <div class="filters">
+          <input type="search" id="mk-cli-buscar" placeholder="Buscar cliente…">
+          <select id="mk-cli-filtro-cupones">
+            <option value="">Todos</option>
+            <option value="con">Con cupón asignado</option>
+            <option value="sin">Sin cupón asignado</option>
+          </select>
+        </div>
+      </div>
+      <div class="tabla-wrap">
+        <table class="top-productos-tabla">
+          <thead><tr>
+            <th>Cliente</th><th>Teléfono</th><th>Total gastado</th><th>Última compra</th><th>Cupones</th><th></th>
+          </tr></thead>
+          <tbody id="mk-clientes-body"></tbody>
+        </table>
+        <div class="empty-state" id="mk-clientes-empty" style="display:none;">No hay clientes registrados.</div>
       </div>
     </div>
 
@@ -1166,6 +1190,13 @@
             <option value="programado">Programado</option>
             <option value="desactivado">Desactivado</option>
           </select>
+        </div>
+        <div class="form-group full">
+          <label for="cupon-cliente">Asignar a cliente (opcional)</label>
+          <select id="cupon-cliente">
+            <option value="">Sin asignar — cupón general</option>
+          </select>
+          <div class="form-hint">Si elegís un cliente, el cupón queda personalizado para esa persona.</div>
         </div>
       </div>
       <div class="modal-footer">
