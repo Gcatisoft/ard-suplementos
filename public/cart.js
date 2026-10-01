@@ -545,7 +545,7 @@
     })
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
       .then(function (res) {
-        if (!res.ok || !res.data.valid) {
+        if (!res.ok || !res.data.ok) {
           infoEl.textContent = (res.data && res.data.error) ? res.data.error : 'Cupón inválido o vencido.';
           infoEl.className = 'ard-cupon-info err';
           btn.disabled = false;
