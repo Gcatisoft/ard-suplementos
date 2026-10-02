@@ -711,6 +711,7 @@
     document.getElementById('descripcion').value = p.description || '';
     document.getElementById('destacado').checked = !!p.featured;
     document.getElementById('activo').checked = !!p.active;
+    calcularPrecioLista();
     calcularMargen();
 
     imagenesExistentes = Array.isArray(p.images) && p.images.length ? p.images.slice() : (p.image ? [p.image] : []);
@@ -722,6 +723,18 @@
 
   function cerrarModal() {
     modalOverlay.classList.remove('visible');
+  }
+
+  function calcularPrecioLista() {
+    const precio = parseFloat(document.getElementById('precio').value) || 0;
+    const hint = document.getElementById('precio-lista-hint');
+    if (precio > 0) {
+      const lista = Math.round(precio * 1.25);
+      hint.textContent = '💳 Precio de lista (tarjeta hasta 3 cuotas): $' + lista.toLocaleString('es-AR');
+      hint.style.display = '';
+    } else {
+      hint.style.display = 'none';
+    }
   }
 
   function calcularMargen() {
@@ -739,7 +752,7 @@
     }
   }
 
-  document.getElementById('precio').addEventListener('input', calcularMargen);
+  document.getElementById('precio').addEventListener('input', function () { calcularPrecioLista(); calcularMargen(); });
   document.getElementById('costo').addEventListener('input', calcularMargen);
 
   document.getElementById('nuevo-btn').addEventListener('click', abrirModalNuevo);

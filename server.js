@@ -307,6 +307,8 @@ function precioSegunCuotas(prod, cuotas) {
   // Compatibilidad con productos viejos que todavía usan las columnas sueltas.
   if (n === 1 && prod.credit_price != null && Number(prod.credit_price) > 0) return Number(prod.credit_price);
   if (n > 1 && prod.card_price != null && Number(prod.card_price) > 0) return Number(prod.card_price);
+  // Regla global: tarjeta (hasta 3 cuotas) = efectivo * 1.25 (precio de lista).
+  if (n <= 3) return Math.round(efectivo * 1.25);
   return efectivo;
 }
 
@@ -1448,8 +1450,9 @@ app.post('/api/orders/quote', requireCustomer, async (req, res) => {
 
     const round = (n) => Math.round(n * 100) / 100;
 
-    // Todas las cantidades de cuotas ofrecidas por algún producto del carrito.
-    const cuotasOfrecidas = new Set();
+    // Siempre ofrecemos tarjeta en 1 y 3 cuotas al precio de lista (efectivo × 1.25).
+    // Los productos con planes personalizados agregan sus cuotas adicionales.
+    const cuotasOfrecidas = new Set([1, 3]);
     items.forEach((it) => {
       const prod = porId.get(it.productId);
       if (!prod) return;
@@ -1480,6 +1483,7 @@ app.post('/api/orders/quote', requireCustomer, async (req, res) => {
 
     res.json({
       efectivo: { total: round(totalEfectivo) },
+      lista: { total: round(totalEfectivo * 1.25) },
       planes,
     });
   } catch (err) {

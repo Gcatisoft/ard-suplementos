@@ -587,11 +587,18 @@
   }
 
   function htmlPlanesTarjeta(p){
-    const planes = planesTarjeta(p);
-    if (!planes.length) return '';
-    const filas = planes.map(pl => {
+    const precioLista = Math.round(Number(p.price) * 1.25);
+    // Planes estándar: 1 pago y 3 cuotas al precio de lista.
+    const estandar = [
+      { cuotas:1, precio:precioLista },
+      { cuotas:3, precio:precioLista },
+    ];
+    // Planes custom para más de 3 cuotas (si existen).
+    const custom = planesTarjeta(p).filter(pl => pl.cuotas > 3);
+    const todos = [...estandar, ...custom];
+    const filas = todos.map(pl => {
       if (pl.cuotas === 1) return '<li>1 pago: <strong>' + formatearPrecio(pl.precio) + '</strong></li>';
-      return '<li>' + pl.cuotas + ' cuotas de <strong>' + formatearPrecio(pl.precio / pl.cuotas) + '</strong> <span style="color:#9aa8bb;">(total ' + formatearPrecio(pl.precio) + ')</span></li>';
+      return '<li>' + pl.cuotas + ' cuotas de <strong>' + formatearPrecio(Math.round(pl.precio / pl.cuotas)) + '</strong> <span style="color:#9aa8bb;">(total ' + formatearPrecio(pl.precio) + ')</span></li>';
     }).join('');
     return '<div class="detalle-credito"><div style="font-weight:700;margin-bottom:4px;">Con tarjeta</div><ul style="margin:0;padding-left:18px;line-height:1.7;">' + filas + '</ul></div>';
   }
@@ -678,11 +685,12 @@
           '<h1 class="detalle-nombre">' + p.name + '</h1>' +
           (p.category ? '<div class="detalle-categoria">' + p.category + '</div>' : '') +
           '<div class="detalle-precios">' +
+            '<div style="font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--steel-600);margin-bottom:2px;">Precio lista (tarjeta hasta 3 cuotas)</div>' +
             '<div class="detalle-precio-row">' +
-              '<span class="detalle-precio">' + formatearPrecio(p.price) + '</span>' +
+              '<span class="detalle-precio">' + formatearPrecio(Math.round(Number(p.price) * 1.25)) + '</span>' +
               (tieneOferta ? '<span class="detalle-precio-anterior">' + formatearPrecio(p.oldPrice) + '</span>' : '') +
             '</div>' +
-            '<div class="detalle-precio-nota">Precio en efectivo o transferencia</div>' +
+            '<div style="display:inline-flex;align-items:center;gap:6px;background:#e8f7ed;border-radius:6px;padding:5px 10px;margin-top:6px;font-weight:700;font-size:14px;color:#1a7a44;">💸 Efectivo / transferencia: ' + formatearPrecio(p.price) + ' <span style="font-size:12px;font-weight:600;opacity:.85;">— 20% OFF</span></div>' +
             planesHtml +
           '</div>' +
           (sabores.length ?

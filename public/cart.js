@@ -657,9 +657,9 @@
 
     opciones.forEach(function (op) {
       var detalle;
-      if (op.cuotas < 1) detalle = 'Se coordina por WhatsApp';
-      else if (op.cuotas === 1) detalle = 'Pago online con Mercado Pago';
-      else detalle = op.cuotas + ' cuotas de ' + formatearPrecio(op.cuotaValor) + ' · Mercado Pago';
+      if (op.cuotas < 1) detalle = 'Se coordina por WhatsApp · 20% OFF vs. tarjeta';
+      else if (op.cuotas === 1) detalle = '1 pago · Precio de lista · Mercado Pago';
+      else detalle = op.cuotas + ' cuotas de ' + formatearPrecio(op.cuotaValor) + ' · Precio de lista · Mercado Pago';
 
       html +=
         '<label class="ard-cart-modo" data-cuotas="' + op.cuotas + '">' +

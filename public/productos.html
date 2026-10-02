@@ -319,9 +319,16 @@
   .producto-body{padding:14px 14px 16px; display:flex; flex-direction:column; gap:5px; flex:1;}
   .producto-marca{font-family:var(--font-cond); font-size:11px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--accent);}
   .producto-nombre{font-family:var(--font-body); font-size:15px; font-weight:600; color:var(--navy-900); line-height:1.3; min-height:38px;}
-  .producto-precios{display:flex; align-items:baseline; gap:7px; margin-top:4px; flex-wrap:wrap;}
+  .producto-precios{display:flex; flex-direction:column; gap:3px; margin-top:4px;}
+  .producto-precio-lista-row{display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;}
+  .producto-precio-lista-label{font-family:var(--font-body); font-size:10px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--steel-600);}
   .producto-precio{font-family:var(--font-display); font-size:18px; font-weight:700; color:var(--navy-900);}
   .producto-precio-anterior{font-size:12.5px; color:#9aa8bb; text-decoration:line-through;}
+  .producto-efectivo-row{
+    display:inline-flex; align-items:center; gap:5px; margin-top:1px;
+    background:#e8f7ed; border-radius:5px; padding:3px 7px;
+    font-family:var(--font-body); font-size:11.5px; font-weight:700; color:#1a7a44;
+  }
   .producto-precio-nota{
     width:100%; font-family:var(--font-body); font-weight:600; font-size:10.5px;
     letter-spacing:0.02em; text-transform:uppercase; color:var(--steel-600); margin-top:-2px;
@@ -640,13 +647,15 @@
   }
 
   function htmlTarjetaCard(p){
-    const planes = planesTarjeta(p);
-    if (!planes.length) return '';
-    const uno = planes.find(pl => pl.cuotas === 1);
-    const masCuotas = planes.filter(pl => pl.cuotas > 1).pop();
-    let out = '';
-    if (uno) out += '<div class="producto-credito">1 pago tarjeta: <strong>' + formatearPrecio(uno.precio) + '</strong></div>';
-    if (masCuotas) out += '<div class="producto-cuotas">' + masCuotas.cuotas + ' cuotas de ' + formatearPrecio(masCuotas.precio / masCuotas.cuotas) + '</div>';
+    // Siempre mostrar las cuotas estándar (precio lista ÷ cuotas).
+    // Si el producto tiene planes personalizados para más cuotas, mostrar el mayor.
+    const precioLista = Math.round(Number(p.price) * 1.25);
+    const planes = planesTarjeta(p).filter(pl => pl.cuotas > 3);
+    let out = '<div class="producto-cuotas">3 cuotas de ' + formatearPrecio(Math.round(precioLista / 3)) + ' con tarjeta</div>';
+    if (planes.length) {
+      const mayor = planes[planes.length - 1];
+      out += '<div class="producto-cuotas">' + mayor.cuotas + ' cuotas de ' + formatearPrecio(Math.round(mayor.precio / mayor.cuotas)) + ' con tarjeta</div>';
+    }
     return out;
   }
 
@@ -656,7 +665,8 @@
   }
 
   function crearTarjeta(p){
-    const tieneOferta = p.oldPrice && Number(p.oldPrice) > Number(p.price);
+    const precioLista = Math.round(Number(p.price) * 1.25);
+    const tieneOferta = p.oldPrice && Number(p.oldPrice) > precioLista;
     const sinStock = Number(p.stock) <= 0;
     const mensaje = encodeURIComponent('Hola! Quiero consultar por "' + p.name + '"' + (p.brand ? (' de ' + p.brand) : '') + '.');
     const linkWhatsapp = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + mensaje;
@@ -672,9 +682,12 @@
           (p.brand ? '<span class="producto-marca">' + p.brand + '</span>' : '') +
           '<h3 class="producto-nombre">' + p.name + '</h3>' +
           '<div class="producto-precios">' +
-            '<span class="producto-precio">' + formatearPrecio(p.price) + '</span>' +
-            (tieneOferta ? '<span class="producto-precio-anterior">' + formatearPrecio(p.oldPrice) + '</span>' : '') +
-            '<span class="producto-precio-nota">Precio en efectivo o transferencia</span>' +
+            '<div class="producto-precio-lista-row">' +
+              '<span class="producto-precio-lista-label">Precio lista</span>' +
+              '<span class="producto-precio">' + formatearPrecio(precioLista) + '</span>' +
+              (tieneOferta ? '<span class="producto-precio-anterior">' + formatearPrecio(p.oldPrice) + '</span>' : '') +
+            '</div>' +
+            '<div class="producto-efectivo-row">💸 Efectivo / transf.: ' + formatearPrecio(p.price) + ' — 20% OFF</div>' +
           '</div>' +
           htmlTarjetaCard(p) +
           '<span class="producto-stock' + (sinStock ? ' sin-stock' : '') + '">' +
