@@ -517,9 +517,9 @@
     if (!lista.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
     empty.style.display = 'none';
     tbody.innerHTML = lista.map(function (c) {
-      var descText = c.discountType === 'porcentaje'
-        ? c.discountValue + '%'
-        : fmt(c.discountValue);
+      var descText = (c.products && c.products.length)
+        ? '<span style="font-size:11px;background:#eef2ff;color:#3b5bdb;padding:2px 6px;border-radius:4px;">Por producto (' + c.products.length + ')</span>'
+        : (c.discountType === 'porcentaje' ? c.discountValue + '%' : fmt(c.discountValue));
       var vigencia = (c.startDate ? fmtFecha(c.startDate) : '—') + ' → ' + (c.endDate ? fmtFecha(c.endDate) : 'Sin venc.');
       var clienteTxt = c.customerName
         ? '<span style="font-size:12px;color:#3159c9;">&#128100; ' + esc(c.customerName) + '</span>'
@@ -556,6 +556,7 @@
         discountType: cup.discountType, discountValue: cup.discountValue,
         startDate: cup.startDate, endDate: cup.endDate, status: cup.status,
         customerId: cup.customerId || '',
+        products: cup.products || [],
       });
     } else if (btn.getAttribute('data-action') === 'cup-del') {
       if (!confirm('¿Eliminar el cupón "' + (cup ? cup.code : '') + '"?')) return;
@@ -601,6 +602,9 @@
 
   // ---------- Selector de productos en cupón ----------
   var allProductos = [];
+  // Mapa de estado de la selección: { [productId]: { selected, discountType, discountValue } }
+  // Persiste aunque el usuario filtre por búsqueda (no depende del DOM para guardar estado).
+  var pickerState = {};
 
   async function cargarProductosParaCupon() {
     if (allProductos.length) return;
@@ -609,8 +613,18 @@
     } catch (e) { console.error(e); }
   }
 
-  function renderProductosPicker(productosCupon) {
-    // productosCupon: array de { productId, discountType, discountValue } del cupón existente
+  function inicializarPickerState(productosCupon) {
+    pickerState = {};
+    (productosCupon || []).forEach(function (p) {
+      pickerState[p.productId] = {
+        selected: true,
+        discountType: p.discountType || 'porcentaje',
+        discountValue: p.discountValue != null ? p.discountValue : '',
+      };
+    });
+  }
+
+  function renderProductosPicker() {
     var tbody = document.getElementById('cupon-prod-tbody');
     var empty = document.getElementById('cupon-prod-empty');
     if (!tbody) return;
@@ -625,10 +639,10 @@
     }
     if (empty) empty.style.display = 'none';
     tbody.innerHTML = lista.map(function (p) {
-      var existing = (productosCupon || []).find(function (x) { return x.productId === p.id; });
-      var checked = existing ? 'checked' : '';
-      var tipo = (existing && existing.discountType) || 'porcentaje';
-      var valor = (existing && existing.discountValue) ? existing.discountValue : '';
+      var s = pickerState[p.id] || {};
+      var checked = s.selected ? 'checked' : '';
+      var tipo = s.discountType || 'porcentaje';
+      var valor = s.discountValue != null ? s.discountValue : '';
       return '<tr style="border-top:1px solid #eaeef5;">' +
         '<td style="padding:5px 8px;text-align:center;">' +
           '<input type="checkbox" class="cupon-prod-check" data-id="' + esc(p.id) + '" ' + checked + '>' +
@@ -648,30 +662,47 @@
         '</td>' +
       '</tr>';
     }).join('');
-  }
 
-  document.getElementById('cupon-prod-buscar') && document.getElementById('cupon-prod-buscar').addEventListener('input', function () {
-    renderProductosPicker(leerProductosPicker());
-  });
-
-  function leerProductosPicker() {
-    var result = [];
-    var tbody = document.getElementById('cupon-prod-tbody');
-    if (!tbody) return result;
-    tbody.querySelectorAll('.cupon-prod-check:checked').forEach(function (chk) {
-      var id = chk.getAttribute('data-id');
-      var tipoEl = tbody.querySelector('.cupon-prod-tipo[data-id="' + id + '"]');
-      var valorEl = tbody.querySelector('.cupon-prod-valor[data-id="' + id + '"]');
-      result.push({
-        productId: id,
-        discountType: tipoEl ? tipoEl.value : 'porcentaje',
-        discountValue: valorEl ? Number(valorEl.value) || 0 : 0,
+    // Adjuntar listeners para mantener el estado sincronizado
+    tbody.querySelectorAll('.cupon-prod-check').forEach(function (chk) {
+      chk.addEventListener('change', function () {
+        var id = this.getAttribute('data-id');
+        if (!pickerState[id]) pickerState[id] = { discountType: 'porcentaje', discountValue: '' };
+        pickerState[id].selected = this.checked;
       });
     });
-    return result;
+    tbody.querySelectorAll('.cupon-prod-tipo').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        var id = this.getAttribute('data-id');
+        if (!pickerState[id]) pickerState[id] = {};
+        pickerState[id].discountType = this.value;
+      });
+    });
+    tbody.querySelectorAll('.cupon-prod-valor').forEach(function (inp) {
+      inp.addEventListener('input', function () {
+        var id = this.getAttribute('data-id');
+        if (!pickerState[id]) pickerState[id] = {};
+        pickerState[id].discountValue = this.value !== '' ? Number(this.value) : '';
+      });
+    });
   }
 
-  function toggleModoDescuento(porProducto, productosCupon) {
+  document.getElementById('cupon-prod-buscar') && document.getElementById('cupon-prod-buscar').addEventListener('input', renderProductosPicker);
+
+  function leerProductosPicker() {
+    return Object.keys(pickerState)
+      .filter(function (id) { return pickerState[id].selected; })
+      .map(function (id) {
+        var s = pickerState[id];
+        return {
+          productId: id,
+          discountType: s.discountType || 'porcentaje',
+          discountValue: s.discountValue !== '' ? Number(s.discountValue) || 0 : 0,
+        };
+      });
+  }
+
+  function toggleModoDescuento(porProducto) {
     var globalFields = document.getElementById('cupon-global-fields');
     var prodSection = document.getElementById('cupon-productos-section');
     var tipoSel = document.getElementById('cupon-tipo');
@@ -681,7 +712,7 @@
       if (prodSection) prodSection.style.display = '';
       if (tipoSel)  tipoSel.removeAttribute('required');
       if (valorInp) valorInp.removeAttribute('required');
-      renderProductosPicker(productosCupon || []);
+      renderProductosPicker();
     } else {
       if (globalFields) globalFields.style.display = 'contents';
       if (prodSection) prodSection.style.display = 'none';
@@ -691,7 +722,8 @@
   }
 
   document.getElementById('cupon-por-producto') && document.getElementById('cupon-por-producto').addEventListener('change', function () {
-    toggleModoDescuento(this.checked, []);
+    if (this.checked) inicializarPickerState([]);
+    toggleModoDescuento(this.checked);
   });
 
   async function abrirModalCupon(opts) {
@@ -702,6 +734,7 @@
       cargarProductosParaCupon(),
     ]);
     var porProducto = !!(opts.products && opts.products.length);
+    inicializarPickerState(opts.products || []);
     document.getElementById('cupon-id').value          = opts.id || '';
     document.getElementById('cupon-campana').value     = opts.campaignId || '';
     document.getElementById('cupon-codigo').value      = opts.code || '';
@@ -711,9 +744,11 @@
     document.getElementById('cupon-fin').value         = opts.endDate || '';
     document.getElementById('cupon-estado').value      = opts.status || 'activo';
     document.getElementById('cupon-cliente').value     = opts.customerId || '';
+    var buscarEl = document.getElementById('cupon-prod-buscar');
+    if (buscarEl) buscarEl.value = '';
     document.getElementById('cupon-por-producto').checked = porProducto;
     document.getElementById('modal-cupon-title').textContent = opts.id ? 'Editar cupón' : 'Nuevo cupón';
-    toggleModoDescuento(porProducto, opts.products || []);
+    toggleModoDescuento(porProducto);
     clearErr('form-cupon-error');
     document.getElementById('modal-overlay-cupon').classList.add('visible');
   }

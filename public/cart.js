@@ -729,8 +729,9 @@
     });
     lineas.push('');
     if (cuponActual) {
+      var descMsg = calcularDescuentoCupon();
       lineas.push('Subtotal: ' + formatearPrecio(getTotal()));
-      lineas.push('Descuento (cupón ' + cuponActual.code + '): − ' + formatearPrecio(cuponActual.discountAmount));
+      lineas.push('Descuento (cupón ' + cuponActual.code + '): − ' + formatearPrecio(descMsg));
     }
     lineas.push('Forma de pago: ' + labelCuotas(cuotas || 0));
     lineas.push('Total: ' + formatearPrecio(totalDeCuotas(cuotas || 0)));

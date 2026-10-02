@@ -1450,7 +1450,11 @@ app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) =>
         return res.status(400).json({ error: resultCupon.error });
       }
       cuponAplicado = resultCupon.coupon;
-      const desc = calcularDescuento(cuponAplicado, subtotal);
+      // Si el cupón tiene reglas por producto, calculamos con ellas; si no, usamos el descuento global.
+      const perProductRules = cuponAplicado.coupon_products || [];
+      const desc = perProductRules.length
+        ? calcularDescuentoPorProductos(perProductRules, itemsValidados)
+        : calcularDescuento(cuponAplicado, subtotal);
       descuentoMonto = desc.monto;
       descuentoPct   = desc.pct;
       total          = desc.total;
@@ -2542,17 +2546,38 @@ async function validarCupon(code) {
   return { valid: true, coupon };
 }
 
-// Calcula el importe del descuento sobre un subtotal.
+// Calcula el descuento global (tipo + valor en la propia fila del cupón).
 function calcularDescuento(coupon, subtotal) {
   if (coupon.discount_type === 'porcentaje') {
     const pct = Number(coupon.discount_value) || 0;
     const monto = Math.round((subtotal * pct) / 100 * 100) / 100;
     return { pct, monto, total: Math.max(0, Math.round((subtotal - monto) * 100) / 100) };
   }
-  // monto_fijo
   const monto = Math.min(Number(coupon.discount_value) || 0, subtotal);
   const pct = subtotal > 0 ? Math.round((monto / subtotal) * 10000) / 100 : 0;
   return { pct, monto: Math.round(monto * 100) / 100, total: Math.max(0, Math.round((subtotal - monto) * 100) / 100) };
+}
+
+// Calcula el descuento cuando el cupón tiene reglas por producto (coupon_products).
+// items: array de { productId, price, qty } con precios ya validados contra la DB.
+function calcularDescuentoPorProductos(couponProducts, items) {
+  let monto = 0;
+  items.forEach((it) => {
+    const rule = couponProducts.find((cp) => cp.product_id === it.productId);
+    if (!rule) return;
+    const lineTotal = (Number(it.price) || 0) * (Number(it.qty) || 1);
+    const disc = rule.discount_type === 'porcentaje'
+      ? Math.round((lineTotal * (Number(rule.discount_value) || 0)) / 100 * 100) / 100
+      : Math.min(Number(rule.discount_value) || 0, lineTotal);
+    monto += disc;
+  });
+  const subtotal = items.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.qty) || 1), 0);
+  const pct = subtotal > 0 ? Math.round((monto / subtotal) * 10000) / 100 : 0;
+  return {
+    monto: Math.round(monto * 100) / 100,
+    pct,
+    total: Math.max(0, Math.round((subtotal - monto) * 100) / 100),
+  };
 }
 
 // ---------- Validación pública de cupones (para el checkout) ----------
