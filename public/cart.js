@@ -60,7 +60,7 @@
   // de cuotas con tarjeta (cada uno con su recargo).
   var quoteActual = null;
   // Cupón aplicado actualmente (null si ninguno).
-  var cuponActual = null; // { code, discountType, discountValue, discountAmount, campaignId, sponsorId }
+  var cuponActual = null; // { code, discountType, discountValue, discountAmount, campaignId, sponsorId, products[] }
   function labelCuotas(n) {
     if (!n || n < 1) return 'Efectivo o transferencia';
     if (n === 1) return '1 pago con tarjeta';
@@ -505,16 +505,57 @@
     if (btn) { btn.textContent = 'Aplicar'; btn.disabled = false; }
   }
 
+  // Calcula el descuento total del cupón sobre los items actuales del carrito.
+  // Si el cupón tiene reglas por producto, aplica solo esos; si no, descuento global.
+  function calcularDescuentoCupon() {
+    if (!cuponActual) return 0;
+    if (cuponActual.products && cuponActual.products.length) {
+      return items.reduce(function (sum, it) {
+        var rule = cuponActual.products.find(function (p) { return p.productId === it.id; });
+        if (!rule) return sum;
+        var lineTotal = it.price * it.qty;
+        var disc = rule.discountType === 'porcentaje'
+          ? Math.round(lineTotal * rule.discountValue / 100)
+          : Math.min(rule.discountValue, lineTotal);
+        return sum + disc;
+      }, 0);
+    }
+    // Descuento global
+    var subtotal = getTotal();
+    return cuponActual.discountType === 'porcentaje'
+      ? Math.round(subtotal * cuponActual.discountValue / 100)
+      : Math.min(cuponActual.discountValue, subtotal);
+  }
+
   function mostrarDescuentoBox() {
     var boxEl = document.getElementById('ard-cart-descuento-box');
     if (!boxEl || !cuponActual) return;
     var subtotal = getTotal();
+    var descTotal = calcularDescuentoCupon();
+
+    var lineas = '';
+    if (cuponActual.products && cuponActual.products.length) {
+      // Mostrar detalle por producto
+      items.forEach(function (it) {
+        var rule = cuponActual.products.find(function (p) { return p.productId === it.id; });
+        if (!rule) return;
+        var lineTotal = it.price * it.qty;
+        var disc = rule.discountType === 'porcentaje'
+          ? Math.round(lineTotal * rule.discountValue / 100)
+          : Math.min(rule.discountValue, lineTotal);
+        lineas += '<div class="ard-descuento-row" style="font-size:11px;color:#6b8099;">' +
+          '<span>' + (it.name || 'Producto') + '</span>' +
+          '<span style="color:#219653;">− ' + formatearPrecio(disc) + '</span></div>';
+      });
+    }
+
     boxEl.style.display = '';
     boxEl.innerHTML =
       '<div class="ard-descuento-row"><span>Subtotal</span><span>' + formatearPrecio(subtotal) + '</span></div>' +
-      '<div class="ard-descuento-row"><span>Descuento (' + cuponActual.code + ')</span>' +
-        '<span style="color:#219653;">− ' + formatearPrecio(cuponActual.discountAmount) + '</span></div>' +
-      '<div class="ard-descuento-total"><span>Total</span><span>' + formatearPrecio(Math.max(0, subtotal - cuponActual.discountAmount)) + '</span></div>';
+      lineas +
+      '<div class="ard-descuento-row"><span><strong>Descuento total (' + cuponActual.code + ')</strong></span>' +
+        '<span style="color:#219653;">− ' + formatearPrecio(descTotal) + '</span></div>' +
+      '<div class="ard-descuento-total"><span>Total</span><span>' + formatearPrecio(Math.max(0, subtotal - descTotal)) + '</span></div>';
   }
 
   function aplicarCupon() {
@@ -553,21 +594,18 @@
           return;
         }
         var d = res.data;
-        var subtotal = getTotal();
-        var discountAmount = d.discountType === 'porcentaje'
-          ? Math.round(subtotal * (d.discountValue / 100))
-          : Math.min(d.discountValue, subtotal);
-
         cuponActual = {
           code: code,
           discountType: d.discountType,
           discountValue: d.discountValue,
-          discountAmount: discountAmount,
           campaignId: d.campaignId || null,
-          sponsorId: d.sponsorId || null
+          sponsorId: d.sponsorId || null,
+          products: d.products || [],
         };
+        // Calcular con la función centralizada (ya tiene items en contexto)
+        cuponActual.discountAmount = calcularDescuentoCupon();
 
-        infoEl.textContent = '¡Cupón aplicado! Ahorrás ' + formatearPrecio(discountAmount) + '.';
+        infoEl.textContent = '¡Cupón aplicado! Ahorrás ' + formatearPrecio(cuponActual.discountAmount) + '.';
         infoEl.className = 'ard-cupon-info ok';
         inp.readOnly = true;
         btn.textContent = 'Quitar';
@@ -592,7 +630,7 @@
     quoteActual = null;
     actualizarBotonConfirmar();
 
-    var discountAmount = cuponActual ? cuponActual.discountAmount : 0;
+    var discountAmount = cuponActual ? calcularDescuentoCupon() : 0;
     fetch('/api/orders/quote', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -675,7 +713,7 @@
   }
 
   function totalDeCuotas(cuotas) {
-    var discount = cuponActual ? cuponActual.discountAmount : 0;
+    var discount = cuponActual ? calcularDescuentoCupon() : 0;
     if (!quoteActual) return Math.max(0, getTotal() - discount);
     if (cuotas < 1) return Math.max(0, quoteActual.efectivo.total - discount);
     var plan = (quoteActual.planes || []).filter(function (p) { return p.cuotas === cuotas; })[0];

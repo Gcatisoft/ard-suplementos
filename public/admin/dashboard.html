@@ -1144,7 +1144,7 @@
 
 <!-- ============ MODAL CUPÓN ============ -->
 <div class="modal-overlay" id="modal-overlay-cupon">
-  <div class="modal" style="max-width:480px;">
+  <div class="modal" style="max-width:620px;">
     <div class="modal-header">
       <h2 id="modal-cupon-title">Nuevo cupón</h2>
       <button class="modal-close" id="modal-cupon-close" type="button">✕</button>
@@ -1164,17 +1164,55 @@
           <input type="text" id="cupon-codigo" required placeholder="Ej: JUAN5" style="text-transform:uppercase;">
           <div class="form-hint">El código se guarda en mayúsculas. Sin espacios ni caracteres especiales.</div>
         </div>
-        <div class="form-group">
-          <label for="cupon-tipo">Tipo de descuento *</label>
-          <select id="cupon-tipo" required>
-            <option value="porcentaje">Porcentaje (%)</option>
-            <option value="monto_fijo">Monto fijo ($)</option>
-          </select>
+        <!-- Modo de descuento: global o por producto -->
+        <div class="form-group full" style="margin-bottom:0;">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;">
+            <input type="checkbox" id="cupon-por-producto" style="width:16px;height:16px;">
+            Descuento diferente por producto
+          </label>
+          <div class="form-hint">Activá esto para asignar un % o $ distinto a cada producto.</div>
         </div>
-        <div class="form-group">
-          <label for="cupon-valor">Valor *</label>
-          <input type="number" id="cupon-valor" min="0.01" step="0.01" required placeholder="5">
+
+        <!-- Descuento global (se oculta cuando está activo "por producto") -->
+        <div id="cupon-global-fields" style="display:contents;">
+          <div class="form-group">
+            <label for="cupon-tipo">Tipo de descuento *</label>
+            <select id="cupon-tipo">
+              <option value="porcentaje">Porcentaje (%)</option>
+              <option value="monto_fijo">Monto fijo ($)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cupon-valor">Valor *</label>
+            <input type="number" id="cupon-valor" min="0.01" step="0.01" placeholder="5">
+          </div>
         </div>
+
+        <!-- Selector de productos (visible solo cuando "por producto" está activo) -->
+        <div id="cupon-productos-section" class="form-group full" style="display:none;">
+          <div style="font-weight:600;margin-bottom:8px;color:#2c3e50;">Productos con descuento</div>
+          <div style="font-size:12px;color:#6b7686;margin-bottom:10px;">
+            Buscá y agregá los productos que participan del cupón. Cada uno puede tener su propio descuento.
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input type="text" id="cupon-prod-buscar" placeholder="Buscar producto…" style="flex:1;font-size:13px;">
+          </div>
+          <div id="cupon-prod-lista-wrap" style="max-height:240px;overflow-y:auto;border:1px solid #dde3ef;border-radius:6px;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead style="position:sticky;top:0;background:#f4f6fb;">
+                <tr>
+                  <th style="padding:6px 8px;text-align:left;font-weight:600;color:#5c7091;width:36px;"></th>
+                  <th style="padding:6px 8px;text-align:left;font-weight:600;color:#5c7091;">Producto</th>
+                  <th style="padding:6px 8px;text-align:right;font-weight:600;color:#5c7091;width:90px;">Tipo</th>
+                  <th style="padding:6px 8px;text-align:right;font-weight:600;color:#5c7091;width:80px;">Valor</th>
+                </tr>
+              </thead>
+              <tbody id="cupon-prod-tbody"></tbody>
+            </table>
+          </div>
+          <div id="cupon-prod-empty" style="display:none;font-size:12px;color:#9aa8bb;padding:10px;text-align:center;">No hay productos cargados.</div>
+        </div>
+
         <div class="form-group">
           <label for="cupon-inicio">Fecha inicio</label>
           <input type="date" id="cupon-inicio">

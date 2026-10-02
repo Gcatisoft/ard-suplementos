@@ -2484,7 +2484,32 @@ function mapCoupon(row) {
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    // Reglas por producto (vacío = descuento global aplica a todos)
+    products: (row.coupon_products || []).map((cp) => ({
+      id: cp.id,
+      productId: cp.product_id,
+      productName: cp.products?.name || '',
+      discountType: cp.discount_type,
+      discountValue: Number(cp.discount_value),
+    })),
   };
+}
+
+// Guarda/reemplaza las reglas por producto de un cupón.
+async function upsertCouponProducts(couponId, products) {
+  await supabase.from('coupon_products').delete().eq('coupon_id', couponId);
+  if (!products || !products.length) return;
+  const rows = products
+    .filter((p) => p.productId)
+    .map((p) => ({
+      coupon_id: couponId,
+      product_id: p.productId,
+      discount_type: p.discountType || 'porcentaje',
+      discount_value: Math.max(0, Number(p.discountValue) || 0),
+    }));
+  if (!rows.length) return;
+  const { error } = await supabase.from('coupon_products').insert(rows);
+  if (error) throw error;
 }
 
 // Valida si un cupón está activo y no vencido según sus fechas y estado.
@@ -2495,7 +2520,7 @@ async function validarCupon(code) {
 
   const { data: coupon, error } = await supabase
     .from('coupons')
-    .select('*, campaigns(name, slug, status), sponsors(name)')
+    .select('*, campaigns(name, slug, status), sponsors(name), coupon_products(id, product_id, discount_type, discount_value, products(id, name))')
     .eq('code', codeLimpio)
     .maybeSingle();
 
@@ -2542,6 +2567,13 @@ app.post('/api/coupons/validate', async (req, res) => {
     const { coupon } = result;
     const descuento = calcularDescuento(coupon, subtotalNum);
 
+    const couponProducts = (coupon.coupon_products || []).map((cp) => ({
+      productId: cp.product_id,
+      productName: cp.products?.name || '',
+      discountType: cp.discount_type,
+      discountValue: Number(cp.discount_value),
+    }));
+
     res.json({
       ok: true,
       code: coupon.code,
@@ -2552,6 +2584,8 @@ app.post('/api/coupons/validate', async (req, res) => {
       total: descuento.total,
       campaignName: coupon.campaigns?.name || '',
       sponsorName: coupon.sponsors?.name || '',
+      // Reglas por producto (vacío = descuento global aplica a todos)
+      products: couponProducts,
     });
   } catch (err) {
     console.error(err);
@@ -2948,7 +2982,7 @@ app.get('/api/admin/coupons', requireAuth, async (req, res) => {
     const { campaignId, sponsorId } = req.query;
     let query = supabase
       .from('coupons')
-      .select('*, campaigns(name), sponsors(name), customers(name, phone)')
+      .select('*, campaigns(name), sponsors(name), customers(name, phone), coupon_products(id, product_id, discount_type, discount_value, products(id, name))')
       .order('created_at', { ascending: false });
     if (campaignId) query = query.eq('campaign_id', campaignId);
     if (sponsorId)  query = query.eq('sponsor_id', sponsorId);
@@ -2972,7 +3006,7 @@ app.get('/api/admin/coupons/:id', requireAuth, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('coupons')
-      .select('*, campaigns(name), sponsors(name), customers(name, phone)')
+      .select('*, campaigns(name), sponsors(name), customers(name, phone), coupon_products(id, product_id, discount_type, discount_value, products(id, name))')
       .eq('id', req.params.id)
       .maybeSingle();
     if (error) throw error;
@@ -2986,9 +3020,11 @@ app.get('/api/admin/coupons/:id', requireAuth, async (req, res) => {
 
 app.post('/api/admin/coupons', requireAuth, async (req, res) => {
   try {
-    const { campaignId, code, discountType, discountValue, startDate, endDate, status, customerId } = req.body || {};
+    const { campaignId, code, discountType, discountValue, startDate, endDate, status, customerId, products } = req.body || {};
     if (!campaignId || !code) return res.status(400).json({ error: 'Campaña y código son obligatorios' });
-    if (!discountValue || Number(discountValue) <= 0) return res.status(400).json({ error: 'El valor del descuento debe ser mayor a 0' });
+    // Requiere valor global si no hay reglas por producto
+    const tieneProductos = Array.isArray(products) && products.length > 0;
+    if (!tieneProductos && (!discountValue || Number(discountValue) <= 0)) return res.status(400).json({ error: 'El valor del descuento debe ser mayor a 0' });
 
     // Traer sponsor_id de la campaña
     const { data: camp } = await supabase.from('campaigns').select('sponsor_id').eq('id', campaignId).maybeSingle();
@@ -3002,7 +3038,7 @@ app.post('/api/admin/coupons', requireAuth, async (req, res) => {
         customer_id:    customerId || null,
         code:           String(code).trim().toUpperCase(),
         discount_type:  discountType || 'porcentaje',
-        discount_value: Number(discountValue),
+        discount_value: tieneProductos ? 0 : Number(discountValue),
         start_date:     startDate || null,
         end_date:       endDate   || null,
         status:         status    || 'activo',
@@ -3013,7 +3049,12 @@ app.post('/api/admin/coupons', requireAuth, async (req, res) => {
       if (error.code === '23505') return res.status(409).json({ error: 'Ya existe un cupón con ese código' });
       throw error;
     }
-    res.status(201).json(mapCoupon({ ...data, campaign_name: data.campaigns?.name || '', sponsor_name: data.sponsors?.name || '', customer_name: data.customers?.name || null, customer_phone: data.customers?.phone || null }));
+    if (tieneProductos) await upsertCouponProducts(data.id, products);
+    const { data: full } = await supabase
+      .from('coupons')
+      .select('*, campaigns(name), sponsors(name), customers(name, phone), coupon_products(id, product_id, discount_type, discount_value, products(id, name))')
+      .eq('id', data.id).single();
+    res.status(201).json(mapCoupon({ ...full, campaign_name: full.campaigns?.name || '', sponsor_name: full.sponsors?.name || '', customer_name: full.customers?.name || null, customer_phone: full.customers?.phone || null }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al crear el cupón' });
@@ -3022,11 +3063,12 @@ app.post('/api/admin/coupons', requireAuth, async (req, res) => {
 
 app.put('/api/admin/coupons/:id', requireAuth, async (req, res) => {
   try {
-    const { code, discountType, discountValue, startDate, endDate, status, customerId } = req.body || {};
+    const { code, discountType, discountValue, startDate, endDate, status, customerId, products } = req.body || {};
+    const tieneProductos = Array.isArray(products) && products.length > 0;
     const cambios = {};
     if (code !== undefined)          cambios.code           = String(code).trim().toUpperCase();
     if (discountType !== undefined)  cambios.discount_type  = discountType;
-    if (discountValue !== undefined) cambios.discount_value = Number(discountValue);
+    if (discountValue !== undefined) cambios.discount_value = tieneProductos ? 0 : Number(discountValue);
     if (startDate !== undefined)     cambios.start_date     = startDate || null;
     if (endDate !== undefined)       cambios.end_date       = endDate   || null;
     if (status !== undefined)        cambios.status         = status;
@@ -3036,14 +3078,19 @@ app.put('/api/admin/coupons/:id', requireAuth, async (req, res) => {
       .from('coupons')
       .update(cambios)
       .eq('id', req.params.id)
-      .select('*, campaigns(name), sponsors(name), customers(name, phone)')
+      .select('id')
       .single();
     if (error) {
       if (error.code === '23505') return res.status(409).json({ error: 'Ya existe un cupón con ese código' });
       throw error;
     }
     if (!data) return res.status(404).json({ error: 'Cupón no encontrado' });
-    res.json(mapCoupon({ ...data, campaign_name: data.campaigns?.name || '', sponsor_name: data.sponsors?.name || '', customer_name: data.customers?.name || null, customer_phone: data.customers?.phone || null }));
+    if (products !== undefined) await upsertCouponProducts(req.params.id, tieneProductos ? products : []);
+    const { data: full } = await supabase
+      .from('coupons')
+      .select('*, campaigns(name), sponsors(name), customers(name, phone), coupon_products(id, product_id, discount_type, discount_value, products(id, name))')
+      .eq('id', req.params.id).single();
+    res.json(mapCoupon({ ...full, campaign_name: full.campaigns?.name || '', sponsor_name: full.sponsors?.name || '', customer_name: full.customers?.name || null, customer_phone: full.customers?.phone || null }));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al actualizar el cupón' });
