@@ -314,6 +314,7 @@
     hero: document.getElementById('tab-hero'),
     stats: document.getElementById('tab-stats'),
     marketing: document.getElementById('tab-marketing'),
+    ventas: document.getElementById('tab-ventas'),
   };
 
   let pedidosCargados = false;
@@ -703,11 +704,14 @@
     document.getElementById('precio').value = p.price;
     document.getElementById('precio-anterior').value = p.oldPrice || '';
     document.getElementById('stock').value = p.stock;
+    document.getElementById('barcode').value = p.barcode || '';
+    document.getElementById('costo').value = p.costPrice !== null && p.costPrice !== undefined ? p.costPrice : '';
     document.getElementById('sabores').value = p.flavors || '';
     cargarPlanesEnForm(p);
     document.getElementById('descripcion').value = p.description || '';
     document.getElementById('destacado').checked = !!p.featured;
     document.getElementById('activo').checked = !!p.active;
+    calcularMargen();
 
     imagenesExistentes = Array.isArray(p.images) && p.images.length ? p.images.slice() : (p.image ? [p.image] : []);
     imagenesNuevas = [];
@@ -719,6 +723,24 @@
   function cerrarModal() {
     modalOverlay.classList.remove('visible');
   }
+
+  function calcularMargen() {
+    const precio = parseFloat(document.getElementById('precio').value) || 0;
+    const costo = parseFloat(document.getElementById('costo').value) || 0;
+    const info = document.getElementById('margen-info');
+    const texto = document.getElementById('margen-texto');
+    if (precio > 0 && costo > 0) {
+      const ganancia = precio - costo;
+      const pct = Math.round((ganancia / costo) * 100);
+      texto.textContent = 'Ganancia: $' + ganancia.toLocaleString('es-AR') + ' (' + pct + '% sobre el costo)';
+      info.style.display = '';
+    } else {
+      info.style.display = 'none';
+    }
+  }
+
+  document.getElementById('precio').addEventListener('input', calcularMargen);
+  document.getElementById('costo').addEventListener('input', calcularMargen);
 
   document.getElementById('nuevo-btn').addEventListener('click', abrirModalNuevo);
   document.getElementById('modal-close').addEventListener('click', cerrarModal);
@@ -744,6 +766,8 @@
     formData.append('price', document.getElementById('precio').value);
     formData.append('oldPrice', document.getElementById('precio-anterior').value);
     formData.append('stock', document.getElementById('stock').value || '0');
+    formData.append('barcode', document.getElementById('barcode').value.trim());
+    formData.append('costPrice', document.getElementById('costo').value);
     formData.append('flavors', document.getElementById('sabores').value.trim());
     formData.append('paymentPlans', JSON.stringify(leerPlanesDelForm()));
     formData.append('description', document.getElementById('descripcion').value.trim());

@@ -322,6 +322,8 @@ function mapProducto(row) {
     cardPrice: row.card_price !== null && row.card_price !== undefined ? Number(row.card_price) : null,
     creditPrice: row.credit_price !== null && row.credit_price !== undefined ? Number(row.credit_price) : null,
     stock: row.stock,
+    barcode: row.barcode || '',
+    costPrice: row.cost_price !== null && row.cost_price !== undefined ? Number(row.cost_price) : null,
     description: row.description || '',
     image: row.image || '',
     images: Array.isArray(row.images) ? row.images : (row.image ? [row.image] : []),
@@ -1089,6 +1091,20 @@ app.get('/api/admin/products/stats', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/admin/products/barcode/:code', requireAuth, async (req, res) => {
+  try {
+    const code = req.params.code.trim();
+    if (!code) return res.status(400).json({ error: 'Código requerido' });
+    const { data, error } = await supabase.from('products').select('*').eq('barcode', code).maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Producto no encontrado' });
+    res.json(mapProducto(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al buscar por código de barras' });
+  }
+});
+
 app.get('/api/admin/products/:id', requireAuth, async (req, res) => {
   try {
     const { data, error } = await supabase.from('products').select('*').eq('id', req.params.id).maybeSingle();
@@ -1103,7 +1119,7 @@ app.get('/api/admin/products/:id', requireAuth, async (req, res) => {
 
 app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), manejarErrorImagen, async (req, res) => {
   try {
-    const { name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, description, featured, active, imageUrl, flavors, installments, paymentPlans } = req.body;
+    const { name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, barcode, costPrice, description, featured, active, imageUrl, flavors, installments, paymentPlans } = req.body;
     if (!name || !category || price === undefined || price === '') {
       return res.status(400).json({ error: 'Nombre, categoría y precio son obligatorios' });
     }
@@ -1127,6 +1143,8 @@ app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), maneja
       card_price: cardPrice ? Number(cardPrice) : null,
       credit_price: creditPrice ? Number(creditPrice) : null,
       stock: stock !== undefined && stock !== '' ? Number(stock) : 0,
+      barcode: barcode ? String(barcode).trim() : null,
+      cost_price: costPrice !== undefined && costPrice !== '' ? Number(costPrice) : null,
       description: description ? String(description).trim() : '',
       image: images[0] || '',
       images,
@@ -1157,7 +1175,7 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), man
     if (findError) throw findError;
     if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
 
-    const { name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, description, featured, active, imagenesExistentes, flavors, installments, paymentPlans } =
+    const { name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, barcode, costPrice, description, featured, active, imagenesExistentes, flavors, installments, paymentPlans } =
       req.body;
 
     const cambios = {};
@@ -1169,6 +1187,8 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), man
     if (cardPrice !== undefined) cambios.card_price = cardPrice === '' ? null : Number(cardPrice);
     if (creditPrice !== undefined) cambios.credit_price = creditPrice === '' ? null : Number(creditPrice);
     if (stock !== undefined && stock !== '') cambios.stock = Number(stock);
+    if (barcode !== undefined) cambios.barcode = barcode === '' ? null : String(barcode).trim();
+    if (costPrice !== undefined) cambios.cost_price = costPrice === '' ? null : Number(costPrice);
     if (description !== undefined) cambios.description = String(description).trim();
     if (flavors !== undefined) cambios.flavors = String(flavors).trim();
     if (installments !== undefined) cambios.installments = installments === '' ? null : Number(installments);
@@ -1246,6 +1266,98 @@ app.delete('/api/admin/products/:id', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Error al eliminar el producto' });
   }
 });
+
+// ---------- Venta Rápida (POS local) ----------
+app.post('/api/admin/ventas/rapida', requireAuth, async (req, res) => {
+  try {
+    const { items, discount, discountType, paymentMethod, customerId, customerName, customerPhone, notes } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Debe incluir al menos un producto' });
+    }
+
+    // Validar y cargar precios actuales desde la base de datos
+    const ids = items.map((it) => it.productId).filter(Boolean);
+    const { data: productos, error: prodError } = await supabase
+      .from('products')
+      .select('id, name, price, stock')
+      .in('id', ids);
+    if (prodError) throw prodError;
+
+    const prodMap = {};
+    (productos || []).forEach((p) => { prodMap[p.id] = p; });
+
+    // Verificar stock suficiente
+    for (const it of items) {
+      const prod = prodMap[it.productId];
+      if (!prod) return res.status(400).json({ error: 'Producto no encontrado: ' + it.productId });
+      if (prod.stock < (Number(it.qty) || 1)) {
+        return res.status(400).json({ error: 'Stock insuficiente para: ' + prod.name });
+      }
+    }
+
+    // Calcular totales
+    const lineItems = items.map((it) => {
+      const prod = prodMap[it.productId];
+      const qty = Number(it.qty) || 1;
+      const price = Number(prod.price);
+      return { productId: it.productId, name: prod.name, qty, price, subtotal: price * qty };
+    });
+
+    const subtotal = lineItems.reduce((s, it) => s + it.subtotal, 0);
+    let descuento = 0;
+    if (discount && Number(discount) > 0) {
+      descuento = discountType === 'porcentaje'
+        ? Math.round(subtotal * Number(discount) / 100 * 100) / 100
+        : Math.min(Number(discount), subtotal);
+    }
+    const total = Math.max(0, Math.round((subtotal - descuento) * 100) / 100);
+
+    // Generar número de orden
+    const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
+    const orderNumber = 'VR-' + String((count || 0) + 1).padStart(4, '0');
+
+    // Crear pedido
+    const pedidoData = {
+      order_number: orderNumber,
+      customer_name: customerName || 'Cliente mostrador',
+      customer_phone: customerPhone || '',
+      customer_id: customerId || null,
+      items: lineItems.map((it) => ({ productId: it.productId, name: it.name, qty: it.qty, price: it.price })),
+      subtotal,
+      total,
+      discount_amount: descuento > 0 ? descuento : null,
+      discount_pct: descuento > 0 && discountType === 'porcentaje' ? Number(discount) : null,
+      status: 'confirmado',
+      sent_via: 'venta_rapida',
+      payment_method: paymentMethod || 'efectivo',
+      notes: notes || '',
+    };
+
+    const { data: pedido, error: pedidoError } = await supabase
+      .from('orders')
+      .insert(pedidoData)
+      .select()
+      .single();
+    if (pedidoError) throw pedidoError;
+
+    // Decrementar stock de cada producto usando el valor que leímos al inicio
+    await Promise.all(
+      lineItems.map((it) =>
+        supabase
+          .from('products')
+          .update({ stock: Math.max(0, (prodMap[it.productId].stock || 0) - it.qty) })
+          .eq('id', it.productId)
+      )
+    );
+
+    res.status(201).json({ ok: true, order: { id: pedido.id, orderNumber: pedido.order_number, total } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al registrar la venta' });
+  }
+});
+
 // ---------- Mapeo de pedidos (snake_case -> camelCase) ----------
 function mapOrder(row) {
   return {

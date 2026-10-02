@@ -543,6 +543,50 @@
     .planes-pago-head { display: none; }
     .plan-fila { grid-template-columns: 1fr 1fr 32px; }
   }
+
+  /* ===== Venta Rápida (POS) ===== */
+  .vr-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .vr-layout { grid-template-columns: 1fr; } }
+  .vr-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; }
+  .vr-card h3 { margin: 0 0 14px; font-size: 15px; font-weight: 600; color: #1e2a3a; border-bottom: 1px solid #f0f4f8; padding-bottom: 10px; }
+  .vr-scanner-row { display: flex; gap: 8px; }
+  .vr-scanner-row input { flex: 1; }
+  .vr-results { margin-top: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; display: none; max-height: 220px; overflow-y: auto; }
+  .vr-result-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f0f4f8; display: flex; justify-content: space-between; align-items: center; }
+  .vr-result-item:last-child { border-bottom: none; }
+  .vr-result-item:hover { background: #eef2ff; }
+  .vr-result-name { font-size: 14px; font-weight: 500; }
+  .vr-result-price { font-size: 13px; color: #4a90d9; font-weight: 600; }
+  .vr-result-stock { font-size: 12px; color: #6b7686; }
+  .vr-cart-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .vr-cart-table th { text-align: left; padding: 6px 8px; color: #6b7686; font-weight: 500; border-bottom: 1px solid #e2e8f0; }
+  .vr-cart-table td { padding: 8px; border-bottom: 1px solid #f0f4f8; vertical-align: middle; }
+  .vr-qty-ctrl { display: flex; align-items: center; gap: 4px; }
+  .vr-qty-btn { width: 26px; height: 26px; border: 1px solid #d1d9e0; border-radius: 5px; background: #f8fafc; cursor: pointer; font-size: 16px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .vr-qty-btn:hover { background: #e8edf5; }
+  .vr-qty-val { min-width: 24px; text-align: center; font-weight: 600; }
+  .vr-remove-btn { border: none; background: none; color: #c0392b; cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; }
+  .vr-remove-btn:hover { background: #fde2e2; }
+  .vr-empty { text-align: center; color: #9aa5b4; padding: 24px; font-size: 14px; }
+  .vr-totales { border-top: 2px solid #e2e8f0; margin-top: 12px; padding-top: 12px; }
+  .vr-total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 14px; }
+  .vr-total-row.principal { font-size: 18px; font-weight: 700; color: #1e2a3a; }
+  .vr-descuento-row { color: #c0392b; }
+  .vr-discount-group { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .vr-discount-group input[type="number"] { width: 90px; }
+  .vr-discount-group select { flex: 1; }
+  .vr-confirm-btn { width: 100%; padding: 13px; font-size: 16px; font-weight: 700; background: #2d6de0; color: #fff; border: none; border-radius: 8px; cursor: pointer; margin-top: 8px; }
+  .vr-confirm-btn:hover { background: #1a56c4; }
+  .vr-confirm-btn:disabled { background: #9aa5b4; cursor: not-allowed; }
+  .vr-success { background: #d9f2e3; border: 1px solid #a8ddb5; border-radius: 8px; padding: 14px 18px; text-align: center; font-weight: 600; color: #1a7a44; display: none; margin-bottom: 12px; }
+  .vr-metodo-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .vr-metodo-btn { padding: 7px 14px; border: 1.5px solid #d1d9e0; border-radius: 20px; background: #fff; cursor: pointer; font-size: 13px; font-weight: 500; color: #3a4a5c; }
+  .vr-metodo-btn.activo { border-color: #2d6de0; background: #eef2ff; color: #2d6de0; font-weight: 700; }
+  .vr-cliente-sugg { position: absolute; background: #fff; border: 1px solid #d1d9e0; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 200; width: 100%; max-height: 200px; overflow-y: auto; top: calc(100% + 4px); left: 0; display: none; }
+  .vr-cliente-item { padding: 9px 14px; cursor: pointer; font-size: 14px; border-bottom: 1px solid #f0f4f8; }
+  .vr-cliente-item:last-child { border-bottom: none; }
+  .vr-cliente-item:hover { background: #f0f4f8; }
+  .vr-cliente-wrap { position: relative; }
 </style>
 </head>
 <body>
@@ -574,6 +618,7 @@
     <button type="button" class="tab-btn" data-tab="hero">Imágenes del hero</button>
     <button type="button" class="tab-btn" data-tab="stats">Estadísticas</button>
     <button type="button" class="tab-btn" data-tab="marketing">Marketing</button>
+    <button type="button" class="tab-btn" data-tab="ventas">Venta Rápida</button>
   </nav>
 
   <!-- ================= TAB: PRODUCTOS ================= -->
@@ -978,6 +1023,100 @@
 
   </section>
 
+  <!-- ====== VENTA RÁPIDA (POS) ====== -->
+  <section class="tab-panel" id="tab-ventas">
+    <div class="section-header">
+      <div>
+        <h2 class="section-title">Venta Rápida</h2>
+        <p class="section-subtitle">Registrá ventas en mostrador. Escaneá o buscá el producto, elegí el medio de pago y confirmá.</p>
+      </div>
+    </div>
+
+    <div id="vr-success-msg" class="vr-success">
+      ¡Venta registrada con éxito! <span id="vr-success-num"></span>
+    </div>
+
+    <div class="vr-layout">
+      <!-- Columna izquierda: buscador + carrito -->
+      <div>
+        <div class="vr-card">
+          <h3>Buscar producto</h3>
+          <div class="vr-scanner-row">
+            <input type="text" id="vr-buscar" placeholder="Escaneá el código de barras o escribí el nombre…" autocomplete="off">
+            <button type="button" class="btn btn-secondary" id="vr-buscar-btn">Buscar</button>
+          </div>
+          <div id="vr-resultados"></div>
+        </div>
+
+        <div class="vr-card" style="margin-top:16px;">
+          <h3>Carrito <span id="vr-items-count" style="color:#9aa5b4;font-weight:400;"></span></h3>
+          <div id="vr-carrito-wrap">
+            <div class="vr-empty" id="vr-empty-msg">El carrito está vacío</div>
+            <table class="vr-cart-table" id="vr-cart-table" style="display:none;">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Cant.</th>
+                  <th style="text-align:right;">Precio</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="vr-cart-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Columna derecha: pago + totales + cliente -->
+      <div>
+        <div class="vr-card">
+          <h3>Medio de pago</h3>
+          <div class="vr-metodo-row">
+            <button type="button" class="vr-metodo-btn activo" data-metodo="efectivo">Efectivo</button>
+            <button type="button" class="vr-metodo-btn" data-metodo="debito">Débito</button>
+            <button type="button" class="vr-metodo-btn" data-metodo="credito">Crédito</button>
+            <button type="button" class="vr-metodo-btn" data-metodo="transferencia">Transferencia</button>
+          </div>
+        </div>
+
+        <div class="vr-card" style="margin-top:16px;">
+          <h3>Descuento (opcional)</h3>
+          <div class="vr-discount-group">
+            <input type="number" id="vr-descuento" min="0" step="1" placeholder="0">
+            <select id="vr-descuento-tipo">
+              <option value="porcentaje">% porcentaje</option>
+              <option value="fijo">$ monto fijo</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="vr-card" style="margin-top:16px;">
+          <h3>Cliente (opcional)</h3>
+          <div class="vr-cliente-wrap">
+            <input type="text" id="vr-cliente-buscar" placeholder="Nombre o teléfono…" autocomplete="off">
+            <div class="vr-cliente-sugg" id="vr-cliente-sugg"></div>
+          </div>
+          <div id="vr-cliente-seleccionado" style="display:none;margin-top:8px;font-size:13px;color:#2d6de0;font-weight:600;"></div>
+          <input type="hidden" id="vr-cliente-id">
+        </div>
+
+        <div class="vr-card" style="margin-top:16px;">
+          <h3>Resumen</h3>
+          <div class="vr-totales">
+            <div class="vr-total-row"><span>Subtotal</span><span id="vr-subtotal">$0</span></div>
+            <div class="vr-total-row vr-descuento-row" id="vr-descuento-row" style="display:none;"><span>Descuento</span><span id="vr-descuento-monto">-$0</span></div>
+            <div class="vr-total-row principal"><span>Total</span><span id="vr-total">$0</span></div>
+          </div>
+          <div class="form-group" style="margin-top:12px;">
+            <label for="vr-notas" style="font-size:13px;">Nota (opcional)</label>
+            <input type="text" id="vr-notas" placeholder="Observación de la venta…">
+          </div>
+          <button type="button" class="vr-confirm-btn" id="vr-confirmar-btn" disabled>Confirmar venta</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <!-- ============ MODAL SPONSOR ============ -->
@@ -1362,6 +1501,21 @@
           <input type="number" id="stock" min="0" step="1" placeholder="0">
         </div>
 
+        <div class="form-group">
+          <label for="barcode">Código de barras (EAN/UPC)</label>
+          <input type="text" id="barcode" placeholder="Ej: 7798063350031">
+          <div class="form-hint">Escaneá o escribí el código. Se usa en el punto de venta rápido.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="costo">Precio de costo ($)</label>
+          <input type="number" id="costo" min="0" step="1" placeholder="0">
+        </div>
+
+        <div class="form-group full" id="margen-info" style="display:none;">
+          <div class="form-hint" id="margen-texto" style="background:#f0f9f0;border:1px solid #c3e6cb;border-radius:6px;padding:8px 12px;color:#1a7a44;font-weight:500;"></div>
+        </div>
+
         <div class="form-group full">
           <label for="sabores">Sabores disponibles</label>
           <input type="text" id="sabores" placeholder="Ej: Chocolate, Vainilla, Frutilla">
@@ -1703,5 +1857,6 @@
 
 <script src="admin.js"></script>
 <script src="marketing.js"></script>
+<script src="ventas.js"></script>
 </body>
 </html>
