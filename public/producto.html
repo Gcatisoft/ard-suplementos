@@ -301,6 +301,19 @@
     font-family:var(--font-body); font-weight:600; font-size:12px;
     letter-spacing:0.02em; text-transform:uppercase; color:var(--steel-600); margin-top:4px;
   }
+  .detalle-efectivo-badge{
+    display:inline-flex; align-items:center; gap:6px;
+    background:#e8f7ed; border-radius:8px; padding:7px 12px;
+    margin-top:8px; font-weight:700; font-size:15px; color:#1a7a44;
+  }
+  .detalle-efectivo-badge .eff-label{ font-size:12px; font-weight:600; opacity:.85; }
+  .detalle-opciones-tarjeta{
+    margin-top:12px; display:flex; flex-direction:column; gap:5px;
+    background:#f0f4ff; border-radius:8px; padding:10px 14px;
+    font-family:var(--font-body); font-size:14px;
+  }
+  .detalle-opciones-tarjeta strong{ color:var(--navy-900); }
+  .detalle-opciones-tarjeta .opt-label{ color:var(--steel-600); font-size:12px; margin-bottom:4px; font-weight:600; }
   .detalle-cuotas{
     display:inline-flex; align-items:center; gap:8px; margin-top:10px; padding:9px 16px; border-radius:10px;
     background:rgba(47,111,176,0.1); border:1.5px solid var(--accent);
@@ -566,6 +579,11 @@
 <script>
 (function(){
   const WHATSAPP_NUMBER = "5493834993955";
+  var EFECTIVO_DESC_PCT = 20;
+
+  function precioListaDe(efectivo) {
+    return Math.round(efectivo * 100 / (100 - EFECTIVO_DESC_PCT));
+  }
 
   function formatearPrecio(valor){
     try{ return new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS', maximumFractionDigits:0 }).format(valor); }
@@ -685,13 +703,33 @@
           '<h1 class="detalle-nombre">' + p.name + '</h1>' +
           (p.category ? '<div class="detalle-categoria">' + p.category + '</div>' : '') +
           '<div class="detalle-precios">' +
-            '<div style="font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--steel-600);margin-bottom:2px;">Precio lista (tarjeta hasta 3 cuotas)</div>' +
-            '<div class="detalle-precio-row">' +
-              '<span class="detalle-precio">' + formatearPrecio(Math.round(Number(p.price) * 1.25)) + '</span>' +
-              (tieneOferta ? '<span class="detalle-precio-anterior">' + formatearPrecio(p.oldPrice) + '</span>' : '') +
-            '</div>' +
-            '<div style="display:inline-flex;align-items:center;gap:6px;background:#e8f7ed;border-radius:6px;padding:5px 10px;margin-top:6px;font-weight:700;font-size:14px;color:#1a7a44;">💸 Efectivo / transferencia: ' + formatearPrecio(p.price) + ' <span style="font-size:12px;font-weight:600;opacity:.85;">— 20% OFF</span></div>' +
-            planesHtml +
+            (function(){
+              var lista = precioListaDe(Number(p.price));
+              var pct = EFECTIVO_DESC_PCT;
+              var cuota2 = formatearPrecio(Math.round(lista / 2));
+              var cuota3 = formatearPrecio(Math.round(lista / 3));
+              var customPlanes = planesTarjeta(p).filter(pl => pl.cuotas > 3);
+              var customHtml = customPlanes.map(function(pl){
+                return '<div>💳 ' + pl.cuotas + ' cuotas: ' + pl.cuotas + ' × <strong>' + formatearPrecio(Math.round(pl.precio/pl.cuotas)) + '</strong> <span style="color:#9aa8bb;">(total ' + formatearPrecio(pl.precio) + ')</span></div>';
+              }).join('');
+              return (
+                '<div class="detalle-precio-nota" style="margin-bottom:4px;">Precio de lista · Hasta 3 cuotas sin interés · con tarjeta</div>' +
+                '<div class="detalle-precio-row">' +
+                  '<span class="detalle-precio">' + formatearPrecio(lista) + '</span>' +
+                  (tieneOferta ? '<span class="detalle-precio-anterior">' + formatearPrecio(p.oldPrice) + '</span>' : '') +
+                '</div>' +
+                '<div class="detalle-efectivo-badge">🔥 <strong>' + formatearPrecio(p.price) + '</strong>' +
+                  '<span class="eff-label"> · Transferencia / Efectivo · ' + pct + '% OFF</span>' +
+                '</div>' +
+                '<div class="detalle-opciones-tarjeta">' +
+                  '<div class="opt-label">Opciones de pago con tarjeta</div>' +
+                  '<div>💳 1 pago: <strong>' + formatearPrecio(lista) + '</strong></div>' +
+                  '<div>💳 2 cuotas: 2 × <strong>' + cuota2 + '</strong></div>' +
+                  '<div>💳 3 cuotas: 3 × <strong>' + cuota3 + '</strong></div>' +
+                  customHtml +
+                '</div>'
+              );
+            })() +
           '</div>' +
           (sabores.length ?
             '<div class="detalle-sabores">' +
@@ -821,9 +859,14 @@
       estado.textContent = 'No se especificó ningún producto.';
       return;
     }
-    fetch('/api/products/' + encodeURIComponent(id))
-      .then(res => { if (!res.ok) throw new Error('No encontrado'); return res.json(); })
-      .then(pintarProducto)
+    Promise.all([
+      fetch('/api/products/' + encodeURIComponent(id)).then(r => { if (!r.ok) throw new Error('No encontrado'); return r.json(); }),
+      fetch('/api/config').then(r => r.json()).catch(() => ({ efectivoDescPct: 20 }))
+    ])
+      .then(function(results) {
+        EFECTIVO_DESC_PCT = Number(results[1].efectivoDescPct) || 20;
+        pintarProducto(results[0]);
+      })
       .catch((err) => {
         console.error('No se pudo cargar el producto:', err);
         estado.textContent = 'No encontramos este producto. Puede que ya no esté disponible.';

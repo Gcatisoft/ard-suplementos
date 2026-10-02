@@ -315,6 +315,7 @@
     stats: document.getElementById('tab-stats'),
     marketing: document.getElementById('tab-marketing'),
     ventas: document.getElementById('tab-ventas'),
+    config: document.getElementById('tab-config'),
   };
 
   let pedidosCargados = false;
@@ -364,8 +365,92 @@
       if (tab === 'novedades' && novedadesCargadas) cargarNovedades();
       if (tab === 'hero' && heroCargado) cargarHeroSlides();
       if (tab === 'clientes' && clientesCargados) cargarClientes();
+      if (tab === 'config') cargarConfig();
     });
   });
+
+  // ====================================================
+  // -------- CONFIGURACIÓN --------
+  // ====================================================
+  let ADMIN_DESC_PCT = 20;
+
+  async function cargarConfig() {
+    try {
+      const res = await fetch('/api/admin/settings');
+      const data = await res.json();
+      const row = Array.isArray(data) ? data.find(r => r.key === 'efectivo_descuento_pct') : null;
+      ADMIN_DESC_PCT = row ? (Number(row.value) || 20) : 20;
+    } catch (e) { ADMIN_DESC_PCT = 20; }
+    const input = document.getElementById('cfg-descuento-pct');
+    if (input) {
+      input.value = ADMIN_DESC_PCT;
+      actualizarCfgPreview();
+    }
+  }
+
+  function actualizarCfgPreview() {
+    const input = document.getElementById('cfg-descuento-pct');
+    const preview = document.getElementById('cfg-preview');
+    const hint = document.getElementById('cfg-hint');
+    if (!input || !preview || !hint) return;
+    const pct = parseFloat(input.value) || 0;
+    if (pct > 0 && pct < 100) {
+      const lista = 32500;
+      const efectivo = Math.round(lista * (100 - pct) / 100);
+      preview.textContent = pct + '% OFF';
+      hint.innerHTML = 'Ejemplo: tarjeta <strong>$' + lista.toLocaleString('es-AR') + '</strong> → efectivo <strong>$' + efectivo.toLocaleString('es-AR') + '</strong>';
+    } else {
+      preview.textContent = '';
+      hint.textContent = '';
+    }
+  }
+
+  function calcularPrecioLista() {
+    const precio = parseFloat(document.getElementById('precio').value) || 0;
+    const hint = document.getElementById('precio-lista-hint');
+    if (!hint) return;
+    if (precio > 0) {
+      const lista = Math.round(precio * 100 / (100 - ADMIN_DESC_PCT));
+      hint.textContent = '💳 Precio de lista (tarjeta hasta 3 cuotas): $' + lista.toLocaleString('es-AR');
+      hint.style.display = '';
+    } else {
+      hint.style.display = 'none';
+    }
+  }
+
+  const cfgInput = document.getElementById('cfg-descuento-pct');
+  if (cfgInput) cfgInput.addEventListener('input', actualizarCfgPreview);
+
+  const cfgGuardarBtn = document.getElementById('cfg-guardar-btn');
+  if (cfgGuardarBtn) {
+    cfgGuardarBtn.addEventListener('click', async () => {
+      const pct = parseFloat(document.getElementById('cfg-descuento-pct').value);
+      if (!pct || pct <= 0 || pct >= 100) {
+        alert('Ingresá un porcentaje válido entre 1 y 99.');
+        return;
+      }
+      cfgGuardarBtn.disabled = true;
+      cfgGuardarBtn.textContent = 'Guardando…';
+      try {
+        const res = await fetch('/api/admin/settings/efectivo_descuento_pct', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: String(pct) }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Error');
+        ADMIN_DESC_PCT = pct;
+        const status = document.getElementById('cfg-status');
+        if (status) { status.style.display = ''; setTimeout(() => { status.style.display = 'none'; }, 3000); }
+        calcularPrecioLista();
+      } catch (e) {
+        alert('Error al guardar: ' + e.message);
+      } finally {
+        cfgGuardarBtn.disabled = false;
+        cfgGuardarBtn.textContent = 'Guardar cambios';
+      }
+    });
+  }
 
   // ====================================================
   // -------- PRODUCTOS --------
@@ -723,18 +808,6 @@
 
   function cerrarModal() {
     modalOverlay.classList.remove('visible');
-  }
-
-  function calcularPrecioLista() {
-    const precio = parseFloat(document.getElementById('precio').value) || 0;
-    const hint = document.getElementById('precio-lista-hint');
-    if (precio > 0) {
-      const lista = Math.round(precio * 1.25);
-      hint.textContent = '💳 Precio de lista (tarjeta hasta 3 cuotas): $' + lista.toLocaleString('es-AR');
-      hint.style.display = '';
-    } else {
-      hint.style.display = 'none';
-    }
   }
 
   function calcularMargen() {

@@ -270,6 +270,39 @@ async function borrarImagenPorUrl(url) {
   }
 }
 
+// ---------- Configuración dinámica (leída de app_settings en Supabase) ----------
+// Se cachea en memoria para no golpear la DB en cada petición. Se refresca
+// al arrancar y cada 2 minutos. La función es síncrona → los handlers no
+// necesitan awaitar nada extra para usar la config.
+let _configCache = { efectivoDescPct: 20 };
+
+async function refreshConfig() {
+  try {
+    const { data } = await supabase.from('app_settings').select('key, value');
+    if (Array.isArray(data)) {
+      data.forEach((r) => {
+        if (r.key === 'efectivo_descuento_pct') {
+          const v = Number(r.value);
+          if (v > 0 && v < 100) _configCache.efectivoDescPct = v;
+        }
+      });
+    }
+  } catch (e) { /* mantiene el valor anterior */ }
+}
+
+function getConfig() { return _configCache; }
+
+// Calcula el precio de lista (tarjeta) a partir del precio efectivo.
+// precioLista = efectivo × 100 / (100 - descPct)
+// Con 20% → efectivo × 1.25   Con 15% → efectivo × 1.1765…
+function precioListaDe(efectivo) {
+  const pct = _configCache.efectivoDescPct || 20;
+  return Math.round(efectivo * 100 / (100 - pct));
+}
+
+refreshConfig();
+setInterval(refreshConfig, 2 * 60 * 1000);
+
 // Planes de pago con tarjeta: [{ cuotas, precio }]. Cada plan tiene su
 // propio precio total (con el recargo ya incluido). Se limpia, se ordena
 // por cantidad de cuotas y se descartan entradas inválidas o repetidas.
@@ -307,8 +340,8 @@ function precioSegunCuotas(prod, cuotas) {
   // Compatibilidad con productos viejos que todavía usan las columnas sueltas.
   if (n === 1 && prod.credit_price != null && Number(prod.credit_price) > 0) return Number(prod.credit_price);
   if (n > 1 && prod.card_price != null && Number(prod.card_price) > 0) return Number(prod.card_price);
-  // Regla global: tarjeta (hasta 3 cuotas) = efectivo * 1.25 (precio de lista).
-  if (n <= 3) return Math.round(efectivo * 1.25);
+  // Regla global: tarjeta (hasta 3 cuotas) = precio de lista según % configurado.
+  if (n <= 3) return precioListaDe(efectivo);
   return efectivo;
 }
 
@@ -1270,6 +1303,37 @@ app.delete('/api/admin/products/:id', requireAuth, async (req, res) => {
 });
 
 // ---------- Venta Rápida (POS local) ----------
+// ---------- Configuración del sitio (pública de lectura, admin para escritura) ----------
+app.get('/api/config', (req, res) => {
+  res.json({ efectivoDescPct: getConfig().efectivoDescPct });
+});
+
+app.get('/api/admin/settings', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value, updated_at');
+    if (error) throw error;
+    res.json(data || []);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener la configuración' });
+  }
+});
+
+app.put('/api/admin/settings/:key', requireAuth, async (req, res) => {
+  try {
+    const { value } = req.body;
+    if (value === undefined || value === null) return res.status(400).json({ error: 'Falta el valor' });
+    const { error } = await supabase.from('app_settings')
+      .upsert({ key: req.params.key, value: String(value), updated_at: new Date().toISOString() });
+    if (error) throw error;
+    await refreshConfig();
+    res.json({ ok: true, efectivoDescPct: getConfig().efectivoDescPct });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al guardar la configuración' });
+  }
+});
+
 app.post('/api/admin/ventas/rapida', requireAuth, async (req, res) => {
   try {
     const { items, discount, discountType, paymentMethod, customerId, customerName, customerPhone, notes } = req.body;
@@ -1450,9 +1514,9 @@ app.post('/api/orders/quote', requireCustomer, async (req, res) => {
 
     const round = (n) => Math.round(n * 100) / 100;
 
-    // Siempre ofrecemos tarjeta en 1 y 3 cuotas al precio de lista (efectivo × 1.25).
+    // Siempre ofrecemos tarjeta en 1, 2 y 3 cuotas al precio de lista configurado.
     // Los productos con planes personalizados agregan sus cuotas adicionales.
-    const cuotasOfrecidas = new Set([1, 3]);
+    const cuotasOfrecidas = new Set([1, 2, 3]);
     items.forEach((it) => {
       const prod = porId.get(it.productId);
       if (!prod) return;
@@ -1483,7 +1547,7 @@ app.post('/api/orders/quote', requireCustomer, async (req, res) => {
 
     res.json({
       efectivo: { total: round(totalEfectivo) },
-      lista: { total: round(totalEfectivo * 1.25) },
+      lista: { total: precioListaDe(totalEfectivo), descPct: getConfig().efectivoDescPct },
       planes,
     });
   } catch (err) {

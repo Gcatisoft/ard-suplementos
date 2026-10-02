@@ -619,6 +619,7 @@
     <button type="button" class="tab-btn" data-tab="stats">Estadísticas</button>
     <button type="button" class="tab-btn" data-tab="marketing">Marketing</button>
     <button type="button" class="tab-btn" data-tab="ventas">Venta Rápida</button>
+    <button type="button" class="tab-btn" data-tab="config">Configuración</button>
   </nav>
 
   <!-- ================= TAB: PRODUCTOS ================= -->
@@ -1856,6 +1857,37 @@
     </div>
   </div>
 </div>
+
+<!-- TAB: Configuración -->
+<section class="tab-panel" id="tab-config">
+  <div class="section-header">
+    <div>
+      <h2 class="section-title">Configuración</h2>
+      <p class="section-subtitle">Ajustá los parámetros generales de la tienda.</p>
+    </div>
+  </div>
+
+  <div class="card" style="max-width:480px;">
+    <h3 style="font-size:15px; font-weight:700; margin-bottom:14px;">Descuento Efectivo / Transferencia</h3>
+    <p style="font-size:13px; color:#5a6a80; margin-bottom:16px; line-height:1.5;">
+      Este porcentaje se aplica sobre el precio de lista (tarjeta) para calcular el precio de efectivo/transferencia.
+      Por ejemplo, con <strong>20%</strong>: un producto con precio lista <strong>$32.500</strong> costará <strong>$26.000</strong> en efectivo.
+    </p>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label" for="cfg-descuento-pct">Porcentaje de descuento (%)</label>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <input type="number" id="cfg-descuento-pct" class="form-control" style="max-width:120px;"
+          min="1" max="99" step="1" placeholder="20">
+        <span id="cfg-preview" style="font-size:13px; color:#1a7a44; font-weight:600;"></span>
+      </div>
+      <div id="cfg-hint" style="font-size:12px; color:#5a6a80; margin-top:6px;"></div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button type="button" class="btn btn-primary" id="cfg-guardar-btn">Guardar cambios</button>
+      <span id="cfg-status" style="font-size:13px; color:#1a7a44; font-weight:600; display:none;">✓ Guardado</span>
+    </div>
+  </div>
+</section>
 
 <script src="admin.js"></script>
 <script src="marketing.js"></script>

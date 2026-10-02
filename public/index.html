@@ -596,8 +596,17 @@
   .producto-precio{font-family:var(--font-display); font-size:18px; font-weight:700; color:var(--navy-900);}
   .producto-precio-anterior{font-size:12.5px; color:#9aa8bb; text-decoration:line-through;}
   .producto-efectivo-row{display:inline-flex; align-items:center; gap:5px; margin-top:1px; background:#e8f7ed; border-radius:5px; padding:3px 7px; font-family:var(--font-body); font-size:11.5px; font-weight:700; color:#1a7a44;}
-  .producto-precio-anterior{font-size:12.5px; color:#9aa8bb; text-decoration:line-through;}
   .producto-cuotas{font-family:var(--font-body); font-weight:700; font-size:11.5px; color:var(--accent); margin-top:2px;}
+  .prod-precio-block{ display:flex; flex-direction:column; gap:4px; margin-top:5px; }
+  .prod-precio-tarjeta{ display:flex; flex-direction:column; gap:1px; }
+  .prod-precio-lista{ font-family:var(--font-display); font-size:20px; font-weight:800; color:var(--navy-900); }
+  .prod-precio-anterior{ font-size:12.5px; color:#9aa8bb; text-decoration:line-through; margin-left:4px; }
+  .prod-precio-cuotas-nota{ font-family:var(--font-body); font-size:11px; font-weight:600; color:var(--steel-600); }
+  .prod-precio-efectivo{
+    display:inline-flex; align-items:center; gap:4px; padding:4px 8px;
+    background:#e8f7ed; border-radius:6px;
+    font-family:var(--font-body); font-size:12px; font-weight:700; color:#1a7a44;
+  }
   .producto-stock{font-size:11.5px; color:#7488a0; font-family:var(--font-body);}
   .producto-stock.sin-stock{color:var(--flame-dark); font-weight:700;}
   .producto-cta{
@@ -1667,14 +1676,17 @@ function desbloquearScrollFondo(){
   })();
 
   /* ---------- Product carousels ---------- */
+  var EFECTIVO_DESC_PCT = 20;
+  function precioListaDe(efectivo){ return Math.round(efectivo * 100 / (100 - EFECTIVO_DESC_PCT)); }
+  fetch('/api/config').then(r=>r.json()).then(c=>{ EFECTIVO_DESC_PCT = Number(c.efectivoDescPct)||20; }).catch(()=>{});
+
   function formatearPrecio(valor){
     try{ return new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS', maximumFractionDigits:0 }).format(valor); }
     catch(e){ return '$' + valor; }
   }
   function textoCuotas(p){
-    // Regla estándar: siempre 3 cuotas a precio lista (efectivo × 1.25).
-    // Si hay plan personalizado para más cuotas, mostrar ese también.
-    const precioLista = Math.round(Number(p.price) * 1.25);
+    // Solo mostrar planes custom para más de 3 cuotas; los estándar se muestran en el precio block.
+    const precioLista = precioListaDe(Number(p.price));
     let planes = Array.isArray(p.paymentPlans) ? p.paymentPlans.slice() : [];
     if (!planes.length && p.installments && p.installments > 1){
       planes = [{ cuotas:Number(p.installments), precio:Number(p.cardPrice || p.price) }];
@@ -1694,7 +1706,7 @@ function desbloquearScrollFondo(){
       '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3"/><path d="M9 12h6M9 16h6"/></svg>';
   }
   function crearTarjeta(p){
-    const precioLista = Math.round(Number(p.price) * 1.25);
+    const precioLista = precioListaDe(Number(p.price));
     const tieneOferta = p.oldPrice && Number(p.oldPrice) > precioLista;
     const sinStock = Number(p.stock) <= 0;
     const mensaje = encodeURIComponent('Hola! Quiero consultar por "' + p.name + '"' + (p.brand ? (' de ' + p.brand) : '') + '.');
@@ -1710,13 +1722,13 @@ function desbloquearScrollFondo(){
         '<div class="producto-body">' +
           (p.brand ? '<span class="producto-marca">' + p.brand + '</span>' : '') +
           '<h3 class="producto-nombre">' + p.name + '</h3>' +
-          '<div class="producto-precios">' +
-            '<div class="producto-precio-lista-row">' +
-              '<span class="producto-precio-lista-label">Precio lista</span>' +
-              '<span class="producto-precio">' + formatearPrecio(precioLista) + '</span>' +
-              (tieneOferta ? '<span class="producto-precio-anterior">' + formatearPrecio(p.oldPrice) + '</span>' : '') +
+          '<div class="prod-precio-block">' +
+            '<div class="prod-precio-tarjeta">' +
+              '<span class="prod-precio-lista">' + formatearPrecio(precioLista) + '</span>' +
+              (tieneOferta ? '<span class="prod-precio-anterior">' + formatearPrecio(p.oldPrice) + '</span>' : '') +
+              '<span class="prod-precio-cuotas-nota">Hasta 3 cuotas sin interés · con tarjeta</span>' +
             '</div>' +
-            '<div class="producto-efectivo-row">💸 Efectivo / transf.: ' + formatearPrecio(p.price) + ' — 20% OFF</div>' +
+            '<div class="prod-precio-efectivo">🔥 <strong>' + formatearPrecio(p.price) + '</strong> · Transf. / Efectivo · ' + EFECTIVO_DESC_PCT + '% OFF</div>' +
           '</div>' +
           (textoCuotas(p) ? '<div class="producto-cuotas">' + textoCuotas(p) + '</div>' : '') +
           '<span class="producto-stock' + (sinStock ? ' sin-stock' : '') + '">' +
