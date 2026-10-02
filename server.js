@@ -1375,6 +1375,7 @@ function mapOrder(row) {
     status: row.status,
     notes: row.notes || '',
     sentVia: row.sent_via,
+    paymentMethod: row.payment_method || null,
     mpStatus: row.mp_status || null,
     mpPaymentId: row.mp_payment_id || null,
     // Campos de marketing

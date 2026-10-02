@@ -862,6 +862,8 @@
 
         const badgePago = p.sentVia === 'mercadopago'
           ? ' <span class="pago-mp-badge" title="Pago online por Mercado Pago' + (p.mpStatus ? ' — estado MP: ' + escaparHTML(p.mpStatus) : '') + '">MP</span>'
+          : p.sentVia === 'venta_rapida'
+          ? ' <span class="pago-mp-badge" style="background:#1a56c4;" title="Venta Rápida — ' + escaparHTML(p.paymentMethod || 'efectivo') + '">VR · ' + escaparHTML(p.paymentMethod || 'efectivo') + '</span>'
           : '';
 
         const badgeCuenta = p.accountId
