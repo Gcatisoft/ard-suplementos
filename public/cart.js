@@ -300,8 +300,8 @@
         '</div>' +
       '</div>' +
       '<div id="ard-cart-checkout-form">' +
-        '<h3>Datos para el pedido</h3>' +
-        '<p id="ard-cart-como">Elegí cómo querés pagar.</p>' +
+        '<h3>Finalizar pedido</h3>' +
+        '<p id="ard-cart-como">Completá tus datos y elegí cómo querés pagar.</p>' +
         '<div class="ard-cart-field">' +
           '<label for="ard-cart-nombre">Nombre</label>' +
           '<input type="text" id="ard-cart-nombre" autocomplete="name" placeholder="Tu nombre">' +
@@ -450,32 +450,27 @@
 
     var gate = document.getElementById('ard-cart-login-gate');
     var form = document.getElementById('ard-cart-checkout-form');
+    // No se requiere cuenta — cualquier persona puede comprar
+    gate.style.display = 'none';
+    form.style.display = '';
 
-    // Mientras consultamos la sesión, mostramos el form deshabilitado.
+    cargarModosPago();
+
+    // Intentamos pre-llenar con datos de cuenta si está logueado (no bloquea)
     refrescarCuenta().then(function (c) {
-      if (!c) {
-        gate.style.display = '';
-        form.style.display = 'none';
-        return;
-      }
-      gate.style.display = 'none';
-      form.style.display = '';
-
-      // Prellenamos con los datos de la cuenta.
+      if (!c) return;
       var nombreInput = document.getElementById('ard-cart-nombre');
       var telInput = document.getElementById('ard-cart-telefono');
       if (nombreInput && !nombreInput.value) nombreInput.value = c.name || '';
       if (telInput && !telInput.value) telInput.value = c.phone || '';
       var como = document.getElementById('ard-cart-como');
       if (como) como.textContent = 'Comprás como ' + c.email + '.';
-
-      cargarModosPago();
-
-      setTimeout(function () {
-        var focusEl = (telInput && !telInput.value) ? telInput : nombreInput;
-        if (focusEl) focusEl.focus();
-      }, 50);
     });
+
+    setTimeout(function () {
+      var nombreInput = document.getElementById('ard-cart-nombre');
+      if (nombreInput && !nombreInput.value) nombreInput.focus();
+    }, 80);
   }
 
   // Lee el cookie de atribución de campaña (seteado por las landing pages /:slug).
@@ -652,17 +647,35 @@
 
   function renderModosPago() {
     var lista = document.getElementById('ard-cart-modos-lista');
-    var opciones = [{ cuotas: 0, total: quoteActual.efectivo.total }].concat(quoteActual.planes || []);
+    var descPct = (quoteActual.lista && quoteActual.lista.descPct) || 20;
+    var efectivoTotal = quoteActual.efectivo.total;
     var html = '';
 
-    opciones.forEach(function (op) {
-      var detalle;
-      if (op.cuotas < 1) detalle = 'Se coordina por WhatsApp · 20% OFF vs. tarjeta';
-      else if (op.cuotas === 1) detalle = '1 pago · Precio de lista · Mercado Pago';
-      else detalle = op.cuotas + ' cuotas de ' + formatearPrecio(op.cuotaValor) + ' · Precio de lista · Mercado Pago';
-
+    // Opciones de efectivo y transferencia (ambas van por WhatsApp)
+    [
+      { value: 'efectivo',       label: '💵 Efectivo',
+        detail: 'Coordinamos el retiro por WhatsApp · ' + descPct + '% OFF vs. tarjeta' },
+      { value: 'transferencia',  label: '🏦 Transferencia',
+        detail: 'Te enviamos los datos bancarios por WhatsApp · ' + descPct + '% OFF vs. tarjeta' },
+    ].forEach(function (m) {
       html +=
-        '<label class="ard-cart-modo" data-cuotas="' + op.cuotas + '">' +
+        '<label class="ard-cart-modo" data-value="' + m.value + '">' +
+          '<input type="radio" name="ard-cart-modo" value="' + m.value + '">' +
+          '<span class="ard-cart-modo-txt">' +
+            '<span class="ard-cart-modo-nombre">' + m.label + '</span>' +
+            '<span class="ard-cart-modo-detalle">' + m.detail + '</span>' +
+          '</span>' +
+          '<span class="ard-cart-modo-precio">' + formatearPrecio(efectivoTotal) + '</span>' +
+        '</label>';
+    });
+
+    // Opciones de tarjeta (van por Mercado Pago)
+    (quoteActual.planes || []).forEach(function (op) {
+      var detalle = op.cuotas === 1
+        ? '1 pago · Precio de lista · Mercado Pago'
+        : op.cuotas + ' cuotas de ' + formatearPrecio(op.cuotaValor) + ' · Mercado Pago';
+      html +=
+        '<label class="ard-cart-modo" data-value="' + op.cuotas + '">' +
           '<input type="radio" name="ard-cart-modo" value="' + op.cuotas + '">' +
           '<span class="ard-cart-modo-txt">' +
             '<span class="ard-cart-modo-nombre">' + labelCuotas(op.cuotas) + '</span>' +
@@ -676,22 +689,29 @@
     lista.querySelectorAll('input[name="ard-cart-modo"]').forEach(function (r) {
       r.addEventListener('change', function () {
         lista.querySelectorAll('.ard-cart-modo').forEach(function (el) {
-          el.classList.toggle('sel', el.getAttribute('data-cuotas') === r.value);
+          el.classList.toggle('sel', el.getAttribute('data-value') === r.value);
         });
         actualizarBotonConfirmar();
       });
     });
 
-    // Por defecto queda seleccionado efectivo / transferencia.
-    var rp = lista.querySelector('input[value="0"]');
+    // Por defecto: efectivo
+    var rp = lista.querySelector('input[value="efectivo"]');
     if (rp) { rp.checked = true; rp.dispatchEvent(new Event('change')); }
     actualizarBotonConfirmar();
   }
 
-  // Devuelve la cantidad de cuotas elegida (0 = efectivo / transferencia).
-  function cuotasSeleccionadas() {
+  // Devuelve el valor del radio seleccionado ('efectivo', 'transferencia', o el N de cuotas).
+  function modoSeleccionado() {
     var r = modalOverlay.querySelector('input[name="ard-cart-modo"]:checked');
-    return r ? (Number(r.value) || 0) : 0;
+    return r ? r.value : 'efectivo';
+  }
+
+  // Devuelve la cantidad de cuotas (0 = efectivo/transferencia, N = tarjeta).
+  function cuotasSeleccionadas() {
+    var v = modoSeleccionado();
+    if (v === 'efectivo' || v === 'transferencia') return 0;
+    return Number(v) || 0;
   }
 
   function actualizarBotonConfirmar() {
@@ -699,9 +719,10 @@
     if (!btn) return;
     if (!quoteActual) { btn.disabled = true; btn.textContent = 'Calculando…'; return; }
     btn.disabled = false;
-    if (cuotasSeleccionadas() < 1) {
+    var modo = modoSeleccionado();
+    if (modo === 'efectivo' || modo === 'transferencia') {
       btn.className = 'ard-cart-modal-confirm';
-      btn.innerHTML = ICON_WHATSAPP + ' Coordinar por WhatsApp';
+      btn.innerHTML = ICON_WHATSAPP + ' Confirmar pedido por WhatsApp';
     } else {
       btn.className = 'ard-cart-pay-mp';
       btn.innerHTML = ICON_CARD + ' Pagar con Mercado Pago';
@@ -721,6 +742,10 @@
   }
 
   function construirMensajeWhatsapp(pedido, nombre, cuotas) {
+    var modo = modoSeleccionado();
+    var formaPago = modo === 'transferencia' ? 'Transferencia bancaria'
+      : modo === 'efectivo' ? 'Efectivo'
+      : labelCuotas(cuotas || 0);
     var lineas = [];
     lineas.push('Hola! Soy ' + nombre + ', quiero hacer este pedido:');
     lineas.push('');
@@ -733,7 +758,7 @@
       lineas.push('Subtotal: ' + formatearPrecio(getTotal()));
       lineas.push('Descuento (cupón ' + cuponActual.code + '): − ' + formatearPrecio(descMsg));
     }
-    lineas.push('Forma de pago: ' + labelCuotas(cuotas || 0));
+    lineas.push('Forma de pago: ' + formaPago);
     lineas.push('Total: ' + formatearPrecio(totalDeCuotas(cuotas || 0)));
     if (pedido && pedido.orderNumber) {
       lineas.push('Pedido N.º: ' + pedido.orderNumber);
@@ -777,6 +802,7 @@
       notes: notas,
       channel: canal,
       installments: cuotas,
+      paymentMethod: modoSeleccionado(),
       couponCode: cuponActual ? cuponActual.code : null,
       campaignId: campanaId
     };
@@ -791,11 +817,6 @@
       body: JSON.stringify(payload)
     })
       .then(function (res) {
-        if (res.status === 401) {
-          // La sesión venció entre que abrió el modal y confirmó.
-          location.href = urlLoginConRetorno();
-          throw new Error('__redirect__');
-        }
         if (!res.ok) throw new Error('No se pudo registrar el pedido');
         return res.json();
       })
@@ -807,7 +828,6 @@
         }
       })
       .catch(function (err) {
-        if (err && err.message === '__redirect__') return;
         if (canal === 'mercadopago') {
           mostrarToast('No se pudo iniciar el pago. Probá coordinar por WhatsApp.');
           btn.disabled = false;

@@ -1498,7 +1498,7 @@ async function registrarCompraDePedido(order) {
 // plan de cuotas con tarjeta (cada plan con su recargo propio). Un plan de
 // N cuotas se ofrece si al menos un producto del carrito lo tiene cargado;
 // para los productos que no lo tengan, ese ítem va a su precio de efectivo.
-app.post('/api/orders/quote', requireCustomer, async (req, res) => {
+app.post('/api/orders/quote', async (req, res) => {
   try {
     const { items } = req.body || {};
     if (!Array.isArray(items) || !items.length) {
@@ -1559,9 +1559,9 @@ app.post('/api/orders/quote', requireCustomer, async (req, res) => {
 // ---------- Pedidos: API pública ----------
 // El storefront pega acá justo antes (o al mismo tiempo) de abrir el link de WhatsApp,
 // así queda registrado en el panel aunque el cliente no confirme nada más.
-app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) => {
+app.post('/api/orders', publicWriteLimiter, async (req, res) => {
   try {
-    const { customerName, customerPhone, customerId, items, notes, channel, installments: cuotasBody, couponCode, campaignId: campaignIdBody } = req.body || {};
+    const { customerName, customerPhone, customerId, items, notes, channel, installments: cuotasBody, couponCode, campaignId: campaignIdBody, paymentMethod: paymentMethodBody } = req.body || {};
     // 0 / vacío = efectivo o transferencia; N >= 1 = pago con tarjeta en N cuotas.
     const cuotas = Math.max(0, Math.round(Number(cuotasBody) || 0));
     const modo = cuotas >= 1 ? 'tarjeta' : 'efectivo';
@@ -1574,17 +1574,18 @@ app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) =>
       return res.status(400).json({ error: 'Faltan datos del pedido (nombre, teléfono o items)' });
     }
 
-    // El pedido queda a nombre de la cuenta logueada. De paso, si la cuenta
-    // todavía no tenía teléfono guardado, se lo completamos con este.
-    const accountId = req.session.accountId;
-    try {
-      const { data: cuenta } = await supabase
-        .from('customer_accounts').select('id, phone').eq('id', accountId).maybeSingle();
-      if (cuenta && !cuenta.phone && customerPhone) {
-        await supabase.from('customer_accounts')
-          .update({ phone: normalizarTelefono(customerPhone) || null }).eq('id', accountId);
-      }
-    } catch (e) { /* no bloquea el pedido */ }
+    // El pedido puede ser de un cliente logueado o de un visitante (guest).
+    const accountId = (req.session && req.session.accountId) || null;
+    if (accountId) {
+      try {
+        const { data: cuenta } = await supabase
+          .from('customer_accounts').select('id, phone').eq('id', accountId).maybeSingle();
+        if (cuenta && !cuenta.phone && customerPhone) {
+          await supabase.from('customer_accounts')
+            .update({ phone: normalizarTelefono(customerPhone) || null }).eq('id', accountId);
+        }
+      } catch (e) { /* no bloquea el pedido */ }
+    }
 
     // No confiamos en el precio que manda el navegador (el carrito lo guarda
     // en localStorage y viaja tal cual en el POST): alguien podría editar el
@@ -1665,6 +1666,7 @@ app.post('/api/orders', requireCustomer, publicWriteLimiter, async (req, res) =>
       sent_via: canal,
       price_mode: modo,
       chosen_installments: cuotas >= 1 ? cuotas : null,
+      payment_method: paymentMethodBody ? String(paymentMethodBody).trim() : (cuotas >= 1 ? 'tarjeta' : 'efectivo'),
       // Campos de marketing (snapshot histórico)
       coupon_id:       couponIdFinal || null,
       campaign_id:     campaignIdFinal || null,
@@ -1749,7 +1751,7 @@ app.delete('/api/admin/orders/:id', requireAuth, async (req, res) => {
 
 // Crea una preferencia de Checkout Pro para un pedido ya registrado y
 // devuelve el link de pago (`initPoint`). El carrito redirige al comprador ahí.
-app.post('/api/orders/:id/pagar', requireCustomer, publicWriteLimiter, async (req, res) => {
+app.post('/api/orders/:id/pagar', publicWriteLimiter, async (req, res) => {
   try {
     if (!MP_ACCESS_TOKEN) {
       return res.status(503).json({ error: 'Los pagos online no están disponibles en este momento' });
