@@ -690,7 +690,10 @@
 
     let badgesHtml = '';
     if (p.featured) badgesHtml += '<span class="detalle-badge">Destacado</span>';
-    if (tieneOferta) badgesHtml += '<span class="detalle-badge oferta">Oferta</span>';
+    if (tieneOferta) {
+      const descPctBadge = Math.ceil((Number(p.oldPrice) - Number(p.price)) / Number(p.oldPrice) * 100);
+      badgesHtml += '<span class="detalle-badge oferta">' + descPctBadge + '% OFF</span>';
+    }
 
     const planesHtml = htmlPlanesTarjeta(p);
     const sabores = listaSabores(p);

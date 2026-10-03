@@ -587,6 +587,116 @@
   .vr-cliente-item:last-child { border-bottom: none; }
   .vr-cliente-item:hover { background: #f0f4f8; }
   .vr-cliente-wrap { position: relative; }
+
+  /* ===== .card y encabezados de sección ===== */
+  .card {
+    background: #fff;
+    border: 1px solid rgba(111,147,193,0.18);
+    border-radius: 14px;
+    padding: 22px 20px;
+    box-shadow: 0 4px 14px rgba(17,34,60,0.05);
+  }
+  .section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .section-subtitle {
+    font-size: 13.5px;
+    color: #6b7686;
+    margin-top: 4px;
+    line-height: 1.45;
+  }
+
+  /* ===== Responsive ampliado ===== */
+
+  /* --- Tabla productos: ocultar columnas secundarias en móvil --- */
+  @media (max-width: 760px) {
+    /* Ocultar Marca y Categoría */
+    .productos-tabla th:nth-child(3),
+    .productos-tabla td:nth-child(3),
+    .productos-tabla th:nth-child(4),
+    .productos-tabla td:nth-child(4) { display: none; }
+    /* Ocultar columna thumbnail — más espacio para nombre */
+    .productos-tabla th:nth-child(1),
+    .productos-tabla td:nth-child(1) { display: none; }
+    table.productos-tabla { min-width: 420px; }
+  }
+  @media (max-width: 500px) {
+    /* Ocultar Stock también */
+    .productos-tabla th:nth-child(5),
+    .productos-tabla td:nth-child(5) { display: none; }
+    table.productos-tabla { min-width: 300px; }
+  }
+
+  /* --- Tabla pedidos: ocultar columnas secundarias en móvil --- */
+  @media (max-width: 760px) {
+    /* Ocultar Teléfono e Items */
+    .pedidos-tabla th:nth-child(3),
+    .pedidos-tabla td:nth-child(3),
+    .pedidos-tabla th:nth-child(4),
+    .pedidos-tabla td:nth-child(4) { display: none; }
+  }
+  @media (max-width: 500px) {
+    /* Ocultar Fecha también */
+    .pedidos-tabla th:nth-child(7),
+    .pedidos-tabla td:nth-child(7) { display: none; }
+  }
+
+  /* --- Modal como bottom-sheet en móvil --- */
+  @media (max-width: 600px) {
+    .modal-overlay {
+      padding: 0;
+      align-items: flex-end;
+    }
+    .modal {
+      border-radius: 20px 20px 0 0;
+      max-height: 93vh;
+      padding: 22px 16px 20px;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    }
+    .modal-footer {
+      flex-direction: column-reverse;
+      gap: 8px;
+    }
+    .modal-footer .btn { width: 100%; }
+  }
+
+  /* --- Config cards: quitar max-width y full-width inputs en móvil --- */
+  @media (max-width: 600px) {
+    #tab-config .card { max-width: 100% !important; }
+    #cfg-descuento-pct,
+    #cfg-envio-local,
+    #cfg-envio-nacional { max-width: 100% !important; width: 100%; }
+    .card { padding: 16px 14px; }
+  }
+
+  /* --- Botones de acción más grandes para touch --- */
+  @media (max-width: 760px) {
+    .icon-btn { width: 38px; height: 38px; }
+    .row-actions { gap: 6px; flex-wrap: wrap; }
+    .tab-btn { min-height: 40px; }
+    .pedido-actions select { font-size: 14px; padding: 8px 10px; min-height: 40px; }
+  }
+
+  /* --- stats-grid-2 en layout 2 cols en pantallas medianas --- */
+  @media (max-width: 540px) {
+    .stats-grid-2 { grid-template-columns: 1fr 1fr; }
+    .stat-card-2 .num { font-size: 22px; }
+  }
+  @media (max-width: 360px) {
+    .stats-grid-2 { grid-template-columns: 1fr; }
+  }
+
+  /* --- Venta Rápida: inputs y botones full-width en móvil --- */
+  @media (max-width: 600px) {
+    .vr-discount-group { flex-wrap: wrap; }
+    .vr-discount-group input[type="number"] { width: 100%; }
+    .vr-discount-group select { width: 100%; flex: none; }
+  }
 </style>
 </head>
 <body>
