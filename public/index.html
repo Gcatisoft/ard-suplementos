@@ -1913,41 +1913,46 @@ function desbloquearScrollFondo(){
   }
 
   function iniciarCarrusel(extras){
-    // El carrusel muestra únicamente lo que se cargó desde el panel de admin.
     const lista = extras;
     total = lista.length;
 
-    viewport.innerHTML = '';
-
     if (!total){
-      // Sin imágenes cargadas todavía: no mostramos flechas ni puntos.
+      viewport.innerHTML = '';
       btnPrev.style.display = 'none';
       btnNext.style.display = 'none';
       dotsWrap.innerHTML = '';
       return;
     }
 
-    lista.forEach((slide, i) => viewport.appendChild(armarSlide(slide, i === 0)));
-    mostrar(0);
+    function buildAndShow(){
+      viewport.innerHTML = '';
+      lista.forEach((slide, i) => viewport.appendChild(armarSlide(slide, i === 0)));
+      mostrar(0);
 
-    if (total > 1){
-      btnPrev.style.display = '';
-      btnNext.style.display = '';
-      dotsWrap.innerHTML = lista.map((_, i) => '<button type="button" aria-label="Ir a la imagen ' + (i + 1) + '"></button>').join('');
-      dotsWrap.querySelectorAll('button').forEach((btn, i) => {
-        btn.addEventListener('click', () => { mostrar(i); reiniciarAutoplay(); });
-      });
-      dotsWrap.querySelectorAll('button')[0].classList.add('active');
-
-      btnPrev.addEventListener('click', () => { anterior(); reiniciarAutoplay(); });
-      btnNext.addEventListener('click', () => { siguiente(); reiniciarAutoplay(); });
-
-      reiniciarAutoplay();
-    } else {
-      btnPrev.style.display = 'none';
-      btnNext.style.display = 'none';
-      dotsWrap.innerHTML = '';
+      if (total > 1){
+        btnPrev.style.display = '';
+        btnNext.style.display = '';
+        dotsWrap.innerHTML = lista.map((_, i) => '<button type="button" aria-label="Ir a la imagen ' + (i + 1) + '"></button>').join('');
+        dotsWrap.querySelectorAll('button').forEach((btn, i) => {
+          btn.addEventListener('click', () => { mostrar(i); reiniciarAutoplay(); });
+        });
+        dotsWrap.querySelectorAll('button')[0].classList.add('active');
+        btnPrev.addEventListener('click', () => { anterior(); reiniciarAutoplay(); });
+        btnNext.addEventListener('click', () => { siguiente(); reiniciarAutoplay(); });
+        reiniciarAutoplay();
+      } else {
+        btnPrev.style.display = 'none';
+        btnNext.style.display = 'none';
+        dotsWrap.innerHTML = '';
+      }
     }
+
+    // Precarga la primera imagen antes de reemplazar el viewport para
+    // que no haya un frame en blanco entre el placeholder y la imagen real.
+    var preloader = new Image();
+    preloader.onload = buildAndShow;
+    preloader.onerror = buildAndShow;
+    preloader.src = lista[0].image;
   }
 
   fetch('/api/hero')

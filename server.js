@@ -2266,15 +2266,27 @@ app.delete('/api/admin/news/:id', requireAuth, async (req, res) => {
 });
 
 // ---------- Hero (carrusel de imágenes de arriba del home) ----------
+let _heroPublicCache = null;
+let _heroPublicCacheTs = 0;
+const HERO_CACHE_TTL_MS = 60 * 1000; // 1 minuto
+
 app.get('/api/hero', async (req, res) => {
   try {
+    const now = Date.now();
+    if (_heroPublicCache && now - _heroPublicCacheTs < HERO_CACHE_TTL_MS) {
+      res.set('Cache-Control', 'public, max-age=60');
+      return res.json(_heroPublicCache);
+    }
     const { data, error } = await supabase
       .from('hero_slides')
       .select('*')
       .eq('active', true)
       .order('position', { ascending: true });
     if (error) throw error;
-    res.json((data || []).map(mapHeroSlide));
+    _heroPublicCache = (data || []).map(mapHeroSlide);
+    _heroPublicCacheTs = now;
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json(_heroPublicCache);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al obtener las imágenes del hero' });
@@ -2319,6 +2331,7 @@ app.post('/api/admin/hero', requireAuth, upload.single('imagen'), manejarErrorIm
     const { data, error } = await supabase.from('hero_slides').insert(nuevo).select().single();
     if (error) throw error;
 
+    _heroPublicCache = null;
     res.status(201).json(mapHeroSlide(data));
   } catch (err) {
     console.error(err);
@@ -2350,6 +2363,7 @@ app.put('/api/admin/hero/:id', requireAuth, upload.single('imagen'), manejarErro
     const { data, error } = await supabase.from('hero_slides').update(cambios).eq('id', req.params.id).select().single();
     if (error) throw error;
 
+    _heroPublicCache = null;
     res.json(mapHeroSlide(data));
   } catch (err) {
     console.error(err);
@@ -2381,6 +2395,7 @@ app.put('/api/admin/hero/:id/mover', requireAuth, async (req, res) => {
       supabase.from('hero_slides').update({ position: actual.position }).eq('id', vecino.id),
     ]);
 
+    _heroPublicCache = null;
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
@@ -2401,7 +2416,7 @@ app.delete('/api/admin/hero/:id', requireAuth, async (req, res) => {
     const { error } = await supabase.from('hero_slides').delete().eq('id', req.params.id);
     if (error) throw error;
 
-    // Borrado de raíz: fila + imagen del Storage.
+    _heroPublicCache = null;
     await borrarImagenPorUrl(existing.image);
 
     res.json({ ok: true });
