@@ -697,6 +697,167 @@
     .vr-discount-group input[type="number"] { width: 100%; }
     .vr-discount-group select { width: 100%; flex: none; }
   }
+
+  /* ===== TAB CONFIGURACIÓN ===== */
+  .cfg-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-width: 580px;
+  }
+  .cfg-card {
+    background: #fff;
+    border: 1px solid rgba(111,147,193,0.2);
+    border-radius: 16px;
+    padding: 24px 22px;
+    box-shadow: 0 4px 16px rgba(17,34,60,0.05);
+  }
+  .cfg-card-header {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
+  .cfg-card-icon {
+    width: 42px; height: 42px;
+    background: var(--ice);
+    border: 1px solid rgba(111,147,193,0.22);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .cfg-card-title {
+    font-family: var(--font-cond);
+    font-weight: 700;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #1a2233;
+    margin-bottom: 5px;
+  }
+  .cfg-card-desc {
+    font-size: 13px;
+    color: #5a6a80;
+    line-height: 1.55;
+  }
+  .cfg-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .cfg-field:last-child { margin-bottom: 0; }
+  .cfg-field label {
+    font-family: var(--font-cond);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--navy-800);
+  }
+  .cfg-field input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid rgba(111,147,193,0.35);
+    border-radius: 9px;
+    font-size: 16px;
+    color: var(--ink);
+    background: #fff;
+    transition: border-color .15s;
+    -moz-appearance: textfield;
+  }
+  .cfg-field input::-webkit-outer-spin-button,
+  .cfg-field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .cfg-field input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(47,111,176,0.12);
+  }
+  .cfg-inline-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .cfg-inline-row .cfg-field {
+    flex: 0 0 140px;
+    margin-bottom: 0;
+  }
+  .cfg-preview-tag {
+    font-size: 13px;
+    color: #1a7a44;
+    font-weight: 700;
+    padding-bottom: 13px;
+    white-space: nowrap;
+  }
+  .cfg-hint {
+    font-size: 12.5px;
+    color: #5a6a80;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+  .cfg-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 4px;
+  }
+  .cfg-grid-2 .cfg-field { margin-bottom: 0; }
+  .cfg-recargo-preview {
+    font-size: 12.5px;
+    color: #1a7a44;
+    background: #f0faf4;
+    border: 1px solid rgba(26,122,68,0.15);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 12px 0;
+    line-height: 1.6;
+  }
+  .cfg-save-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(111,147,193,0.12);
+  }
+  .cfg-save-btn {
+    font-family: var(--font-cond);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-size: 14px;
+    padding: 11px 22px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, var(--accent-light), var(--accent));
+    color: #fff;
+    border: none;
+    box-shadow: 0 6px 18px rgba(47,111,176,0.28);
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+  }
+  .cfg-save-btn:hover { opacity: .9; transform: translateY(-1px); }
+  .cfg-save-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+  .cfg-saved-msg {
+    font-size: 13px;
+    color: #1a7a44;
+    font-weight: 700;
+  }
+
+  @media (max-width: 680px) {
+    .cfg-stack { max-width: 100%; }
+    .cfg-grid-2 { grid-template-columns: 1fr; gap: 0; }
+  }
+  @media (max-width: 480px) {
+    .cfg-card { padding: 18px 15px; }
+    .cfg-card-icon { width: 36px; height: 36px; font-size: 16px; }
+    .cfg-inline-row { flex-direction: column; align-items: stretch; gap: 0; }
+    .cfg-inline-row .cfg-field { flex: none; margin-bottom: 14px; }
+    .cfg-preview-tag { padding-bottom: 0; padding-top: 4px; }
+    .cfg-save-btn { width: 100%; }
+    .cfg-save-row { flex-wrap: wrap; }
+  }
 </style>
 </head>
 <body>
@@ -1977,67 +2138,92 @@
     </div>
   </div>
 
-  <div class="card" style="max-width:480px;">
-    <h3 style="font-size:15px; font-weight:700; margin-bottom:14px;">Descuento Efectivo / Transferencia</h3>
-    <p style="font-size:13px; color:#5a6a80; margin-bottom:16px; line-height:1.5;">
-      Este porcentaje se aplica sobre el precio de lista (tarjeta) para calcular el precio de efectivo/transferencia.
-      Por ejemplo, con <strong>20%</strong>: un producto con precio lista <strong>$32.500</strong> costará <strong>$26.000</strong> en efectivo.
-    </p>
-    <div class="form-group" style="margin-bottom:12px;">
-      <label class="form-label" for="cfg-descuento-pct">Porcentaje de descuento (%)</label>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <input type="number" id="cfg-descuento-pct" class="form-control" style="max-width:120px;"
-          min="1" max="99" step="1" placeholder="20">
-        <span id="cfg-preview" style="font-size:13px; color:#1a7a44; font-weight:600;"></span>
-      </div>
-      <div id="cfg-hint" style="font-size:12px; color:#5a6a80; margin-top:6px;"></div>
-    </div>
-    <div style="display:flex; align-items:center; gap:10px;">
-      <button type="button" class="btn btn-primary" id="cfg-guardar-btn">Guardar cambios</button>
-      <span id="cfg-status" style="font-size:13px; color:#1a7a44; font-weight:600; display:none;">✓ Guardado</span>
-    </div>
-  </div>
+  <div class="cfg-stack">
 
-  <div class="card" style="max-width:480px; margin-top:20px;">
-    <h3 style="font-size:15px; font-weight:700; margin-bottom:14px;">💳 Recargos con tarjeta</h3>
-    <p style="font-size:13px; color:#5a6a80; margin-bottom:16px; line-height:1.5;">
-      Porcentaje de recargo <strong>sobre el precio efectivo</strong> según las cuotas elegidas.<br>
-      El precio de lista (3 cuotas) se configura en la sección de arriba.
-    </p>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
-      <div class="form-group">
-        <label class="form-label" for="cfg-recargo-1">1 pago — recargo (%)</label>
-        <input type="number" id="cfg-recargo-1" class="form-control" min="0" max="99" step="0.01" placeholder="7.69">
+    <!-- Card 1: Descuento efectivo -->
+    <div class="cfg-card">
+      <div class="cfg-card-header">
+        <div class="cfg-card-icon">%</div>
+        <div>
+          <h3 class="cfg-card-title">Descuento Efectivo / Transferencia</h3>
+          <p class="cfg-card-desc">
+            Porcentaje que se aplica sobre el precio de lista para calcular el precio de
+            efectivo/transferencia. Con <strong>20%</strong>: lista <strong>$32.500</strong>
+            → efectivo <strong>$26.000</strong>.
+          </p>
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label" for="cfg-recargo-2">2 cuotas — recargo (%)</label>
-        <input type="number" id="cfg-recargo-2" class="form-control" min="0" max="99" step="0.01" placeholder="20.28">
+      <div class="cfg-inline-row">
+        <div class="cfg-field">
+          <label for="cfg-descuento-pct">Porcentaje de descuento (%)</label>
+          <input type="number" id="cfg-descuento-pct" min="1" max="99" step="1" placeholder="20">
+        </div>
+        <span id="cfg-preview" class="cfg-preview-tag"></span>
+      </div>
+      <div id="cfg-hint" class="cfg-hint"></div>
+      <div class="cfg-save-row">
+        <button type="button" class="cfg-save-btn" id="cfg-guardar-btn">Guardar cambios</button>
+        <span id="cfg-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
       </div>
     </div>
-    <div id="cfg-recargo-preview" style="font-size:12px; color:#1a7a44; background:#f0faf4; border-radius:6px; padding:8px 10px; margin-bottom:12px; display:none;"></div>
-    <div style="display:flex; align-items:center; gap:10px;">
-      <button type="button" class="btn btn-primary" id="cfg-recargo-guardar-btn">Guardar recargos</button>
-      <span id="cfg-recargo-status" style="font-size:13px; color:#1a7a44; font-weight:600; display:none;">✓ Guardado</span>
-    </div>
-  </div>
 
-  <div class="card" style="max-width:480px; margin-top:20px;">
-    <h3 style="font-size:15px; font-weight:700; margin-bottom:14px;">🚚 Tarifas de Envío</h3>
-    <p style="font-size:13px; color:#5a6a80; margin-bottom:16px; line-height:1.5;">
-      Ingresá el costo de envío para cada zona. Si ponés <strong>0</strong>, aparece como <em>"A coordinar"</em> en el checkout.
-    </p>
-    <div class="form-group" style="margin-bottom:12px;">
-      <label class="form-label" for="cfg-envio-local">📍 Catamarca capital / provincia ($)</label>
-      <input type="number" id="cfg-envio-local" class="form-control" style="max-width:180px;" min="0" step="100" placeholder="0">
+    <!-- Card 2: Recargos tarjeta -->
+    <div class="cfg-card">
+      <div class="cfg-card-header">
+        <div class="cfg-card-icon">💳</div>
+        <div>
+          <h3 class="cfg-card-title">Recargos con tarjeta</h3>
+          <p class="cfg-card-desc">
+            Porcentaje de recargo <strong>sobre el precio efectivo</strong> según las cuotas elegidas.
+            El precio de lista (3 cuotas) se configura en la sección de arriba.
+          </p>
+        </div>
+      </div>
+      <div class="cfg-grid-2">
+        <div class="cfg-field">
+          <label for="cfg-recargo-1">1 pago — recargo (%)</label>
+          <input type="number" id="cfg-recargo-1" min="0" max="99" step="0.01" placeholder="7.69">
+        </div>
+        <div class="cfg-field">
+          <label for="cfg-recargo-2">2 cuotas — recargo (%)</label>
+          <input type="number" id="cfg-recargo-2" min="0" max="99" step="0.01" placeholder="20.28">
+        </div>
+      </div>
+      <div id="cfg-recargo-preview" class="cfg-recargo-preview" style="display:none;"></div>
+      <div class="cfg-save-row">
+        <button type="button" class="cfg-save-btn" id="cfg-recargo-guardar-btn">Guardar recargos</button>
+        <span id="cfg-recargo-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
+      </div>
     </div>
-    <div class="form-group" style="margin-bottom:16px;">
-      <label class="form-label" for="cfg-envio-nacional">📦 Resto del país ($)</label>
-      <input type="number" id="cfg-envio-nacional" class="form-control" style="max-width:180px;" min="0" step="100" placeholder="0">
+
+    <!-- Card 3: Envío -->
+    <div class="cfg-card">
+      <div class="cfg-card-header">
+        <div class="cfg-card-icon">🚚</div>
+        <div>
+          <h3 class="cfg-card-title">Tarifas de Envío</h3>
+          <p class="cfg-card-desc">
+            Costo de envío por zona. Si ponés <strong>0</strong> aparece como
+            <em>"A coordinar"</em> en el checkout.
+          </p>
+        </div>
+      </div>
+      <div class="cfg-grid-2">
+        <div class="cfg-field">
+          <label for="cfg-envio-local">📍 Catamarca capital / provincia ($)</label>
+          <input type="number" id="cfg-envio-local" min="0" step="100" placeholder="0">
+        </div>
+        <div class="cfg-field">
+          <label for="cfg-envio-nacional">📦 Resto del país ($)</label>
+          <input type="number" id="cfg-envio-nacional" min="0" step="100" placeholder="0">
+        </div>
+      </div>
+      <div class="cfg-save-row">
+        <button type="button" class="cfg-save-btn" id="cfg-envio-guardar-btn">Guardar tarifas</button>
+        <span id="cfg-envio-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
+      </div>
     </div>
-    <div style="display:flex; align-items:center; gap:10px;">
-      <button type="button" class="btn btn-primary" id="cfg-envio-guardar-btn">Guardar tarifas</button>
-      <span id="cfg-envio-status" style="font-size:13px; color:#1a7a44; font-weight:600; display:none;">✓ Guardado</span>
-    </div>
+
   </div>
 </section>
 
