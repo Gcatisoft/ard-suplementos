@@ -274,7 +274,7 @@ async function borrarImagenPorUrl(url) {
 // Se cachea en memoria para no golpear la DB en cada petición. Se refresca
 // al arrancar y cada 2 minutos. La función es síncrona → los handlers no
 // necesitan awaitar nada extra para usar la config.
-let _configCache = { efectivoDescPct: 20 };
+let _configCache = { efectivoDescPct: 20, envioLocal: 0, envioNacional: 0 };
 
 async function refreshConfig() {
   try {
@@ -285,6 +285,8 @@ async function refreshConfig() {
           const v = Number(r.value);
           if (v > 0 && v < 100) _configCache.efectivoDescPct = v;
         }
+        if (r.key === 'envio_local') _configCache.envioLocal = Math.max(0, Number(r.value) || 0);
+        if (r.key === 'envio_nacional') _configCache.envioNacional = Math.max(0, Number(r.value) || 0);
       });
     }
   } catch (e) { /* mantiene el valor anterior */ }
@@ -1305,7 +1307,7 @@ app.delete('/api/admin/products/:id', requireAuth, async (req, res) => {
 // ---------- Venta Rápida (POS local) ----------
 // ---------- Configuración del sitio (pública de lectura, admin para escritura) ----------
 app.get('/api/config', (req, res) => {
-  res.json({ efectivoDescPct: getConfig().efectivoDescPct });
+  res.json({ efectivoDescPct: getConfig().efectivoDescPct, envioLocal: getConfig().envioLocal, envioNacional: getConfig().envioNacional });
 });
 
 app.get('/api/admin/settings', requireAuth, async (req, res) => {

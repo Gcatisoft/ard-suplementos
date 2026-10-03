@@ -61,6 +61,10 @@
   var quoteActual = null;
   // Cupón aplicado actualmente (null si ninguno).
   var cuponActual = null; // { code, discountType, discountValue, discountAmount, campaignId, sponsorId, products[] }
+  // Envío
+  var envioTarifas = { local: 0, nacional: 0 };
+  var envioZona = 'local';
+  function getEnvio() { return envioTarifas[envioZona] || 0; }
   function labelCuotas(n) {
     if (!n || n < 1) return 'Efectivo o transferencia';
     if (n === 1) return '1 pago con tarjeta';
@@ -248,7 +252,10 @@
     + '.ard-descuento-box{background:#f0f9f0;border:1px solid #b7ebc0;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;}'
     + '.ard-descuento-row{display:flex;justify-content:space-between;color:#5c7091;margin-bottom:4px;}'
     + '.ard-descuento-total{display:flex;justify-content:space-between;font-weight:700;color:#0d1b2a;font-size:14px;margin-top:4px;}'
-    + '@media (max-width:480px){.ard-cart-panel{width:100vw;}}';
+    + '@media (max-width:480px){.ard-cart-panel{width:100vw;}}'
+    + '.ard-envio-resumen{background:#f4f6f8;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;}'
+    + '.ard-envio-row{display:flex;justify-content:space-between;color:#5c7091;margin-bottom:3px;}'
+    + '.ard-envio-grand{display:flex;justify-content:space-between;font-weight:700;color:#0d1b2a;font-size:14px;margin-top:6px;border-top:1px solid #dde3ec;padding-top:6px;}';
 
   var styleTag = document.createElement('style');
   styleTag.textContent = css;
@@ -325,10 +332,32 @@
           '<div id="ard-cart-cupon-info" class="ard-cupon-info"></div>' +
         '</div>' +
         '<div id="ard-cart-descuento-box" class="ard-descuento-box" style="display:none;"></div>' +
-        '<div class="ard-cart-modos" id="ard-cart-modos">' +
+        '<div class="ard-cart-field">' +
+          '<div class="ard-cart-modos-titulo" style="margin-bottom:6px;">🚚 Zona de envío</div>' +
+          '<div id="ard-cart-envio-lista">' +
+            '<label class="ard-cart-modo sel" data-zona="local">' +
+              '<input type="radio" name="ard-envio-zona" value="local" checked>' +
+              '<span class="ard-cart-modo-txt">' +
+                '<span class="ard-cart-modo-nombre">📍 Catamarca cap. / provincia</span>' +
+                '<span class="ard-cart-modo-detalle">Entrega coordinada por WhatsApp</span>' +
+              '</span>' +
+              '<span class="ard-cart-modo-precio" id="ard-envio-precio-local">…</span>' +
+            '</label>' +
+            '<label class="ard-cart-modo" data-zona="nacional">' +
+              '<input type="radio" name="ard-envio-zona" value="nacional">' +
+              '<span class="ard-cart-modo-txt">' +
+                '<span class="ard-cart-modo-nombre">📦 Resto del país</span>' +
+                '<span class="ard-cart-modo-detalle">Correo / encomienda</span>' +
+              '</span>' +
+              '<span class="ard-cart-modo-precio" id="ard-envio-precio-nacional">…</span>' +
+            '</label>' +
+          '</div>' +
+        '</div>' +
+        '<div id="ard-cart-modos" class="ard-cart-modos">' +
           '<div class="ard-cart-modos-titulo">¿Cómo vas a pagar?</div>' +
           '<div id="ard-cart-modos-lista"></div>' +
         '</div>' +
+        '<div id="ard-envio-resumen" class="ard-envio-resumen" style="display:none;"></div>' +
         '<div class="ard-cart-error" id="ard-cart-error"></div>' +
         '<div class="ard-cart-modal-actions">' +
           '<button class="ard-cart-pay-mp" id="ard-cart-confirmar" type="button">Continuar</button>' +
@@ -441,6 +470,46 @@
     else if (btn.dataset.action === 'remove') remove(key);
   });
 
+  // ---------- Envío ----------
+  function iniciarSelectorEnvio() {
+    var lista = document.getElementById('ard-cart-envio-lista');
+    if (!lista) return;
+    lista.querySelectorAll('input[name="ard-envio-zona"]').forEach(function (r) {
+      r.addEventListener('change', function () {
+        envioZona = r.value;
+        lista.querySelectorAll('.ard-cart-modo').forEach(function (el) {
+          el.classList.toggle('sel', el.getAttribute('data-zona') === r.value);
+        });
+        actualizarResumenEnvio();
+      });
+    });
+  }
+
+  function actualizarPreciosEnvioUI() {
+    var elLocal    = document.getElementById('ard-envio-precio-local');
+    var elNacional = document.getElementById('ard-envio-precio-nacional');
+    if (elLocal)    elLocal.textContent    = envioTarifas.local    > 0 ? formatearPrecio(envioTarifas.local)    : 'A coordinar';
+    if (elNacional) elNacional.textContent = envioTarifas.nacional > 0 ? formatearPrecio(envioTarifas.nacional) : 'A coordinar';
+    actualizarResumenEnvio();
+  }
+
+  function actualizarResumenEnvio() {
+    var resumen = document.getElementById('ard-envio-resumen');
+    if (!resumen || !quoteActual) return;
+    var cuotas   = cuotasSeleccionadas();
+    var subtotal = totalDeCuotas(cuotas);
+    var envio    = getEnvio();
+    var zonaLbl  = envioZona === 'local' ? 'Catamarca' : 'Resto del país';
+
+    resumen.style.display = '';
+    resumen.innerHTML =
+      '<div class="ard-envio-row"><span>Subtotal productos</span><span>' + formatearPrecio(subtotal) + '</span></div>' +
+      '<div class="ard-envio-row"><span>Envío (' + zonaLbl + ')</span><span>' +
+        (envio > 0 ? formatearPrecio(envio) : '<em>A coordinar</em>') + '</span></div>' +
+      '<div class="ard-envio-grand"><span>Total estimado</span><span>' +
+        (envio > 0 ? formatearPrecio(subtotal + envio) : formatearPrecio(subtotal) + ' + envío') + '</span></div>';
+  }
+
   // ---------- Checkout ----------
   function abrirModalCheckout() {
     if (!items.length) return;
@@ -455,6 +524,25 @@
     // No se requiere cuenta — cualquier persona puede comprar
     gate.style.display = 'none';
     form.style.display = '';
+
+    // Restablecer zona de envío al abrir
+    envioZona = 'local';
+    var listaEnvio = document.getElementById('ard-cart-envio-lista');
+    if (listaEnvio) {
+      listaEnvio.querySelectorAll('.ard-cart-modo').forEach(function (el) {
+        el.classList.toggle('sel', el.getAttribute('data-zona') === 'local');
+      });
+      var rLocal = listaEnvio.querySelector('input[value="local"]');
+      if (rLocal) rLocal.checked = true;
+    }
+    iniciarSelectorEnvio();
+
+    // Cargar tarifas de envío desde config
+    fetch('/api/config').then(function (r) { return r.json(); }).then(function (cfg) {
+      envioTarifas.local    = Math.max(0, Number(cfg.envioLocal)    || 0);
+      envioTarifas.nacional = Math.max(0, Number(cfg.envioNacional) || 0);
+      actualizarPreciosEnvioUI();
+    }).catch(function () {});
 
     cargarModosPago();
 
@@ -640,10 +728,12 @@
       .then(function (q) {
         quoteActual = (q && q.efectivo) ? q : { efectivo: { total: getTotal() }, planes: [] };
         renderModosPago();
+        actualizarResumenEnvio();
       })
       .catch(function () {
         quoteActual = { efectivo: { total: getTotal() }, planes: [] };
         renderModosPago();
+        actualizarResumenEnvio();
       });
   }
 
@@ -729,6 +819,7 @@
       btn.className = 'ard-cart-pay-mp';
       btn.innerHTML = ICON_CARD + ' Pagar con Mercado Pago';
     }
+    actualizarResumenEnvio();
   }
 
   function cerrarModalCheckout() {
@@ -761,7 +852,17 @@
       lineas.push('Descuento (cupón ' + cuponActual.code + '): − ' + formatearPrecio(descMsg));
     }
     lineas.push('Forma de pago: ' + formaPago);
-    lineas.push('Total: ' + formatearPrecio(totalDeCuotas(cuotas || 0)));
+    var envio    = getEnvio();
+    var subtotal = totalDeCuotas(cuotas || 0);
+    var zonaLbl  = envioZona === 'local' ? 'Catamarca cap. / provincia' : 'Resto del país';
+    lineas.push('Zona de envío: ' + zonaLbl);
+    if (envio > 0) {
+      lineas.push('Envío: ' + formatearPrecio(envio));
+      lineas.push('Total (con envío): ' + formatearPrecio(subtotal + envio));
+    } else {
+      lineas.push('Total productos: ' + formatearPrecio(subtotal));
+      lineas.push('Envío: a coordinar');
+    }
     if (pedido && pedido.orderNumber) {
       lineas.push('Pedido N.º: ' + pedido.orderNumber);
     }
@@ -777,7 +878,11 @@
 
     var nombre = (nombreInput.value || '').trim();
     var telefono = (telInput.value || '').trim();
-    var notas = (notasInput.value || '').trim();
+    var notasBase = (notasInput.value || '').trim();
+    var zonaLbl = envioZona === 'local' ? 'Catamarca cap. / provincia' : 'Resto del país';
+    var envioMonto = getEnvio();
+    var notaEnvio = 'Envío: ' + zonaLbl + (envioMonto > 0 ? ' — ' + formatearPrecio(envioMonto) : ' — A coordinar');
+    var notas = notasBase ? notasBase + ' | ' + notaEnvio : notaEnvio;
     var cuotas = cuotasSeleccionadas();
     var canal = cuotas < 1 ? 'whatsapp' : 'mercadopago';
 

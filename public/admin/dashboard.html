@@ -1887,6 +1887,25 @@
       <span id="cfg-status" style="font-size:13px; color:#1a7a44; font-weight:600; display:none;">✓ Guardado</span>
     </div>
   </div>
+
+  <div class="card" style="max-width:480px; margin-top:20px;">
+    <h3 style="font-size:15px; font-weight:700; margin-bottom:14px;">🚚 Tarifas de Envío</h3>
+    <p style="font-size:13px; color:#5a6a80; margin-bottom:16px; line-height:1.5;">
+      Ingresá el costo de envío para cada zona. Si ponés <strong>0</strong>, aparece como <em>"A coordinar"</em> en el checkout.
+    </p>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label" for="cfg-envio-local">📍 Catamarca capital / provincia ($)</label>
+      <input type="number" id="cfg-envio-local" class="form-control" style="max-width:180px;" min="0" step="100" placeholder="0">
+    </div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label class="form-label" for="cfg-envio-nacional">📦 Resto del país ($)</label>
+      <input type="number" id="cfg-envio-nacional" class="form-control" style="max-width:180px;" min="0" step="100" placeholder="0">
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button type="button" class="btn btn-primary" id="cfg-envio-guardar-btn">Guardar tarifas</button>
+      <span id="cfg-envio-status" style="font-size:13px; color:#1a7a44; font-weight:600; display:none;">✓ Guardado</span>
+    </div>
+  </div>
 </section>
 
 <script src="admin.js"></script>

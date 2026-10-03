@@ -378,8 +378,14 @@
     try {
       const res = await fetch('/api/admin/settings');
       const data = await res.json();
-      const row = Array.isArray(data) ? data.find(r => r.key === 'efectivo_descuento_pct') : null;
+      const row        = Array.isArray(data) ? data.find(r => r.key === 'efectivo_descuento_pct') : null;
+      const rowLocal   = Array.isArray(data) ? data.find(r => r.key === 'envio_local')           : null;
+      const rowNacional= Array.isArray(data) ? data.find(r => r.key === 'envio_nacional')         : null;
       ADMIN_DESC_PCT = row ? (Number(row.value) || 20) : 20;
+      const elLocal    = document.getElementById('cfg-envio-local');
+      const elNacional = document.getElementById('cfg-envio-nacional');
+      if (elLocal)    elLocal.value    = rowLocal    ? (rowLocal.value    || '0') : '0';
+      if (elNacional) elNacional.value = rowNacional ? (rowNacional.value || '0') : '0';
     } catch (e) { ADMIN_DESC_PCT = 20; }
     const input = document.getElementById('cfg-descuento-pct');
     if (input) {
@@ -448,6 +454,30 @@
       } finally {
         cfgGuardarBtn.disabled = false;
         cfgGuardarBtn.textContent = 'Guardar cambios';
+      }
+    });
+  }
+
+  const cfgEnvioGuardarBtn = document.getElementById('cfg-envio-guardar-btn');
+  if (cfgEnvioGuardarBtn) {
+    cfgEnvioGuardarBtn.addEventListener('click', async () => {
+      const local    = Math.max(0, parseFloat(document.getElementById('cfg-envio-local').value)    || 0);
+      const nacional = Math.max(0, parseFloat(document.getElementById('cfg-envio-nacional').value) || 0);
+      cfgEnvioGuardarBtn.disabled = true;
+      cfgEnvioGuardarBtn.textContent = 'Guardando…';
+      try {
+        const [r1, r2] = await Promise.all([
+          fetch('/api/admin/settings/envio_local',    { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: String(local)    }) }),
+          fetch('/api/admin/settings/envio_nacional', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: String(nacional) }) }),
+        ]);
+        if (!r1.ok || !r2.ok) throw new Error('Error al guardar');
+        const status = document.getElementById('cfg-envio-status');
+        if (status) { status.style.display = ''; setTimeout(() => { status.style.display = 'none'; }, 3000); }
+      } catch (e) {
+        alert('Error al guardar las tarifas de envío: ' + e.message);
+      } finally {
+        cfgEnvioGuardarBtn.disabled = false;
+        cfgEnvioGuardarBtn.textContent = 'Guardar tarifas';
       }
     });
   }
