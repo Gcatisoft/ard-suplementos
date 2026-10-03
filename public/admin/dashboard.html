@@ -1400,6 +1400,108 @@
     </div>
   </section>
 
+  <!-- TAB: Configuración -->
+  <section class="tab-panel" id="tab-config">
+    <div class="section-header">
+      <div>
+        <h2 class="section-title">Configuración</h2>
+        <p class="section-subtitle">Ajustá los parámetros generales de la tienda.</p>
+      </div>
+    </div>
+
+    <div class="cfg-stack">
+
+      <!-- Card 1: Descuento efectivo -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">%</div>
+          <div>
+            <h3 class="cfg-card-title">Descuento Efectivo / Transferencia</h3>
+            <p class="cfg-card-desc">
+              Porcentaje que se aplica sobre el precio de lista para calcular el precio de
+              efectivo/transferencia. Con <strong>20%</strong>: lista <strong>$32.500</strong>
+              → efectivo <strong>$26.000</strong>.
+            </p>
+          </div>
+        </div>
+        <div class="cfg-inline-row">
+          <div class="cfg-field">
+            <label for="cfg-descuento-pct">Porcentaje de descuento (%)</label>
+            <input type="number" id="cfg-descuento-pct" min="1" max="99" step="1" placeholder="20">
+          </div>
+          <span id="cfg-preview" class="cfg-preview-tag"></span>
+        </div>
+        <div id="cfg-hint" class="cfg-hint"></div>
+        <div class="cfg-save-row">
+          <button type="button" class="cfg-save-btn" id="cfg-guardar-btn">Guardar cambios</button>
+          <span id="cfg-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Recargos tarjeta -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">💳</div>
+          <div>
+            <h3 class="cfg-card-title">Recargos con tarjeta</h3>
+            <p class="cfg-card-desc">
+              Porcentaje de recargo <strong>sobre el precio efectivo</strong> según las cuotas elegidas.
+              El precio de lista (3 cuotas) se configura en la sección de arriba.
+            </p>
+          </div>
+        </div>
+        <div class="cfg-grid-3">
+          <div class="cfg-field">
+            <label for="cfg-recargo-1">1 pago — recargo (%)</label>
+            <input type="number" id="cfg-recargo-1" min="0" max="99" step="0.01" placeholder="7.69">
+          </div>
+          <div class="cfg-field">
+            <label for="cfg-recargo-2">2 cuotas — recargo (%)</label>
+            <input type="number" id="cfg-recargo-2" min="0" max="99" step="0.01" placeholder="20.28">
+          </div>
+          <div class="cfg-field">
+            <label for="cfg-recargo-3">3 cuotas — recargo (%)</label>
+            <input type="number" id="cfg-recargo-3" min="0" max="99" step="0.01" placeholder="25">
+          </div>
+        </div>
+        <div id="cfg-recargo-preview" class="cfg-recargo-preview" style="display:none;"></div>
+        <div class="cfg-save-row">
+          <button type="button" class="cfg-save-btn" id="cfg-recargo-guardar-btn">Guardar recargos</button>
+          <span id="cfg-recargo-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
+        </div>
+      </div>
+
+      <!-- Card 3: Envío -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">🚚</div>
+          <div>
+            <h3 class="cfg-card-title">Tarifas de Envío</h3>
+            <p class="cfg-card-desc">
+              Costo de envío por zona. Si ponés <strong>0</strong> aparece como
+              <em>"A coordinar"</em> en el checkout.
+            </p>
+          </div>
+        </div>
+        <div class="cfg-grid-2">
+          <div class="cfg-field">
+            <label for="cfg-envio-local">📍 Catamarca capital / provincia ($)</label>
+            <input type="number" id="cfg-envio-local" min="0" step="100" placeholder="0">
+          </div>
+          <div class="cfg-field">
+            <label for="cfg-envio-nacional">📦 Resto del país ($)</label>
+            <input type="number" id="cfg-envio-nacional" min="0" step="100" placeholder="0">
+          </div>
+        </div>
+        <div class="cfg-save-row">
+          <button type="button" class="cfg-save-btn" id="cfg-envio-guardar-btn">Guardar tarifas</button>
+          <span id="cfg-envio-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
 </main>
 
 <!-- ============ MODAL SPONSOR ============ -->
@@ -2139,108 +2241,6 @@
     </div>
   </div>
 </div>
-
-<!-- TAB: Configuración -->
-<section class="tab-panel" id="tab-config">
-  <div class="section-header">
-    <div>
-      <h2 class="section-title">Configuración</h2>
-      <p class="section-subtitle">Ajustá los parámetros generales de la tienda.</p>
-    </div>
-  </div>
-
-  <div class="cfg-stack">
-
-    <!-- Card 1: Descuento efectivo -->
-    <div class="cfg-card">
-      <div class="cfg-card-header">
-        <div class="cfg-card-icon">%</div>
-        <div>
-          <h3 class="cfg-card-title">Descuento Efectivo / Transferencia</h3>
-          <p class="cfg-card-desc">
-            Porcentaje que se aplica sobre el precio de lista para calcular el precio de
-            efectivo/transferencia. Con <strong>20%</strong>: lista <strong>$32.500</strong>
-            → efectivo <strong>$26.000</strong>.
-          </p>
-        </div>
-      </div>
-      <div class="cfg-inline-row">
-        <div class="cfg-field">
-          <label for="cfg-descuento-pct">Porcentaje de descuento (%)</label>
-          <input type="number" id="cfg-descuento-pct" min="1" max="99" step="1" placeholder="20">
-        </div>
-        <span id="cfg-preview" class="cfg-preview-tag"></span>
-      </div>
-      <div id="cfg-hint" class="cfg-hint"></div>
-      <div class="cfg-save-row">
-        <button type="button" class="cfg-save-btn" id="cfg-guardar-btn">Guardar cambios</button>
-        <span id="cfg-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
-      </div>
-    </div>
-
-    <!-- Card 2: Recargos tarjeta -->
-    <div class="cfg-card">
-      <div class="cfg-card-header">
-        <div class="cfg-card-icon">💳</div>
-        <div>
-          <h3 class="cfg-card-title">Recargos con tarjeta</h3>
-          <p class="cfg-card-desc">
-            Porcentaje de recargo <strong>sobre el precio efectivo</strong> según las cuotas elegidas.
-            El precio de lista (3 cuotas) se configura en la sección de arriba.
-          </p>
-        </div>
-      </div>
-      <div class="cfg-grid-3">
-        <div class="cfg-field">
-          <label for="cfg-recargo-1">1 pago — recargo (%)</label>
-          <input type="number" id="cfg-recargo-1" min="0" max="99" step="0.01" placeholder="7.69">
-        </div>
-        <div class="cfg-field">
-          <label for="cfg-recargo-2">2 cuotas — recargo (%)</label>
-          <input type="number" id="cfg-recargo-2" min="0" max="99" step="0.01" placeholder="20.28">
-        </div>
-        <div class="cfg-field">
-          <label for="cfg-recargo-3">3 cuotas — recargo (%)</label>
-          <input type="number" id="cfg-recargo-3" min="0" max="99" step="0.01" placeholder="25">
-        </div>
-      </div>
-      <div id="cfg-recargo-preview" class="cfg-recargo-preview" style="display:none;"></div>
-      <div class="cfg-save-row">
-        <button type="button" class="cfg-save-btn" id="cfg-recargo-guardar-btn">Guardar recargos</button>
-        <span id="cfg-recargo-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
-      </div>
-    </div>
-
-    <!-- Card 3: Envío -->
-    <div class="cfg-card">
-      <div class="cfg-card-header">
-        <div class="cfg-card-icon">🚚</div>
-        <div>
-          <h3 class="cfg-card-title">Tarifas de Envío</h3>
-          <p class="cfg-card-desc">
-            Costo de envío por zona. Si ponés <strong>0</strong> aparece como
-            <em>"A coordinar"</em> en el checkout.
-          </p>
-        </div>
-      </div>
-      <div class="cfg-grid-2">
-        <div class="cfg-field">
-          <label for="cfg-envio-local">📍 Catamarca capital / provincia ($)</label>
-          <input type="number" id="cfg-envio-local" min="0" step="100" placeholder="0">
-        </div>
-        <div class="cfg-field">
-          <label for="cfg-envio-nacional">📦 Resto del país ($)</label>
-          <input type="number" id="cfg-envio-nacional" min="0" step="100" placeholder="0">
-        </div>
-      </div>
-      <div class="cfg-save-row">
-        <button type="button" class="cfg-save-btn" id="cfg-envio-guardar-btn">Guardar tarifas</button>
-        <span id="cfg-envio-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
-      </div>
-    </div>
-
-  </div>
-</section>
 
 <script src="admin.js"></script>
 <script src="marketing.js"></script>
