@@ -621,9 +621,10 @@
 
   let TODOS = [];
   let EFECTIVO_DESC_PCT = 20;
+  let TARJETA_RECARGO_3_PROD = 25;
 
   function precioListaDe(efectivo) {
-    return Math.round(efectivo * 100 / (100 - EFECTIVO_DESC_PCT));
+    return Math.round(efectivo * (1 + TARJETA_RECARGO_3_PROD / 100));
   }
   let categoriasFiltroURL = null; // categorías reales (de la base) activas cuando se llega desde un link con ?categoria=
 
@@ -847,6 +848,7 @@
       fetch('/api/config').then(r => r.json()).catch(() => ({ efectivoDescPct: 20 }))
     ]).then(([productos, config]) => {
         EFECTIVO_DESC_PCT = Number(config.efectivoDescPct) || 20;
+        TARJETA_RECARGO_3_PROD = Number(config.tarjetaRecargo3) || 25;
         TODOS = Array.isArray(productos) ? productos : [];
         window.TODOS_PRODUCTOS = TODOS;
         cargarCategorias(TODOS);

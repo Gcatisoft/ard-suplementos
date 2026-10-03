@@ -582,6 +582,7 @@
   var EFECTIVO_DESC_PCT = 20;
   var TARJETA_RECARGO_1 = 7.69;
   var TARJETA_RECARGO_2 = 20.28;
+  var TARJETA_RECARGO_3 = 25;
 
   function precioListaDe(efectivo) {
     return Math.round(efectivo * 100 / (100 - EFECTIVO_DESC_PCT));
@@ -710,7 +711,7 @@
           '<div class="detalle-precios">' +
             (function(){
               var ef     = Number(p.price);
-              var lista  = precioListaDe(ef);          // 3 cuotas = precio de lista
+              var lista  = Math.round(ef * (1 + TARJETA_RECARGO_3 / 100)); // 3 cuotas
               var p1     = Math.round(ef * (1 + TARJETA_RECARGO_1 / 100)); // 1 pago
               var p2     = Math.round(ef * (1 + TARJETA_RECARGO_2 / 100)); // 2 cuotas total
               var pct    = EFECTIVO_DESC_PCT;
@@ -875,6 +876,7 @@
         EFECTIVO_DESC_PCT    = Number(results[1].efectivoDescPct)   || 20;
         TARJETA_RECARGO_1    = Number(results[1].tarjetaRecargo1)   || 7.69;
         TARJETA_RECARGO_2    = Number(results[1].tarjetaRecargo2)   || 20.28;
+        TARJETA_RECARGO_3    = Number(results[1].tarjetaRecargo3)   || 25;
         pintarProducto(results[0]);
       })
       .catch((err) => {

@@ -1677,8 +1677,9 @@ function desbloquearScrollFondo(){
 
   /* ---------- Product carousels ---------- */
   var EFECTIVO_DESC_PCT = 20;
-  function precioListaDe(efectivo){ return Math.round(efectivo * 100 / (100 - EFECTIVO_DESC_PCT)); }
-  fetch('/api/config').then(r=>r.json()).then(c=>{ EFECTIVO_DESC_PCT = Number(c.efectivoDescPct)||20; }).catch(()=>{});
+  var TARJETA_RECARGO_3_HOME = 25;
+  function precioListaDe(efectivo){ return Math.round(efectivo * (1 + TARJETA_RECARGO_3_HOME / 100)); }
+  fetch('/api/config').then(r=>r.json()).then(c=>{ EFECTIVO_DESC_PCT = Number(c.efectivoDescPct)||20; TARJETA_RECARGO_3_HOME = Number(c.tarjetaRecargo3)||25; }).catch(()=>{});
 
   function formatearPrecio(valor){
     try{ return new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS', maximumFractionDigits:0 }).format(valor); }

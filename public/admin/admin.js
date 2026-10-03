@@ -375,6 +375,7 @@
   let ADMIN_DESC_PCT  = 20;
   let ADMIN_RECARGO_1 = 7.69;
   let ADMIN_RECARGO_2 = 20.28;
+  let ADMIN_RECARGO_3 = 25;
 
   async function cargarConfig() {
     try {
@@ -384,14 +385,17 @@
       ADMIN_DESC_PCT  = Number((find('efectivo_descuento_pct') || {}).value) || 20;
       ADMIN_RECARGO_1 = Number((find('tarjeta_recargo_1')      || {}).value) || 7.69;
       ADMIN_RECARGO_2 = Number((find('tarjeta_recargo_2')      || {}).value) || 20.28;
+      ADMIN_RECARGO_3 = Number((find('tarjeta_recargo_3')      || {}).value) || 25;
       const elLocal    = document.getElementById('cfg-envio-local');
       const elNacional = document.getElementById('cfg-envio-nacional');
       const elR1       = document.getElementById('cfg-recargo-1');
       const elR2       = document.getElementById('cfg-recargo-2');
+      const elR3       = document.getElementById('cfg-recargo-3');
       if (elLocal)    elLocal.value    = (find('envio_local')    || {}).value || '0';
       if (elNacional) elNacional.value = (find('envio_nacional') || {}).value || '0';
       if (elR1) elR1.value = ADMIN_RECARGO_1;
       if (elR2) elR2.value = ADMIN_RECARGO_2;
+      if (elR3) elR3.value = ADMIN_RECARGO_3;
       actualizarRecargosPreview();
     } catch (e) { ADMIN_DESC_PCT = 20; }
     const input = document.getElementById('cfg-descuento-pct');
@@ -425,11 +429,11 @@
     if (precio > 0) {
       const p1    = Math.round(precio * (1 + ADMIN_RECARGO_1 / 100));
       const p2    = Math.round(precio * (1 + ADMIN_RECARGO_2 / 100));
-      const lista = Math.round(precio * 100 / (100 - ADMIN_DESC_PCT));
+      const p3    = Math.round(precio * (1 + ADMIN_RECARGO_3 / 100));
       hint.innerHTML =
         '💳 1 pago: <strong>$' + p1.toLocaleString('es-AR') + '</strong> &nbsp;·&nbsp; ' +
         '2 cuotas: <strong>$' + Math.round(p2/2).toLocaleString('es-AR') + '</strong> c/u &nbsp;·&nbsp; ' +
-        '3 cuotas / lista: <strong>$' + lista.toLocaleString('es-AR') + '</strong>';
+        '3 cuotas: <strong>$' + Math.round(p3/3).toLocaleString('es-AR') + '</strong> c/u (lista $' + p3.toLocaleString('es-AR') + ')';
       hint.style.display = '';
     } else {
       hint.style.display = 'none';
@@ -497,39 +501,44 @@
   function actualizarRecargosPreview() {
     const r1 = parseFloat(document.getElementById('cfg-recargo-1')?.value) || ADMIN_RECARGO_1;
     const r2 = parseFloat(document.getElementById('cfg-recargo-2')?.value) || ADMIN_RECARGO_2;
+    const r3 = parseFloat(document.getElementById('cfg-recargo-3')?.value) || ADMIN_RECARGO_3;
     const preview = document.getElementById('cfg-recargo-preview');
     if (!preview) return;
     const ej = 26000;
     const p1 = Math.round(ej * (1 + r1 / 100));
     const p2 = Math.round(ej * (1 + r2 / 100));
-    const lista = Math.round(ej * 100 / (100 - ADMIN_DESC_PCT));
+    const p3 = Math.round(ej * (1 + r3 / 100));
     preview.style.display = '';
     preview.innerHTML =
       'Ejemplo con efectivo <strong>$' + ej.toLocaleString('es-AR') + '</strong>:<br>' +
       '💳 1 pago → <strong>$' + p1.toLocaleString('es-AR') + '</strong> &nbsp;|&nbsp; ' +
       '2 cuotas → <strong>$' + Math.round(p2/2).toLocaleString('es-AR') + '</strong> c/u &nbsp;|&nbsp; ' +
-      '3 cuotas / lista → <strong>$' + lista.toLocaleString('es-AR') + '</strong>';
+      '3 cuotas → <strong>$' + Math.round(p3/3).toLocaleString('es-AR') + '</strong> c/u <span style="color:#9aa8bb;">(total $' + p3.toLocaleString('es-AR') + ')</span>';
   }
 
   document.getElementById('cfg-recargo-1')?.addEventListener('input', () => { ADMIN_RECARGO_1 = parseFloat(document.getElementById('cfg-recargo-1').value) || 7.69; actualizarRecargosPreview(); calcularPrecioLista(); });
   document.getElementById('cfg-recargo-2')?.addEventListener('input', () => { ADMIN_RECARGO_2 = parseFloat(document.getElementById('cfg-recargo-2').value) || 20.28; actualizarRecargosPreview(); calcularPrecioLista(); });
+  document.getElementById('cfg-recargo-3')?.addEventListener('input', () => { ADMIN_RECARGO_3 = parseFloat(document.getElementById('cfg-recargo-3').value) || 25; actualizarRecargosPreview(); calcularPrecioLista(); });
 
   const cfgRecargoGuardarBtn = document.getElementById('cfg-recargo-guardar-btn');
   if (cfgRecargoGuardarBtn) {
     cfgRecargoGuardarBtn.addEventListener('click', async () => {
       const r1 = Math.max(0, parseFloat(document.getElementById('cfg-recargo-1').value) || 0);
       const r2 = Math.max(0, parseFloat(document.getElementById('cfg-recargo-2').value) || 0);
-      if (!r1 || !r2) { alert('Ingresá valores válidos para ambos recargos.'); return; }
+      const r3 = Math.max(0, parseFloat(document.getElementById('cfg-recargo-3').value) || 0);
+      if (!r1 || !r2 || !r3) { alert('Ingresá valores válidos para los tres recargos.'); return; }
       cfgRecargoGuardarBtn.disabled = true;
       cfgRecargoGuardarBtn.textContent = 'Guardando…';
       try {
-        const [res1, res2] = await Promise.all([
+        const [res1, res2, res3] = await Promise.all([
           fetch('/api/admin/settings/tarjeta_recargo_1', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: String(r1) }) }),
           fetch('/api/admin/settings/tarjeta_recargo_2', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: String(r2) }) }),
+          fetch('/api/admin/settings/tarjeta_recargo_3', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: String(r3) }) }),
         ]);
-        if (!res1.ok || !res2.ok) throw new Error('Error al guardar');
+        if (!res1.ok || !res2.ok || !res3.ok) throw new Error('Error al guardar');
         ADMIN_RECARGO_1 = r1;
         ADMIN_RECARGO_2 = r2;
+        ADMIN_RECARGO_3 = r3;
         const status = document.getElementById('cfg-recargo-status');
         if (status) { status.style.display = ''; setTimeout(() => { status.style.display = 'none'; }, 3000); }
         calcularPrecioLista();
