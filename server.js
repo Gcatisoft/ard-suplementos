@@ -274,7 +274,7 @@ async function borrarImagenPorUrl(url) {
 // Se cachea en memoria para no golpear la DB en cada petición. Se refresca
 // al arrancar y cada 2 minutos. La función es síncrona → los handlers no
 // necesitan awaitar nada extra para usar la config.
-let _configCache = { efectivoDescPct: 20, envioLocal: 0, envioNacional: 0 };
+let _configCache = { efectivoDescPct: 20, envioLocal: 0, envioNacional: 0, tarjetaRecargo1: 7.69, tarjetaRecargo2: 20.28 };
 
 async function refreshConfig() {
   try {
@@ -285,8 +285,10 @@ async function refreshConfig() {
           const v = Number(r.value);
           if (v > 0 && v < 100) _configCache.efectivoDescPct = v;
         }
-        if (r.key === 'envio_local') _configCache.envioLocal = Math.max(0, Number(r.value) || 0);
-        if (r.key === 'envio_nacional') _configCache.envioNacional = Math.max(0, Number(r.value) || 0);
+        if (r.key === 'envio_local')       _configCache.envioLocal      = Math.max(0, Number(r.value) || 0);
+        if (r.key === 'envio_nacional')    _configCache.envioNacional    = Math.max(0, Number(r.value) || 0);
+        if (r.key === 'tarjeta_recargo_1') _configCache.tarjetaRecargo1 = Math.max(0, Number(r.value) || 7.69);
+        if (r.key === 'tarjeta_recargo_2') _configCache.tarjetaRecargo2 = Math.max(0, Number(r.value) || 20.28);
       });
     }
   } catch (e) { /* mantiene el valor anterior */ }
@@ -342,8 +344,10 @@ function precioSegunCuotas(prod, cuotas) {
   // Compatibilidad con productos viejos que todavía usan las columnas sueltas.
   if (n === 1 && prod.credit_price != null && Number(prod.credit_price) > 0) return Number(prod.credit_price);
   if (n > 1 && prod.card_price != null && Number(prod.card_price) > 0) return Number(prod.card_price);
-  // Regla global: tarjeta (hasta 3 cuotas) = precio de lista según % configurado.
-  if (n <= 3) return precioListaDe(efectivo);
+  // Regla global: recargo configurable por cantidad de cuotas.
+  if (n === 1) return Math.round(efectivo * (1 + (_configCache.tarjetaRecargo1 || 7.69) / 100));
+  if (n === 2) return Math.round(efectivo * (1 + (_configCache.tarjetaRecargo2 || 20.28) / 100));
+  if (n === 3) return precioListaDe(efectivo); // 3 cuotas = precio de lista
   return efectivo;
 }
 
@@ -1307,7 +1311,7 @@ app.delete('/api/admin/products/:id', requireAuth, async (req, res) => {
 // ---------- Venta Rápida (POS local) ----------
 // ---------- Configuración del sitio (pública de lectura, admin para escritura) ----------
 app.get('/api/config', (req, res) => {
-  res.json({ efectivoDescPct: getConfig().efectivoDescPct, envioLocal: getConfig().envioLocal, envioNacional: getConfig().envioNacional });
+  res.json({ efectivoDescPct: getConfig().efectivoDescPct, envioLocal: getConfig().envioLocal, envioNacional: getConfig().envioNacional, tarjetaRecargo1: getConfig().tarjetaRecargo1, tarjetaRecargo2: getConfig().tarjetaRecargo2 });
 });
 
 app.get('/api/admin/settings', requireAuth, async (req, res) => {

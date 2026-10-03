@@ -580,6 +580,8 @@
 (function(){
   const WHATSAPP_NUMBER = "5493834993955";
   var EFECTIVO_DESC_PCT = 20;
+  var TARJETA_RECARGO_1 = 7.69;
+  var TARJETA_RECARGO_2 = 20.28;
 
   function precioListaDe(efectivo) {
     return Math.round(efectivo * 100 / (100 - EFECTIVO_DESC_PCT));
@@ -704,10 +706,13 @@
           (p.category ? '<div class="detalle-categoria">' + p.category + '</div>' : '') +
           '<div class="detalle-precios">' +
             (function(){
-              var lista = precioListaDe(Number(p.price));
-              var pct = EFECTIVO_DESC_PCT;
-              var cuota2 = formatearPrecio(Math.round(lista / 2));
-              var cuota3 = formatearPrecio(Math.round(lista / 3));
+              var ef     = Number(p.price);
+              var lista  = precioListaDe(ef);          // 3 cuotas = precio de lista
+              var p1     = Math.round(ef * (1 + TARJETA_RECARGO_1 / 100)); // 1 pago
+              var p2     = Math.round(ef * (1 + TARJETA_RECARGO_2 / 100)); // 2 cuotas total
+              var pct    = EFECTIVO_DESC_PCT;
+              var c2v    = formatearPrecio(Math.round(p2 / 2));
+              var c3v    = formatearPrecio(Math.round(lista / 3));
               var customPlanes = planesTarjeta(p).filter(pl => pl.cuotas > 3);
               var customHtml = customPlanes.map(function(pl){
                 return '<div>💳 ' + pl.cuotas + ' cuotas: ' + pl.cuotas + ' × <strong>' + formatearPrecio(Math.round(pl.precio/pl.cuotas)) + '</strong> <span style="color:#9aa8bb;">(total ' + formatearPrecio(pl.precio) + ')</span></div>';
@@ -718,14 +723,14 @@
                   '<span class="detalle-precio">' + formatearPrecio(lista) + '</span>' +
                   (tieneOferta ? '<span class="detalle-precio-anterior">' + formatearPrecio(p.oldPrice) + '</span>' : '') +
                 '</div>' +
-                '<div class="detalle-efectivo-badge">🔥 <strong>' + formatearPrecio(p.price) + '</strong>' +
+                '<div class="detalle-efectivo-badge">🔥 <strong>' + formatearPrecio(ef) + '</strong>' +
                   '<span class="eff-label"> · Transferencia / Efectivo · ' + pct + '% OFF</span>' +
                 '</div>' +
                 '<div class="detalle-opciones-tarjeta">' +
                   '<div class="opt-label">Opciones de pago con tarjeta</div>' +
-                  '<div>💳 1 pago: <strong>' + formatearPrecio(lista) + '</strong></div>' +
-                  '<div>💳 2 cuotas: 2 × <strong>' + cuota2 + '</strong></div>' +
-                  '<div>💳 3 cuotas: 3 × <strong>' + cuota3 + '</strong></div>' +
+                  '<div>💳 1 pago: <strong>' + formatearPrecio(p1) + '</strong></div>' +
+                  '<div>💳 2 cuotas: 2 × <strong>' + c2v + '</strong> <span style="color:#9aa8bb;">(total ' + formatearPrecio(p2) + ')</span></div>' +
+                  '<div>💳 3 cuotas: 3 × <strong>' + c3v + '</strong> <span style="color:#9aa8bb;">(total ' + formatearPrecio(lista) + ')</span></div>' +
                   customHtml +
                 '</div>'
               );
@@ -864,7 +869,9 @@
       fetch('/api/config').then(r => r.json()).catch(() => ({ efectivoDescPct: 20 }))
     ])
       .then(function(results) {
-        EFECTIVO_DESC_PCT = Number(results[1].efectivoDescPct) || 20;
+        EFECTIVO_DESC_PCT    = Number(results[1].efectivoDescPct)   || 20;
+        TARJETA_RECARGO_1    = Number(results[1].tarjetaRecargo1)   || 7.69;
+        TARJETA_RECARGO_2    = Number(results[1].tarjetaRecargo2)   || 20.28;
         pintarProducto(results[0]);
       })
       .catch((err) => {
