@@ -336,6 +336,12 @@
   }
   .sabor-chip:hover{ border-color:var(--accent); }
   .sabor-chip.selected{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .sabor-chip.sabor-agotado{
+    cursor:default; opacity:0.45; text-decoration:line-through;
+    background:var(--bg-soft); border-color:var(--line); color:var(--steel-600);
+    pointer-events:none;
+  }
+  .sabor-chip.sabor-agotado small{ font-size:10px; font-weight:400; text-decoration:none; }
   .detalle-sabores-error{ color:#c0392b; font-size:12.5px; margin-top:8px; display:none; }
   .detalle-sabores-error.visible{ display:block; }
 
@@ -626,7 +632,10 @@
 
   function listaSabores(p){
     if (!p.flavors) return [];
-    return p.flavors.split(',').map(s => s.trim()).filter(Boolean);
+    // New format: array of {name, active}
+    if (Array.isArray(p.flavors)) return p.flavors.filter(f => f.name);
+    // Old format: comma-separated string (legacy)
+    return p.flavors.split(',').map(s => s.trim()).filter(Boolean).map(name => ({name, active: true}));
   }
 
   function iconoPlaceholder(){
@@ -744,7 +753,13 @@
             '<div class="detalle-sabores">' +
               '<div class="detalle-sabores-label">Elegí un sabor</div>' +
               '<div class="detalle-sabores-lista" id="detalle-sabores-lista">' +
-                sabores.map(s => '<button type="button" class="sabor-chip" data-sabor="' + s.replace(/"/g,'') + '">' + s + '</button>').join('') +
+                sabores.map(f => {
+                  const nombre = typeof f === 'string' ? f : f.name;
+                  const activo = typeof f === 'string' ? true : f.active !== false;
+                  return activo
+                    ? '<button type="button" class="sabor-chip" data-sabor="' + nombre.replace(/"/g,'') + '">' + nombre + '</button>'
+                    : '<span class="sabor-chip sabor-agotado" title="Sin stock">' + nombre + ' <small>sin stock</small></span>';
+                }).join('') +
               '</div>' +
               '<div class="detalle-sabores-error" id="detalle-sabores-error">Elegí un sabor antes de agregar al carrito.</div>' +
             '</div>'
@@ -791,11 +806,12 @@
         });
       }
 
-      // Si el producto tiene un solo sabor, lo dejamos preseleccionado para
-      // no obligar a tocarlo si no hay nada para elegir en verdad.
-      if (sabores.length === 1){
-        saborSeleccionado = sabores[0];
-        const unico = saboresListaEl && saboresListaEl.querySelector('.sabor-chip');
+      // Si hay exactamente un sabor activo, lo preseleccionamos.
+      const saboresActivos = sabores.filter(f => typeof f === 'string' || f.active !== false);
+      if (saboresActivos.length === 1){
+        const nombre = typeof saboresActivos[0] === 'string' ? saboresActivos[0] : saboresActivos[0].name;
+        saborSeleccionado = nombre;
+        const unico = saboresListaEl && saboresListaEl.querySelector('.sabor-chip[data-sabor="' + nombre.replace(/"/g,'') + '"]');
         if (unico) unico.classList.add('selected');
       }
 

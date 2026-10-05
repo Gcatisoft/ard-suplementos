@@ -46,6 +46,57 @@
   let imagenesExistentes = []; // URLs que ya estaban guardadas (se pueden quitar)
   let imagenesNuevas = []; // File[] recién seleccionados (todavía no subidos)
 
+  // -------- Editor de sabores --------
+  let _saboresState = []; // [{name, active}]
+
+  function renderSaboresEditor() {
+    const container = document.getElementById('sabores-editor');
+    if (!container) return;
+    if (!_saboresState.length) {
+      container.innerHTML = '<span class="sabores-editor-empty">Sin sabores cargados</span>';
+      return;
+    }
+    container.innerHTML = _saboresState.map((f, i) =>
+      '<div class="sabor-editor-chip' + (f.active ? '' : ' inactivo') + '" data-idx="' + i + '">' +
+        '<span class="sabor-nombre">' + escaparHTML(f.name) + '</span>' +
+        '<button type="button" class="sabor-toggle-btn" data-idx="' + i + '" title="' + (f.active ? 'Desactivar sabor' : 'Activar sabor') + '">' +
+          (f.active ? '✓' : '✗') +
+        '</button>' +
+        '<button type="button" class="sabor-del-btn" data-idx="' + i + '" title="Eliminar sabor">×</button>' +
+      '</div>'
+    ).join('');
+    container.querySelectorAll('.sabor-toggle-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = parseInt(this.getAttribute('data-idx'));
+        _saboresState[idx].active = !_saboresState[idx].active;
+        renderSaboresEditor();
+      });
+    });
+    container.querySelectorAll('.sabor-del-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = parseInt(this.getAttribute('data-idx'));
+        _saboresState.splice(idx, 1);
+        renderSaboresEditor();
+      });
+    });
+  }
+
+  document.getElementById('sabores-nuevo-btn') && document.getElementById('sabores-nuevo-btn').addEventListener('click', function () {
+    var inp = document.getElementById('sabores-nuevo-input');
+    var nombre = inp.value.trim();
+    if (!nombre) return;
+    if (_saboresState.some(function (f) { return f.name.toLowerCase() === nombre.toLowerCase(); })) {
+      inp.select();
+      return;
+    }
+    _saboresState.push({ name: nombre, active: true });
+    inp.value = '';
+    renderSaboresEditor();
+  });
+  document.getElementById('sabores-nuevo-input') && document.getElementById('sabores-nuevo-input').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('sabores-nuevo-btn').click(); }
+  });
+
   // -------- Pedidos / Estadísticas --------
   const pedidosTablaBody = document.getElementById('pedidos-tabla-body');
   const pedidosEmptyState = document.getElementById('pedidos-empty-state');
@@ -880,6 +931,8 @@
     imagenesExistentes = [];
     imagenesNuevas = [];
     renderImagenesGrid();
+    _saboresState = [];
+    renderSaboresEditor();
     formError.classList.remove('visible');
   }
 
@@ -904,7 +957,8 @@
     document.getElementById('stock').value = p.stock;
     document.getElementById('barcode').value = p.barcode || '';
     document.getElementById('costo').value = p.costPrice !== null && p.costPrice !== undefined ? p.costPrice : '';
-    document.getElementById('sabores').value = p.flavors || '';
+    _saboresState = Array.isArray(p.flavors) ? p.flavors.map(function (f) { return { name: f.name, active: f.active !== false }; }) : [];
+    renderSaboresEditor();
     cargarPlanesEnForm(p);
     document.getElementById('descripcion').value = p.description || '';
     document.getElementById('destacado').checked = !!p.featured;
@@ -967,7 +1021,7 @@
     formData.append('stock', document.getElementById('stock').value || '0');
     formData.append('barcode', document.getElementById('barcode').value.trim());
     formData.append('costPrice', document.getElementById('costo').value);
-    formData.append('flavors', document.getElementById('sabores').value.trim());
+    formData.append('flavors', JSON.stringify(_saboresState));
     formData.append('paymentPlans', JSON.stringify(leerPlanesDelForm()));
     formData.append('description', document.getElementById('descripcion').value.trim());
     formData.append('featured', document.getElementById('destacado').checked);

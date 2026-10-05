@@ -331,6 +331,22 @@ function normalizarPlanesPago(valor) {
     .slice(0, 12);
 }
 
+// Parsea el campo flavors: soporta el formato antiguo (string CSV) y el
+// nuevo (JSON array de {name, active}). Siempre devuelve [{name, active}].
+function parseFlavors(raw) {
+  if (!raw) return [];
+  const s = String(raw).trim();
+  if (s.startsWith('[')) {
+    try {
+      const arr = JSON.parse(s);
+      return arr.map(f =>
+        typeof f === 'string' ? { name: f, active: true } : { name: String(f.name || ''), active: f.active !== false }
+      ).filter(f => f.name);
+    } catch (e) {}
+  }
+  return s.split(',').map(n => n.trim()).filter(Boolean).map(name => ({ name, active: true }));
+}
+
 // Precio unitario de un producto para una cantidad de cuotas dada.
 // 0 (o sin planes) = efectivo/transferencia. Si el producto no tiene un
 // plan para esa cantidad exacta, cae al precio de efectivo (no regala el
@@ -369,7 +385,7 @@ function mapProducto(row) {
     description: row.description || '',
     image: row.image || '',
     images: Array.isArray(row.images) ? row.images : (row.image ? [row.image] : []),
-    flavors: row.flavors || '',
+    flavors: parseFlavors(row.flavors),
     installments: row.installments !== null && row.installments !== undefined ? Number(row.installments) : null,
     paymentPlans: normalizarPlanesPago(row.payment_plans),
     featured: row.featured,
@@ -1190,7 +1206,7 @@ app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), maneja
       description: description ? String(description).trim() : '',
       image: images[0] || '',
       images,
-      flavors: flavors ? String(flavors).trim() : '',
+      flavors: flavors ? String(flavors).trim() : '[]',
       installments: installments ? Number(installments) : null,
       payment_plans: planes,
       featured: featured === 'true' || featured === true,
@@ -1232,7 +1248,7 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), man
     if (barcode !== undefined) cambios.barcode = barcode === '' ? null : String(barcode).trim();
     if (costPrice !== undefined) cambios.cost_price = costPrice === '' ? null : Number(costPrice);
     if (description !== undefined) cambios.description = String(description).trim();
-    if (flavors !== undefined) cambios.flavors = String(flavors).trim();
+    if (flavors !== undefined) cambios.flavors = String(flavors).trim() || '[]';
     if (installments !== undefined) cambios.installments = installments === '' ? null : Number(installments);
     if (paymentPlans !== undefined) cambios.payment_plans = normalizarPlanesPago(paymentPlans);
     if (featured !== undefined) cambios.featured = featured === 'true' || featured === true;
