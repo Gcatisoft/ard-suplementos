@@ -614,22 +614,30 @@
   /* ===== Responsive ampliado ===== */
 
   /* --- Tabla productos: ocultar columnas secundarias en móvil --- */
-  @media (max-width: 760px) {
-    /* Ocultar Marca y Categoría */
+  @media (max-width: 900px) {
+    /* Ocultar Marca (3) y Categoría (4) */
     .productos-tabla th:nth-child(3),
     .productos-tabla td:nth-child(3),
     .productos-tabla th:nth-child(4),
     .productos-tabla td:nth-child(4) { display: none; }
-    /* Ocultar columna thumbnail — más espacio para nombre */
+    /* Ocultar thumbnail (1) */
     .productos-tabla th:nth-child(1),
     .productos-tabla td:nth-child(1) { display: none; }
-    table.productos-tabla { min-width: 420px; }
+    table.productos-tabla { min-width: 520px; }
   }
-  @media (max-width: 500px) {
-    /* Ocultar Stock también */
-    .productos-tabla th:nth-child(5),
-    .productos-tabla td:nth-child(5) { display: none; }
-    table.productos-tabla { min-width: 300px; }
+  @media (max-width: 640px) {
+    /* Ocultar Costo (6) y Ganancia (7) */
+    .productos-tabla th:nth-child(6),
+    .productos-tabla td:nth-child(6),
+    .productos-tabla th:nth-child(7),
+    .productos-tabla td:nth-child(7) { display: none; }
+    table.productos-tabla { min-width: 360px; }
+  }
+  @media (max-width: 440px) {
+    /* Ocultar Stock (8) también */
+    .productos-tabla th:nth-child(8),
+    .productos-tabla td:nth-child(8) { display: none; }
+    table.productos-tabla { min-width: 260px; }
   }
 
   /* --- Tabla pedidos: ocultar columnas secundarias en móvil --- */
@@ -697,6 +705,24 @@
     .vr-discount-group input[type="number"] { width: 100%; }
     .vr-discount-group select { width: 100%; flex: none; }
   }
+
+  /* --- Columnas Costo / Ganancia en tabla productos --- */
+  .productos-tabla td.col-costo,
+  .productos-tabla td.col-ganancia { white-space: nowrap; }
+  .margen-badge {
+    display: inline-block;
+    background: #e8f5e9;
+    color: #2e7d32;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.2px;
+  }
+  .margen-badge.bajo { background: #fff3e0; color: #e65100; }
+  .margen-badge.negativo { background: #fce4ec; color: #c62828; }
 
   /* ===== TAB CONFIGURACIÓN ===== */
   .cfg-stack {
@@ -939,6 +965,8 @@
             <th>Marca</th>
             <th>Categoría</th>
             <th>Precio</th>
+            <th>Costo</th>
+            <th>Ganancia</th>
             <th>Stock</th>
             <th>Estado</th>
             <th></th>

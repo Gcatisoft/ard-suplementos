@@ -583,7 +583,7 @@
       renderPaginacion();
     } catch (e) {
       console.error('Error al cargar los productos:', e);
-      tablaBody.innerHTML = '<tr><td colspan="8">Error al cargar los productos.</td></tr>';
+      tablaBody.innerHTML = '<tr><td colspan="10">Error al cargar los productos.</td></tr>';
     }
   }
 
@@ -660,6 +660,18 @@
         if (p.featured) chips.push('<span class="chip destacado">Destacado</span>');
         if (Number(p.stock) <= 0) chips.push('<span class="chip sin-stock">Sin stock</span>');
 
+        const precioNum = Number(p.price) || 0;
+        const costoNum = p.costPrice ? Number(p.costPrice) : 0;
+        let costoHtml = '<span style="color:#9aa8bb;">—</span>';
+        let gananciaHtml = '<span style="color:#9aa8bb;">—</span>';
+        if (costoNum > 0 && precioNum > 0) {
+          const ganancia = precioNum - costoNum;
+          const margen = Math.round((ganancia / precioNum) * 100);
+          costoHtml = formatearPrecio(costoNum);
+          const badgeClass = margen < 0 ? 'margen-badge negativo' : margen < 15 ? 'margen-badge bajo' : 'margen-badge';
+          gananciaHtml = formatearPrecio(ganancia) + '<span class="' + badgeClass + '">' + margen + '%</span>';
+        }
+
         const precioEfectivoHtml = formatearPrecio(p.price) + (p.oldPrice ? ' <span style="text-decoration:line-through;color:#9aa8bb;font-size:12px;">' + formatearPrecio(p.oldPrice) + '</span>' : '');
         const lineasPrecio = ['<div>' + precioEfectivoHtml + ' <span style="font-size:11px;color:#9aa8bb;">efvo/transf</span></div>'];
 
@@ -685,6 +697,8 @@
           '<td>' + escaparHTML(p.brand || '—') + '</td>' +
           '<td>' + escaparHTML(p.category) + '</td>' +
           '<td>' + precioHtml + '</td>' +
+          '<td class="col-costo">' + costoHtml + '</td>' +
+          '<td class="col-ganancia">' + gananciaHtml + '</td>' +
           '<td>' + p.stock + '</td>' +
           '<td>' + chips.join(' ') + '</td>' +
           '<td>' +
@@ -916,8 +930,8 @@
     const texto = document.getElementById('margen-texto');
     if (precio > 0 && costo > 0) {
       const ganancia = precio - costo;
-      const pct = Math.round((ganancia / costo) * 100);
-      texto.textContent = 'Ganancia: $' + ganancia.toLocaleString('es-AR') + ' (' + pct + '% sobre el costo)';
+      const pct = Math.round((ganancia / precio) * 100);
+      texto.textContent = 'Ganancia: $' + ganancia.toLocaleString('es-AR') + ' (margen ' + pct + '% sobre el precio)';
       info.style.display = '';
     } else {
       info.style.display = 'none';
