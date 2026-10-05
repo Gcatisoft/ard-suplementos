@@ -624,6 +624,43 @@
     });
   }
 
+  function calcularFilaCupon(id) {
+    var p = allProductos.find(function (x) { return String(x.id) === String(id); });
+    if (!p) return;
+    var tipoEl   = document.querySelector('.cupon-prod-tipo[data-id="'    + id + '"]');
+    var valorEl  = document.querySelector('.cupon-prod-valor[data-id="'   + id + '"]');
+    var precioEl = document.querySelector('.cupon-col-precio[data-id="'  + id + '"]');
+    var costoEl  = document.querySelector('.cupon-col-costo[data-id="'   + id + '"]');
+    var ganEl    = document.querySelector('.cupon-col-ganancia[data-id="' + id + '"]');
+    var margenEl = document.querySelector('.cupon-col-margen[data-id="'  + id + '"]');
+    if (!tipoEl || !valorEl || !precioEl) return;
+
+    var precio = Number(p.price) || 0;
+    var costo  = Number(p.costPrice) || 0;
+    var tipo   = tipoEl.value;
+    var valor  = parseFloat(valorEl.value) || 0;
+    var precioFinal = tipo === 'monto_fijo' ? precio - valor : precio * (1 - valor / 100);
+    if (precioFinal < 0) precioFinal = 0;
+
+    precioEl.textContent = fmt(precioFinal);
+
+    if (costo > 0 && precioFinal > 0) {
+      var ganancia = precioFinal - costo;
+      var margen   = Math.round((ganancia / precioFinal) * 100);
+      if (costoEl)  costoEl.textContent = fmt(costo);
+      if (ganEl)    ganEl.textContent   = fmt(ganancia);
+      if (margenEl) {
+        margenEl.textContent = margen + '%';
+        margenEl.style.color = margen < 0 ? '#c62828' : margen < 15 ? '#e65100' : '#2e7d32';
+        margenEl.style.fontWeight = '700';
+      }
+    } else {
+      if (costoEl)  costoEl.textContent  = '—';
+      if (ganEl)    ganEl.textContent    = '—';
+      if (margenEl) { margenEl.textContent = '—'; margenEl.style.color = '#9aa8bb'; margenEl.style.fontWeight = 'normal'; }
+    }
+  }
+
   function renderProductosPicker() {
     var tbody = document.getElementById('cupon-prod-tbody');
     var empty = document.getElementById('cupon-prod-empty');
@@ -643,6 +680,23 @@
       var checked = s.selected ? 'checked' : '';
       var tipo = s.discountType || 'porcentaje';
       var valor = s.discountValue != null ? s.discountValue : '';
+
+      var precio = Number(p.price) || 0;
+      var costo  = Number(p.costPrice) || 0;
+      var descNum = parseFloat(valor) || 0;
+      var precioFinal = tipo === 'monto_fijo' ? precio - descNum : precio * (1 - descNum / 100);
+      if (precioFinal < 0) precioFinal = 0;
+      var costoTxt = '—', ganTxt = '—', margenTxt = '—', margenColor = '#9aa8bb', margenFW = 'normal';
+      if (costo > 0 && precioFinal > 0) {
+        var ganancia = precioFinal - costo;
+        var margen   = Math.round((ganancia / precioFinal) * 100);
+        costoTxt   = fmt(costo);
+        ganTxt     = fmt(ganancia);
+        margenTxt  = margen + '%';
+        margenColor = margen < 0 ? '#c62828' : margen < 15 ? '#e65100' : '#2e7d32';
+        margenFW = '700';
+      }
+
       return '<tr style="border-top:1px solid #eaeef5;">' +
         '<td style="padding:5px 8px;text-align:center;">' +
           '<input type="checkbox" class="cupon-prod-check" data-id="' + esc(p.id) + '" ' + checked + '>' +
@@ -660,10 +714,14 @@
         '<td style="padding:5px 8px;">' +
           '<input type="number" class="cupon-prod-valor" data-id="' + esc(p.id) + '" min="0" step="0.01" placeholder="0" value="' + esc(String(valor)) + '" style="font-size:12px;width:70px;text-align:right;">' +
         '</td>' +
+        '<td class="cupon-col-precio" data-id="' + esc(p.id) + '" style="padding:5px 8px;text-align:right;font-size:12px;white-space:nowrap;">' + fmt(precioFinal) + '</td>' +
+        '<td class="cupon-col-costo"  data-id="' + esc(p.id) + '" style="padding:5px 8px;text-align:right;font-size:12px;white-space:nowrap;color:#6b7686;">' + costoTxt + '</td>' +
+        '<td class="cupon-col-ganancia" data-id="' + esc(p.id) + '" style="padding:5px 8px;text-align:right;font-size:12px;white-space:nowrap;">' + ganTxt + '</td>' +
+        '<td class="cupon-col-margen" data-id="' + esc(p.id) + '" style="padding:5px 8px;text-align:right;font-size:12px;white-space:nowrap;color:' + margenColor + ';font-weight:' + margenFW + ';">' + margenTxt + '</td>' +
       '</tr>';
     }).join('');
 
-    // Adjuntar listeners para mantener el estado sincronizado
+    // Adjuntar listeners para mantener el estado sincronizado y recalcular
     tbody.querySelectorAll('.cupon-prod-check').forEach(function (chk) {
       chk.addEventListener('change', function () {
         var id = this.getAttribute('data-id');
@@ -676,6 +734,7 @@
         var id = this.getAttribute('data-id');
         if (!pickerState[id]) pickerState[id] = {};
         pickerState[id].discountType = this.value;
+        calcularFilaCupon(id);
       });
     });
     tbody.querySelectorAll('.cupon-prod-valor').forEach(function (inp) {
@@ -683,6 +742,7 @@
         var id = this.getAttribute('data-id');
         if (!pickerState[id]) pickerState[id] = {};
         pickerState[id].discountValue = this.value !== '' ? Number(this.value) : '';
+        calcularFilaCupon(id);
       });
     });
   }
