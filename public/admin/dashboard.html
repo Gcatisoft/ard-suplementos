@@ -1940,6 +1940,22 @@
         </div>
 
         <div class="form-group full">
+          <div class="checkbox-row">
+            <label class="checkbox-item"><input type="checkbox" id="badge-descuento-activo"> Mostrar insignia de descuento sobre la foto</label>
+          </div>
+          <div id="badge-descuento-pct-wrap" style="display:none;margin-top:10px;max-width:220px;">
+            <label for="badge-descuento-pct">Porcentaje a mostrar</label>
+            <input type="number" id="badge-descuento-pct" min="1" max="99" step="1" placeholder="Ej: 15">
+          </div>
+          <div class="form-hint">
+            Se muestra como "<strong>X% OFF</strong>" en el listado, el home y la ficha del producto. Vos elegís el
+            número a mano: no hace falta que coincida con la diferencia real entre precio y precio anterior (sirve
+            para descuentos fijos en pesos que no dan un porcentaje redondo). Independiente del precio anterior: podés
+            activarla aunque no haya precio anterior cargado, o dejarla apagada aunque sí lo haya.
+          </div>
+        </div>
+
+        <div class="form-group full">
           <label>Planes de tarjeta especiales (si querés precios distintos a los de la regla 20%)</label>
           <div class="planes-pago" id="planes-pago">
             <div class="planes-pago-head">

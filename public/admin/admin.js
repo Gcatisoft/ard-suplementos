@@ -927,6 +927,9 @@
     document.getElementById('producto-id').value = '';
     document.getElementById('activo').checked = true;
     document.getElementById('destacado').checked = false;
+    document.getElementById('badge-descuento-activo').checked = false;
+    document.getElementById('badge-descuento-pct').value = '';
+    document.getElementById('badge-descuento-pct-wrap').style.display = 'none';
     cargarPlanesEnForm(null);
     imagenesExistentes = [];
     imagenesNuevas = [];
@@ -963,6 +966,10 @@
     document.getElementById('descripcion').value = p.description || '';
     document.getElementById('destacado').checked = !!p.featured;
     document.getElementById('activo').checked = !!p.active;
+    document.getElementById('badge-descuento-activo').checked = !!p.discountBadgeActive;
+    document.getElementById('badge-descuento-pct').value =
+      p.discountBadgePercent !== null && p.discountBadgePercent !== undefined ? p.discountBadgePercent : '';
+    document.getElementById('badge-descuento-pct-wrap').style.display = p.discountBadgeActive ? '' : 'none';
     calcularPrecioLista();
     calcularMargen();
 
@@ -995,6 +1002,10 @@
   document.getElementById('precio').addEventListener('input', function () { calcularPrecioLista(); calcularMargen(); });
   document.getElementById('costo').addEventListener('input', calcularMargen);
 
+  document.getElementById('badge-descuento-activo').addEventListener('change', function () {
+    document.getElementById('badge-descuento-pct-wrap').style.display = this.checked ? '' : 'none';
+  });
+
   document.getElementById('nuevo-btn').addEventListener('click', abrirModalNuevo);
   document.getElementById('modal-close').addEventListener('click', cerrarModal);
   document.getElementById('cancelar-btn').addEventListener('click', cerrarModal);
@@ -1026,6 +1037,8 @@
     formData.append('description', document.getElementById('descripcion').value.trim());
     formData.append('featured', document.getElementById('destacado').checked);
     formData.append('active', document.getElementById('activo').checked);
+    formData.append('discountBadgeActive', document.getElementById('badge-descuento-activo').checked);
+    formData.append('discountBadgePercent', document.getElementById('badge-descuento-pct').value);
 
     formData.append('imagenesExistentes', JSON.stringify(imagenesExistentes));
     imagenesNuevas.forEach((file) => formData.append('imagenes', file));

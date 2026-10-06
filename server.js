@@ -390,6 +390,11 @@ function mapProducto(row) {
     paymentPlans: normalizarPlanesPago(row.payment_plans),
     featured: row.featured,
     active: row.active,
+    discountBadgeActive: !!row.discount_badge_active,
+    discountBadgePercent:
+      row.discount_badge_percent !== null && row.discount_badge_percent !== undefined
+        ? Number(row.discount_badge_percent)
+        : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -1177,7 +1182,11 @@ app.get('/api/admin/products/:id', requireAuth, async (req, res) => {
 
 app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), manejarErrorImagen, async (req, res) => {
   try {
-    const { name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, barcode, costPrice, description, featured, active, imageUrl, flavors, installments, paymentPlans } = req.body;
+    const {
+      name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, barcode, costPrice,
+      description, featured, active, imageUrl, flavors, installments, paymentPlans,
+      discountBadgeActive, discountBadgePercent,
+    } = req.body;
     if (!name || !category || price === undefined || price === '') {
       return res.status(400).json({ error: 'Nombre, categoría y precio son obligatorios' });
     }
@@ -1211,6 +1220,9 @@ app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), maneja
       payment_plans: planes,
       featured: featured === 'true' || featured === true,
       active: active === undefined ? true : active === 'true' || active === true,
+      discount_badge_active: discountBadgeActive === 'true' || discountBadgeActive === true,
+      discount_badge_percent:
+        discountBadgePercent !== undefined && discountBadgePercent !== '' ? Number(discountBadgePercent) : null,
     };
 
     const { data, error } = await supabase.from('products').insert(nuevo).select().single();
@@ -1233,8 +1245,11 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), man
     if (findError) throw findError;
     if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
 
-    const { name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, barcode, costPrice, description, featured, active, imagenesExistentes, flavors, installments, paymentPlans } =
-      req.body;
+    const {
+      name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, barcode, costPrice,
+      description, featured, active, imagenesExistentes, flavors, installments, paymentPlans,
+      discountBadgeActive, discountBadgePercent,
+    } = req.body;
 
     const cambios = {};
     if (name !== undefined) cambios.name = String(name).trim();
@@ -1253,6 +1268,8 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), man
     if (paymentPlans !== undefined) cambios.payment_plans = normalizarPlanesPago(paymentPlans);
     if (featured !== undefined) cambios.featured = featured === 'true' || featured === true;
     if (active !== undefined) cambios.active = active === 'true' || active === true;
+    if (discountBadgeActive !== undefined) cambios.discount_badge_active = discountBadgeActive === 'true' || discountBadgeActive === true;
+    if (discountBadgePercent !== undefined) cambios.discount_badge_percent = discountBadgePercent === '' ? null : Number(discountBadgePercent);
 
     // -------- Galería de imágenes --------
     // El frontend manda en `imagenesExistentes` (JSON) las URLs que el admin

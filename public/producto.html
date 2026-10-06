@@ -700,7 +700,9 @@
 
     let badgesHtml = '';
     if (p.featured) badgesHtml += '<span class="detalle-badge">Destacado</span>';
-    if (tieneOferta) {
+    if (p.discountBadgeActive && p.discountBadgePercent){
+      badgesHtml += '<span class="detalle-badge oferta">' + Math.round(Number(p.discountBadgePercent)) + '% OFF</span>';
+    } else if (tieneOferta) {
       const descPctBadge = Math.ceil((Number(p.oldPrice) - Number(p.price)) / Number(p.oldPrice) * 100);
       badgesHtml += '<span class="detalle-badge oferta">' + descPctBadge + '% OFF</span>';
     }
