@@ -274,7 +274,7 @@
     + '.ard-envio-row{display:flex;justify-content:space-between;color:#5c7091;margin-bottom:3px;}'
     + '.ard-envio-grand{display:flex;justify-content:space-between;font-weight:700;color:#0d1b2a;font-size:14px;margin-top:6px;border-top:1px solid #dde3ec;padding-top:6px;}'
     // ---- Checkout en 3 pasos ----
-    + '.ard-checkout-modal{position:relative;max-width:440px;padding-top:40px;}'
+    + '.ard-checkout-modal{position:relative;max-width:480px;padding-top:40px;}'
     + '.ard-checkout-modal .ard-cart-close{position:absolute;top:12px;right:14px;z-index:1;}'
     + '.ard-checkout-progress{display:flex;align-items:flex-start;margin:-16px -24px 18px;padding:0 16px 14px;'
     + 'background:#f8f9fb;border-bottom:1px solid #eef1f5;}'
@@ -303,7 +303,23 @@
     + '.ard-revision-total{display:flex;justify-content:space-between;font-size:17px;font-weight:800;color:#0d1b2a;'
     + 'padding-top:10px;border-top:2px solid #0d1b2a;margin-top:6px;}'
     + '@media (max-width:480px){.ard-checkout-step-label{display:none;}'
-    + '.ard-checkout-step.activo .ard-checkout-step-label{display:block;}}';
+    + '.ard-checkout-step.activo .ard-checkout-step-label{display:block;}}'
+    // ---- Checkout en PC: modal más ancho + 2 columnas en "Entrega y pago" ----
+    + '@media (min-width:860px){'
+    + '.ard-checkout-modal{max-width:880px;}'
+    + '.ard-checkout-progress{padding:0 28px 14px;}'
+    + '.ard-checkout-paso2-layout{display:flex;align-items:flex-start;gap:36px;}'
+    + '.ard-checkout-paso2-form-col{order:1;flex:1 1 auto;min-width:0;}'
+    + '.ard-checkout-paso2-resumen-col{order:2;flex:0 0 300px;}'
+    + '.ard-checkout-modal #ard-checkout-resumen-toggle{display:none;}'
+    + '.ard-checkout-modal #ard-checkout-resumen-colapsable{display:block!important;border-radius:10px;'
+    + 'padding:16px;position:sticky;top:0;}'
+    + '.ard-checkout-modal .ard-cart-item-img{width:68px;height:68px;}'
+    + '.ard-checkout-modal .ard-cart-modo{padding:13px 16px;}'
+    + '.ard-checkout-modal .ard-cart-modo-nombre{font-size:14px;}'
+    + '.ard-checkout-modal .ard-cart-modo-detalle{font-size:12.5px;}'
+    + '.ard-checkout-modal .ard-revision-row,.ard-checkout-modal .ard-checkout-resumen-item{font-size:14px;}'
+    + '}';
 
   var styleTag = document.createElement('style');
   styleTag.textContent = css;
@@ -391,53 +407,59 @@
 
         '<div id="ard-checkout-paso-2" class="ard-checkout-paso" style="display:none;">' +
           '<h3>Entrega y pago</h3>' +
-          '<button type="button" id="ard-checkout-resumen-toggle" class="ard-checkout-resumen-toggle">' +
-            '<span id="ard-checkout-resumen-toggle-txt">Ver resumen del pedido</span><span id="ard-checkout-resumen-toggle-icono">▾</span>' +
-          '</button>' +
-          '<div id="ard-checkout-resumen-colapsable" class="ard-checkout-resumen-colapsable" style="display:none;"></div>' +
-          '<p id="ard-cart-como">Completá tus datos y elegí cómo querés pagar.</p>' +
-          '<div class="ard-cart-field">' +
-            '<label for="ard-cart-nombre">Nombre</label>' +
-            '<input type="text" id="ard-cart-nombre" autocomplete="name" placeholder="Tu nombre">' +
-          '</div>' +
-          '<div class="ard-cart-field">' +
-            '<label for="ard-cart-telefono">Teléfono</label>' +
-            '<input type="tel" id="ard-cart-telefono" autocomplete="tel" placeholder="Ej: 3834 123456">' +
-          '</div>' +
-          '<div class="ard-cart-field">' +
-            '<label for="ard-cart-notas">Notas (opcional)</label>' +
-            '<textarea id="ard-cart-notas" placeholder="Alguna aclaración sobre tu pedido…"></textarea>' +
-          '</div>' +
-          '<div class="ard-cart-field">' +
-            '<div class="ard-cart-modos-titulo" style="margin-bottom:6px;">🚚 Zona de envío</div>' +
-            '<div id="ard-cart-envio-lista">' +
-              '<label class="ard-cart-modo sel" data-zona="local">' +
-                '<input type="radio" name="ard-envio-zona" value="local" checked>' +
-                '<span class="ard-cart-modo-txt">' +
-                  '<span class="ard-cart-modo-nombre">📍 Catamarca cap. / provincia</span>' +
-                  '<span class="ard-cart-modo-detalle">Entrega coordinada por WhatsApp</span>' +
-                '</span>' +
-                '<span class="ard-cart-modo-precio" id="ard-envio-precio-local">…</span>' +
-              '</label>' +
-              '<label class="ard-cart-modo" data-zona="nacional">' +
-                '<input type="radio" name="ard-envio-zona" value="nacional">' +
-                '<span class="ard-cart-modo-txt">' +
-                  '<span class="ard-cart-modo-nombre">📦 Resto del país</span>' +
-                  '<span class="ard-cart-modo-detalle">Correo / encomienda</span>' +
-                '</span>' +
-                '<span class="ard-cart-modo-precio" id="ard-envio-precio-nacional">…</span>' +
-              '</label>' +
+          '<div class="ard-checkout-paso2-layout">' +
+            '<div class="ard-checkout-paso2-resumen-col">' +
+              '<button type="button" id="ard-checkout-resumen-toggle" class="ard-checkout-resumen-toggle">' +
+                '<span id="ard-checkout-resumen-toggle-txt">Ver resumen del pedido</span><span id="ard-checkout-resumen-toggle-icono">▾</span>' +
+              '</button>' +
+              '<div id="ard-checkout-resumen-colapsable" class="ard-checkout-resumen-colapsable" style="display:none;"></div>' +
             '</div>' +
-          '</div>' +
-          '<div id="ard-cart-modos" class="ard-cart-modos">' +
-            '<div class="ard-cart-modos-titulo">¿Cómo vas a pagar?</div>' +
-            '<div id="ard-cart-modos-lista"></div>' +
-          '</div>' +
-          '<div id="ard-envio-resumen" class="ard-envio-resumen" style="display:none;"></div>' +
-          '<div class="ard-cart-error" id="ard-cart-error"></div>' +
-          '<div class="ard-cart-modal-actions">' +
-            '<button class="ard-cart-pay-mp" id="ard-checkout-paso2-continuar" type="button">Continuar con la revisión</button>' +
-            '<button class="ard-cart-modal-cancel" id="ard-checkout-paso2-volver" type="button">← Volver al carrito</button>' +
+            '<div class="ard-checkout-paso2-form-col">' +
+              '<p id="ard-cart-como">Completá tus datos y elegí cómo querés pagar.</p>' +
+              '<div class="ard-cart-field">' +
+                '<label for="ard-cart-nombre">Nombre</label>' +
+                '<input type="text" id="ard-cart-nombre" autocomplete="name" placeholder="Tu nombre">' +
+              '</div>' +
+              '<div class="ard-cart-field">' +
+                '<label for="ard-cart-telefono">Teléfono</label>' +
+                '<input type="tel" id="ard-cart-telefono" autocomplete="tel" placeholder="Ej: 3834 123456">' +
+              '</div>' +
+              '<div class="ard-cart-field">' +
+                '<label for="ard-cart-notas">Notas (opcional)</label>' +
+                '<textarea id="ard-cart-notas" placeholder="Alguna aclaración sobre tu pedido…"></textarea>' +
+              '</div>' +
+              '<div class="ard-cart-field">' +
+                '<div class="ard-cart-modos-titulo" style="margin-bottom:6px;">🚚 Zona de envío</div>' +
+                '<div id="ard-cart-envio-lista">' +
+                  '<label class="ard-cart-modo sel" data-zona="local">' +
+                    '<input type="radio" name="ard-envio-zona" value="local" checked>' +
+                    '<span class="ard-cart-modo-txt">' +
+                      '<span class="ard-cart-modo-nombre">📍 Catamarca cap. / provincia</span>' +
+                      '<span class="ard-cart-modo-detalle">Entrega coordinada por WhatsApp</span>' +
+                    '</span>' +
+                    '<span class="ard-cart-modo-precio" id="ard-envio-precio-local">…</span>' +
+                  '</label>' +
+                  '<label class="ard-cart-modo" data-zona="nacional">' +
+                    '<input type="radio" name="ard-envio-zona" value="nacional">' +
+                    '<span class="ard-cart-modo-txt">' +
+                      '<span class="ard-cart-modo-nombre">📦 Resto del país</span>' +
+                      '<span class="ard-cart-modo-detalle">Correo / encomienda</span>' +
+                    '</span>' +
+                    '<span class="ard-cart-modo-precio" id="ard-envio-precio-nacional">…</span>' +
+                  '</label>' +
+                '</div>' +
+              '</div>' +
+              '<div id="ard-cart-modos" class="ard-cart-modos">' +
+                '<div class="ard-cart-modos-titulo">¿Cómo vas a pagar?</div>' +
+                '<div id="ard-cart-modos-lista"></div>' +
+              '</div>' +
+              '<div id="ard-envio-resumen" class="ard-envio-resumen" style="display:none;"></div>' +
+              '<div class="ard-cart-error" id="ard-cart-error"></div>' +
+              '<div class="ard-cart-modal-actions">' +
+                '<button class="ard-cart-pay-mp" id="ard-checkout-paso2-continuar" type="button">Continuar con la revisión</button>' +
+                '<button class="ard-cart-modal-cancel" id="ard-checkout-paso2-volver" type="button">← Volver al carrito</button>' +
+              '</div>' +
+            '</div>' +
           '</div>' +
         '</div>' +
 
