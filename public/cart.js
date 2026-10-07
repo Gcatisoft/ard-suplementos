@@ -255,7 +255,38 @@
     + '@media (max-width:480px){.ard-cart-panel{width:100vw;}}'
     + '.ard-envio-resumen{background:#f4f6f8;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;}'
     + '.ard-envio-row{display:flex;justify-content:space-between;color:#5c7091;margin-bottom:3px;}'
-    + '.ard-envio-grand{display:flex;justify-content:space-between;font-weight:700;color:#0d1b2a;font-size:14px;margin-top:6px;border-top:1px solid #dde3ec;padding-top:6px;}';
+    + '.ard-envio-grand{display:flex;justify-content:space-between;font-weight:700;color:#0d1b2a;font-size:14px;margin-top:6px;border-top:1px solid #dde3ec;padding-top:6px;}'
+    // ---- Checkout en 3 pasos ----
+    + '.ard-checkout-modal{position:relative;max-width:440px;padding-top:40px;}'
+    + '.ard-checkout-modal .ard-cart-close{position:absolute;top:12px;right:14px;z-index:1;}'
+    + '.ard-checkout-progress{display:flex;align-items:flex-start;margin:-16px -24px 18px;padding:0 16px 14px;'
+    + 'background:#f8f9fb;border-bottom:1px solid #eef1f5;}'
+    + '.ard-checkout-step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0;}'
+    + '.ard-checkout-step.clickable{cursor:pointer;}'
+    + '.ard-checkout-step-num{width:24px;height:24px;border-radius:50%;background:#dde3ec;color:#5c7091;font-size:12px;'
+    + 'font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}'
+    + '.ard-checkout-step.activo .ard-checkout-step-num{background:#ff5a1f;color:#fff;}'
+    + '.ard-checkout-step.hecho .ard-checkout-step-num{background:#25D366;color:#fff;}'
+    + '.ard-checkout-step-label{font-size:10px;font-weight:600;color:#9aa8bb;text-align:center;line-height:1.2;max-width:76px;}'
+    + '.ard-checkout-step.activo .ard-checkout-step-label{color:#0d1b2a;}'
+    + '.ard-checkout-step-sep{flex:0 1 32px;height:2px;background:#dde3ec;margin:11px -2px 0;}'
+    + '.ard-checkout-step-sep.hecho{background:#25D366;}'
+    + '.ard-checkout-paso h3{margin:0 0 14px;}'
+    + '.ard-checkout-subtotal-row{display:flex;justify-content:space-between;font-weight:700;color:#0d1b2a;'
+    + 'font-size:15px;padding:10px 0 2px;border-top:1px solid #eee;margin-top:4px;}'
+    + '.ard-checkout-resumen-toggle{width:100%;background:#f4f6f8;border:1px solid #eee;border-radius:8px;'
+    + 'padding:10px 12px;font-size:12.5px;font-weight:600;color:#0d1b2a;text-align:left;cursor:pointer;'
+    + 'margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;}'
+    + '.ard-checkout-resumen-colapsable{margin:0 0 14px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px;'
+    + 'padding:8px 12px 10px;background:#fbfbfc;}'
+    + '.ard-checkout-resumen-item{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#5c7091;padding:3px 0;}'
+    + '.ard-revision-section{margin-bottom:14px;}'
+    + '.ard-revision-titulo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#9aa8bb;margin-bottom:6px;}'
+    + '.ard-revision-row{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:#0d1b2a;padding:4px 0;}'
+    + '.ard-revision-total{display:flex;justify-content:space-between;font-size:17px;font-weight:800;color:#0d1b2a;'
+    + 'padding-top:10px;border-top:2px solid #0d1b2a;margin-top:6px;}'
+    + '@media (max-width:480px){.ard-checkout-step-label{display:none;}'
+    + '.ard-checkout-step.activo .ard-checkout-step-label{display:block;}}';
 
   var styleTag = document.createElement('style');
   styleTag.textContent = css;
@@ -299,7 +330,8 @@
   var modalOverlay = document.createElement('div');
   modalOverlay.className = 'ard-cart-modal-overlay';
   modalOverlay.innerHTML =
-    '<div class="ard-cart-modal">' +
+    '<div class="ard-cart-modal ard-checkout-modal">' +
+      '<button type="button" class="ard-cart-close" id="ard-cart-modal-cancel" aria-label="Cerrar">&times;</button>' +
       '<div id="ard-cart-login-gate" style="display:none;">' +
         '<h3>Necesitás una cuenta</h3>' +
         '<p>Para finalizar la compra tenés que iniciar sesión o crear una cuenta. Así podés seguir tus pedidos y tus compras quedan protegidas.</p>' +
@@ -308,60 +340,92 @@
           '<button class="ard-cart-modal-cancel" id="ard-cart-login-cancel" type="button">Ahora no</button>' +
         '</div>' +
       '</div>' +
-      '<div id="ard-cart-checkout-form">' +
-        '<h3>Finalizar pedido</h3>' +
-        '<p id="ard-cart-como">Completá tus datos y elegí cómo querés pagar.</p>' +
-        '<div class="ard-cart-field">' +
-          '<label for="ard-cart-nombre">Nombre</label>' +
-          '<input type="text" id="ard-cart-nombre" autocomplete="name" placeholder="Tu nombre">' +
+      '<div id="ard-checkout-wizard">' +
+        '<div class="ard-checkout-progress" id="ard-checkout-progress">' +
+          '<div class="ard-checkout-step" data-step="1"><span class="ard-checkout-step-num">1</span><span class="ard-checkout-step-label">Carrito</span></div>' +
+          '<div class="ard-checkout-step-sep" data-sep="1"></div>' +
+          '<div class="ard-checkout-step" data-step="2"><span class="ard-checkout-step-num">2</span><span class="ard-checkout-step-label">Entrega y pago</span></div>' +
+          '<div class="ard-checkout-step-sep" data-sep="2"></div>' +
+          '<div class="ard-checkout-step" data-step="3"><span class="ard-checkout-step-num">3</span><span class="ard-checkout-step-label">Revisión</span></div>' +
         '</div>' +
-        '<div class="ard-cart-field">' +
-          '<label for="ard-cart-telefono">Teléfono</label>' +
-          '<input type="tel" id="ard-cart-telefono" autocomplete="tel" placeholder="Ej: 3834 123456">' +
-        '</div>' +
-        '<div class="ard-cart-field">' +
-          '<label for="ard-cart-notas">Notas (opcional)</label>' +
-          '<textarea id="ard-cart-notas" placeholder="Alguna aclaración sobre tu pedido…"></textarea>' +
-        '</div>' +
-        '<div class="ard-cart-field">' +
-          '<label for="ard-cart-cupon">Cupón de descuento (opcional)</label>' +
-          '<div class="ard-cupon-row">' +
-            '<input type="text" id="ard-cart-cupon" placeholder="Ej: JUAN10" autocomplete="off">' +
-            '<button type="button" id="ard-cart-cupon-btn" class="ard-cupon-btn">Aplicar</button>' +
+
+        '<div id="ard-checkout-paso-1" class="ard-checkout-paso">' +
+          '<h3>Tu carrito</h3>' +
+          '<div id="ard-checkout-items"></div>' +
+          '<div class="ard-cart-field">' +
+            '<label for="ard-cart-cupon">Cupón de descuento (opcional)</label>' +
+            '<div class="ard-cupon-row">' +
+              '<input type="text" id="ard-cart-cupon" placeholder="Ej: JUAN10" autocomplete="off">' +
+              '<button type="button" id="ard-cart-cupon-btn" class="ard-cupon-btn">Aplicar</button>' +
+            '</div>' +
+            '<div id="ard-cart-cupon-info" class="ard-cupon-info"></div>' +
           '</div>' +
-          '<div id="ard-cart-cupon-info" class="ard-cupon-info"></div>' +
-        '</div>' +
-        '<div id="ard-cart-descuento-box" class="ard-descuento-box" style="display:none;"></div>' +
-        '<div class="ard-cart-field">' +
-          '<div class="ard-cart-modos-titulo" style="margin-bottom:6px;">🚚 Zona de envío</div>' +
-          '<div id="ard-cart-envio-lista">' +
-            '<label class="ard-cart-modo sel" data-zona="local">' +
-              '<input type="radio" name="ard-envio-zona" value="local" checked>' +
-              '<span class="ard-cart-modo-txt">' +
-                '<span class="ard-cart-modo-nombre">📍 Catamarca cap. / provincia</span>' +
-                '<span class="ard-cart-modo-detalle">Entrega coordinada por WhatsApp</span>' +
-              '</span>' +
-              '<span class="ard-cart-modo-precio" id="ard-envio-precio-local">…</span>' +
-            '</label>' +
-            '<label class="ard-cart-modo" data-zona="nacional">' +
-              '<input type="radio" name="ard-envio-zona" value="nacional">' +
-              '<span class="ard-cart-modo-txt">' +
-                '<span class="ard-cart-modo-nombre">📦 Resto del país</span>' +
-                '<span class="ard-cart-modo-detalle">Correo / encomienda</span>' +
-              '</span>' +
-              '<span class="ard-cart-modo-precio" id="ard-envio-precio-nacional">…</span>' +
-            '</label>' +
+          '<div id="ard-cart-descuento-box" class="ard-descuento-box" style="display:none;"></div>' +
+          '<div class="ard-checkout-subtotal-row"><span>Subtotal</span><span id="ard-checkout-subtotal">$0</span></div>' +
+          '<div class="ard-cart-modal-actions">' +
+            '<button class="ard-cart-pay-mp" id="ard-checkout-paso1-continuar" type="button">Continuar</button>' +
           '</div>' +
         '</div>' +
-        '<div id="ard-cart-modos" class="ard-cart-modos">' +
-          '<div class="ard-cart-modos-titulo">¿Cómo vas a pagar?</div>' +
-          '<div id="ard-cart-modos-lista"></div>' +
+
+        '<div id="ard-checkout-paso-2" class="ard-checkout-paso" style="display:none;">' +
+          '<h3>Entrega y pago</h3>' +
+          '<button type="button" id="ard-checkout-resumen-toggle" class="ard-checkout-resumen-toggle">' +
+            '<span id="ard-checkout-resumen-toggle-txt">Ver resumen del pedido</span><span id="ard-checkout-resumen-toggle-icono">▾</span>' +
+          '</button>' +
+          '<div id="ard-checkout-resumen-colapsable" class="ard-checkout-resumen-colapsable" style="display:none;"></div>' +
+          '<p id="ard-cart-como">Completá tus datos y elegí cómo querés pagar.</p>' +
+          '<div class="ard-cart-field">' +
+            '<label for="ard-cart-nombre">Nombre</label>' +
+            '<input type="text" id="ard-cart-nombre" autocomplete="name" placeholder="Tu nombre">' +
+          '</div>' +
+          '<div class="ard-cart-field">' +
+            '<label for="ard-cart-telefono">Teléfono</label>' +
+            '<input type="tel" id="ard-cart-telefono" autocomplete="tel" placeholder="Ej: 3834 123456">' +
+          '</div>' +
+          '<div class="ard-cart-field">' +
+            '<label for="ard-cart-notas">Notas (opcional)</label>' +
+            '<textarea id="ard-cart-notas" placeholder="Alguna aclaración sobre tu pedido…"></textarea>' +
+          '</div>' +
+          '<div class="ard-cart-field">' +
+            '<div class="ard-cart-modos-titulo" style="margin-bottom:6px;">🚚 Zona de envío</div>' +
+            '<div id="ard-cart-envio-lista">' +
+              '<label class="ard-cart-modo sel" data-zona="local">' +
+                '<input type="radio" name="ard-envio-zona" value="local" checked>' +
+                '<span class="ard-cart-modo-txt">' +
+                  '<span class="ard-cart-modo-nombre">📍 Catamarca cap. / provincia</span>' +
+                  '<span class="ard-cart-modo-detalle">Entrega coordinada por WhatsApp</span>' +
+                '</span>' +
+                '<span class="ard-cart-modo-precio" id="ard-envio-precio-local">…</span>' +
+              '</label>' +
+              '<label class="ard-cart-modo" data-zona="nacional">' +
+                '<input type="radio" name="ard-envio-zona" value="nacional">' +
+                '<span class="ard-cart-modo-txt">' +
+                  '<span class="ard-cart-modo-nombre">📦 Resto del país</span>' +
+                  '<span class="ard-cart-modo-detalle">Correo / encomienda</span>' +
+                '</span>' +
+                '<span class="ard-cart-modo-precio" id="ard-envio-precio-nacional">…</span>' +
+              '</label>' +
+            '</div>' +
+          '</div>' +
+          '<div id="ard-cart-modos" class="ard-cart-modos">' +
+            '<div class="ard-cart-modos-titulo">¿Cómo vas a pagar?</div>' +
+            '<div id="ard-cart-modos-lista"></div>' +
+          '</div>' +
+          '<div id="ard-envio-resumen" class="ard-envio-resumen" style="display:none;"></div>' +
+          '<div class="ard-cart-error" id="ard-cart-error"></div>' +
+          '<div class="ard-cart-modal-actions">' +
+            '<button class="ard-cart-pay-mp" id="ard-checkout-paso2-continuar" type="button">Continuar con la revisión</button>' +
+            '<button class="ard-cart-modal-cancel" id="ard-checkout-paso2-volver" type="button">← Volver al carrito</button>' +
+          '</div>' +
         '</div>' +
-        '<div id="ard-envio-resumen" class="ard-envio-resumen" style="display:none;"></div>' +
-        '<div class="ard-cart-error" id="ard-cart-error"></div>' +
-        '<div class="ard-cart-modal-actions">' +
-          '<button class="ard-cart-pay-mp" id="ard-cart-confirmar" type="button">Continuar</button>' +
-          '<button class="ard-cart-modal-cancel" id="ard-cart-modal-cancel" type="button">Cancelar</button>' +
+
+        '<div id="ard-checkout-paso-3" class="ard-checkout-paso" style="display:none;">' +
+          '<h3>Revisá tu pedido</h3>' +
+          '<div id="ard-checkout-revision"></div>' +
+          '<div class="ard-cart-modal-actions">' +
+            '<button class="ard-cart-pay-mp" id="ard-cart-confirmar" type="button">Continuar</button>' +
+            '<button class="ard-cart-modal-cancel" id="ard-checkout-paso3-volver" type="button">← Volver y editar</button>' +
+          '</div>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -378,6 +442,94 @@
   modalOverlay.querySelector('#ard-cart-cupon-btn').addEventListener('click', function () { aplicarCupon(); });
   modalOverlay.querySelector('#ard-cart-cupon').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); aplicarCupon(); }
+  });
+
+  // ---------- Checkout: navegación entre pasos ----------
+  var checkoutPaso = 1;
+
+  function actualizarProgresoUI() {
+    for (var i = 1; i <= 3; i++) {
+      var stepEl = modalOverlay.querySelector('.ard-checkout-step[data-step="' + i + '"]');
+      if (stepEl) {
+        stepEl.classList.toggle('activo', i === checkoutPaso);
+        stepEl.classList.toggle('hecho', i < checkoutPaso);
+        stepEl.classList.toggle('clickable', i < checkoutPaso);
+      }
+    }
+    var sep1 = modalOverlay.querySelector('[data-sep="1"]');
+    var sep2 = modalOverlay.querySelector('[data-sep="2"]');
+    if (sep1) sep1.classList.toggle('hecho', checkoutPaso > 1);
+    if (sep2) sep2.classList.toggle('hecho', checkoutPaso > 2);
+  }
+
+  function irAPaso(n) {
+    checkoutPaso = n;
+    for (var i = 1; i <= 3; i++) {
+      var el = document.getElementById('ard-checkout-paso-' + i);
+      if (el) el.style.display = i === n ? '' : 'none';
+    }
+    actualizarProgresoUI();
+    if (n === 2) renderResumenColapsable();
+    if (n === 3) renderRevisionFinal();
+    var modalEl = modalOverlay.querySelector('.ard-checkout-modal');
+    if (modalEl) modalEl.scrollTop = 0;
+  }
+
+  modalOverlay.querySelectorAll('.ard-checkout-step').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var n = Number(el.getAttribute('data-step'));
+      if (n < checkoutPaso) irAPaso(n);
+    });
+  });
+
+  modalOverlay.querySelector('#ard-checkout-paso1-continuar').addEventListener('click', function () {
+    irAPaso(2);
+  });
+  modalOverlay.querySelector('#ard-checkout-paso2-volver').addEventListener('click', function () {
+    irAPaso(1);
+  });
+  modalOverlay.querySelector('#ard-checkout-paso3-volver').addEventListener('click', function () {
+    irAPaso(2);
+  });
+  modalOverlay.querySelector('#ard-checkout-paso2-continuar').addEventListener('click', function () {
+    var nombreInput = document.getElementById('ard-cart-nombre');
+    var telInput = document.getElementById('ard-cart-telefono');
+    var errorEl = document.getElementById('ard-cart-error');
+    var nombre = (nombreInput.value || '').trim();
+    var telefono = (telInput.value || '').trim();
+    if (!nombre || !telefono) {
+      errorEl.textContent = 'Completá tu nombre y teléfono para continuar.';
+      errorEl.classList.add('visible');
+      return;
+    }
+    errorEl.classList.remove('visible');
+    irAPaso(3);
+  });
+  modalOverlay.querySelector('#ard-checkout-resumen-toggle').addEventListener('click', function () {
+    var el = document.getElementById('ard-checkout-resumen-colapsable');
+    var icono = document.getElementById('ard-checkout-resumen-toggle-icono');
+    var abierto = el.style.display !== 'none';
+    el.style.display = abierto ? 'none' : '';
+    if (icono) icono.textContent = abierto ? '▾' : '▴';
+  });
+
+  // Cantidad +/- y quitar producto, desde el paso 1 del checkout (mismas
+  // acciones que el panel lateral, pero dentro del modal).
+  modalOverlay.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    var itemEl = e.target.closest('.ard-cart-item');
+    if (!itemEl || !modalOverlay.contains(itemEl)) return;
+    var key = itemEl.getAttribute('data-key');
+    var it = buscar(key);
+    if (!it) return;
+    if (btn.dataset.action === 'inc') setQty(key, it.qty + 1);
+    else if (btn.dataset.action === 'dec') setQty(key, it.qty - 1);
+    else if (btn.dataset.action === 'remove') remove(key);
+
+    if (!items.length) { cerrarModalCheckout(); return; }
+    renderCheckoutItems();
+    cargarModosPago();
   });
 
   var toast = document.createElement('div');
@@ -510,6 +662,108 @@
         (envio > 0 ? formatearPrecio(subtotal + envio) : formatearPrecio(subtotal) + ' + envío') + '</span></div>';
   }
 
+  // ---------- Checkout: paso 1 (carrito) ----------
+  // Misma lista que el panel lateral, pero con sus propios +/-/quitar para
+  // poder ajustar el pedido sin salir del checkout.
+  function renderCheckoutItems() {
+    var cont = document.getElementById('ard-checkout-items');
+    if (!cont) return;
+    cont.innerHTML = items.map(function (it) {
+      var img = it.image
+        ? '<img src="' + it.image + '" alt="">'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="#9aa8bb" stroke-width="1.5" width="24" height="24"><rect x="5" y="3" width="14" height="18" rx="2"/></svg>';
+      return (
+        '<div class="ard-cart-item" data-key="' + escapeHtml(keyOf(it)) + '">' +
+          '<div class="ard-cart-item-img">' + img + '</div>' +
+          '<div class="ard-cart-item-info">' +
+            '<p class="ard-cart-item-name">' + escapeHtml(it.name) + '</p>' +
+            (it.brand ? '<p class="ard-cart-item-brand">' + escapeHtml(it.brand) + '</p>' : '') +
+            (it.flavor ? '<p class="ard-cart-item-flavor">Sabor: ' + escapeHtml(it.flavor) + '</p>' : '') +
+            '<div class="ard-cart-item-row">' +
+              '<div class="ard-cart-qty">' +
+                '<button type="button" data-action="dec">−</button>' +
+                '<span>' + it.qty + '</span>' +
+                '<button type="button" data-action="inc">+</button>' +
+              '</div>' +
+              '<span class="ard-cart-item-price">' + formatearPrecio(it.price * it.qty) + '</span>' +
+            '</div>' +
+            '<button type="button" class="ard-cart-item-remove" data-action="remove">Quitar</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    var subtotalEl = document.getElementById('ard-checkout-subtotal');
+    if (subtotalEl) subtotalEl.textContent = formatearPrecio(getTotal());
+    if (cuponActual) {
+      cuponActual.discountAmount = calcularDescuentoCupon();
+      mostrarDescuentoBox();
+    }
+  }
+
+  // ---------- Checkout: paso 2 (resumen colapsable) ----------
+  function renderResumenColapsable() {
+    var el = document.getElementById('ard-checkout-resumen-colapsable');
+    var toggleTxt = document.getElementById('ard-checkout-resumen-toggle-txt');
+    if (!el) return;
+    var descuento = cuponActual ? calcularDescuentoCupon() : 0;
+    el.innerHTML = items.map(function (it) {
+      return '<div class="ard-checkout-resumen-item"><span>' + it.qty + 'x ' + escapeHtml(it.name) +
+        (it.flavor ? ' (' + escapeHtml(it.flavor) + ')' : '') + '</span><span>' + formatearPrecio(it.price * it.qty) + '</span></div>';
+    }).join('') +
+      '<div class="ard-checkout-resumen-item" style="font-weight:700;border-top:1px solid #e5e9ef;margin-top:6px;padding-top:6px;">' +
+        '<span>Subtotal</span><span>' + formatearPrecio(getTotal()) + '</span></div>' +
+      (descuento > 0
+        ? '<div class="ard-checkout-resumen-item" style="color:#219653;"><span>Descuento (' + cuponActual.code + ')</span><span>− ' + formatearPrecio(descuento) + '</span></div>'
+        : '');
+    if (toggleTxt) {
+      var n = getCount();
+      toggleTxt.textContent = 'Ver resumen del pedido (' + n + (n === 1 ? ' producto' : ' productos') + ')';
+    }
+  }
+
+  // ---------- Checkout: paso 3 (revisión final) ----------
+  function renderRevisionFinal() {
+    var cont = document.getElementById('ard-checkout-revision');
+    if (!cont) return;
+    var cuotas = cuotasSeleccionadas();
+    var modo = modoSeleccionado();
+    var formaPagoLbl = modo === 'transferencia' ? 'Transferencia bancaria'
+      : modo === 'efectivo' ? 'Efectivo'
+      : labelCuotas(cuotas);
+    var zonaLbl = envioZona === 'local' ? 'Catamarca cap. / provincia' : 'Resto del país';
+    var envio = getEnvio();
+    var subtotalBase = getTotal();
+    var descuento = cuponActual ? calcularDescuentoCupon() : 0;
+    var subtotalConMedio = totalDeCuotas(cuotas);
+    var totalFinal = envio > 0 ? subtotalConMedio + envio : subtotalConMedio;
+
+    var filasProductos = items.map(function (it) {
+      return '<div class="ard-revision-row"><span>' + it.qty + 'x ' + escapeHtml(it.name) +
+        (it.flavor ? ' <span style="color:#9aa8bb;">(' + escapeHtml(it.flavor) + ')</span>' : '') +
+        '</span><span>' + formatearPrecio(it.price * it.qty) + '</span></div>';
+    }).join('');
+
+    cont.innerHTML =
+      '<div class="ard-revision-section">' +
+        '<div class="ard-revision-titulo">Productos</div>' +
+        filasProductos +
+      '</div>' +
+      '<div class="ard-revision-section">' +
+        '<div class="ard-revision-row"><span>Subtotal</span><span>' + formatearPrecio(subtotalBase) + '</span></div>' +
+        (descuento > 0 ? '<div class="ard-revision-row" style="color:#219653;"><span>Descuento (' + cuponActual.code + ')</span><span>− ' + formatearPrecio(descuento) + '</span></div>' : '') +
+        '<div class="ard-revision-row"><span>Envío (' + zonaLbl + ')</span><span>' + (envio > 0 ? formatearPrecio(envio) : 'A coordinar') + '</span></div>' +
+      '</div>' +
+      '<div class="ard-revision-section">' +
+        '<div class="ard-revision-titulo">Entrega y pago</div>' +
+        '<div class="ard-revision-row"><span>Método de entrega</span><span>' + zonaLbl + '</span></div>' +
+        '<div class="ard-revision-row"><span>Forma de pago</span><span>' + formaPagoLbl + '</span></div>' +
+      '</div>' +
+      '<div class="ard-revision-total"><span>Total' + (envio > 0 ? '' : ' (+ envío a coordinar)') + '</span><span>' + formatearPrecio(totalFinal) + '</span></div>';
+
+    actualizarBotonConfirmar();
+  }
+
   // ---------- Checkout ----------
   function abrirModalCheckout() {
     if (!items.length) return;
@@ -520,10 +774,12 @@
     modalOverlay.classList.add('open');
 
     var gate = document.getElementById('ard-cart-login-gate');
-    var form = document.getElementById('ard-cart-checkout-form');
+    var wizard = document.getElementById('ard-checkout-wizard');
     // No se requiere cuenta — cualquier persona puede comprar
     gate.style.display = 'none';
-    form.style.display = '';
+    wizard.style.display = '';
+    irAPaso(1);
+    renderCheckoutItems();
 
     // Restablecer zona de envío al abrir
     envioZona = 'local';
@@ -556,11 +812,6 @@
       var como = document.getElementById('ard-cart-como');
       if (como) como.textContent = 'Comprás como ' + c.email + '.';
     });
-
-    setTimeout(function () {
-      var nombreInput = document.getElementById('ard-cart-nombre');
-      if (nombreInput && !nombreInput.value) nombreInput.focus();
-    }, 80);
   }
 
   // Lee el cookie de atribución de campaña (seteado por las landing pages /:slug).
