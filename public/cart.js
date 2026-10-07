@@ -64,7 +64,16 @@
   // Envío
   var envioTarifas = { local: 0, nacional: 0 };
   var envioZona = 'local';
-  function getEnvio() { return envioTarifas[envioZona] || 0; }
+  // Promo envío gratis: solo para Catamarca Capital (zona "local"), a partir
+  // de este subtotal de productos. No afecta la tarifa de "Resto del país".
+  var ENVIO_GRATIS_LOCAL_DESDE = 130000;
+  function envioEsGratisPorMonto() {
+    return envioZona === 'local' && getTotal() >= ENVIO_GRATIS_LOCAL_DESDE;
+  }
+  function getEnvio() {
+    if (envioEsGratisPorMonto()) return 0;
+    return envioTarifas[envioZona] || 0;
+  }
   function labelCuotas(n) {
     if (!n || n < 1) return 'Efectivo o transferencia';
     if (n === 1) return '1 pago con tarjeta';
@@ -197,6 +206,14 @@
     + '.ard-cart-checkout svg{width:18px;height:18px;stroke:#fff;}'
     + '.ard-cart-clear{width:100%;background:none;border:none;color:#5c7091;font-size:12px;text-align:center;'
     + 'margin-top:8px;cursor:pointer;text-decoration:underline;}'
+    + '.ard-envio-gratis-wrap{margin-bottom:14px;}'
+    + '.ard-envio-gratis-msg{font-size:12.5px;font-weight:700;color:#0d1b2a;margin-bottom:6px;}'
+    + '.ard-envio-gratis-wrap.completo .ard-envio-gratis-msg{color:#219653;}'
+    + '.ard-envio-gratis-track{height:8px;background:#eef1f5;border-radius:6px;overflow:hidden;margin-bottom:5px;}'
+    + '.ard-envio-gratis-fill{height:100%;width:0;background:linear-gradient(90deg,#ff5a1f,#ff8a3d);border-radius:6px;'
+    + 'transition:width .3s ease;}'
+    + '.ard-envio-gratis-wrap.completo .ard-envio-gratis-fill{background:#25D366;}'
+    + '.ard-envio-gratis-sub{font-size:11px;color:#9aa8bb;}'
     + '.ard-cart-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10001;'
     + 'display:flex;align-items:flex-start;justify-content:center;padding:16px;'
     + 'overflow-y:auto;-webkit-overflow-scrolling:touch;'
@@ -317,6 +334,11 @@
     '</div>' +
     '<div class="ard-cart-body" id="ard-cart-body"></div>' +
     '<div class="ard-cart-footer">' +
+      '<div id="ard-envio-gratis-barra" class="ard-envio-gratis-wrap" style="display:none;">' +
+        '<div class="ard-envio-gratis-msg" id="ard-envio-gratis-msg"></div>' +
+        '<div class="ard-envio-gratis-track"><div class="ard-envio-gratis-fill" id="ard-envio-gratis-fill" style="width:0%"></div></div>' +
+        '<div class="ard-envio-gratis-sub">Envío gratis en Catamarca Capital desde ' + formatearPrecio(ENVIO_GRATIS_LOCAL_DESDE) + '</div>' +
+      '</div>' +
       '<div class="ard-cart-total"><span>Total</span><span id="ard-cart-total">$0</span></div>' +
       '<button class="ard-cart-checkout" id="ard-cart-checkout">' + ICON_CART + ' Finalizar compra</button>' +
       '<button class="ard-cart-clear" id="ard-cart-clear">Vaciar carrito</button>' +
@@ -607,6 +629,32 @@
 
     if (totalEl) totalEl.textContent = formatearPrecio(getTotal());
     if (checkoutBtn) checkoutBtn.disabled = items.length === 0;
+    renderEnvioGratisBarra();
+  }
+
+  // Barra de progreso hacia el envío gratis (Catamarca Capital), en el
+  // carrito, antes del total. Se recalcula solo con el subtotal de productos.
+  function renderEnvioGratisBarra() {
+    var wrap = document.getElementById('ard-envio-gratis-barra');
+    var msg = document.getElementById('ard-envio-gratis-msg');
+    var fill = document.getElementById('ard-envio-gratis-fill');
+    if (!wrap || !msg || !fill) return;
+
+    if (!items.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+
+    var total = getTotal();
+    var completo = total >= ENVIO_GRATIS_LOCAL_DESDE;
+    var pct = Math.max(0, Math.min(100, Math.round((total / ENVIO_GRATIS_LOCAL_DESDE) * 100)));
+    fill.style.width = pct + '%';
+    wrap.classList.toggle('completo', completo);
+
+    if (completo) {
+      msg.innerHTML = '🎉 ¡Tenés envío gratis!';
+    } else {
+      var falta = ENVIO_GRATIS_LOCAL_DESDE - total;
+      msg.innerHTML = 'Agregá ' + formatearPrecio(falta) + ' más y obtené envío gratis 🚚';
+    }
   }
 
   panel.addEventListener('click', function (e) {
@@ -640,7 +688,10 @@
   function actualizarPreciosEnvioUI() {
     var elLocal    = document.getElementById('ard-envio-precio-local');
     var elNacional = document.getElementById('ard-envio-precio-nacional');
-    if (elLocal)    elLocal.textContent    = envioTarifas.local    > 0 ? formatearPrecio(envioTarifas.local)    : 'A coordinar';
+    if (elLocal) {
+      elLocal.textContent = envioEsGratisPorMonto() ? 'GRATIS 🎉'
+        : (envioTarifas.local > 0 ? formatearPrecio(envioTarifas.local) : 'A coordinar');
+    }
     if (elNacional) elNacional.textContent = envioTarifas.nacional > 0 ? formatearPrecio(envioTarifas.nacional) : 'A coordinar';
     actualizarResumenEnvio();
   }
@@ -651,15 +702,16 @@
     var cuotas   = cuotasSeleccionadas();
     var subtotal = totalDeCuotas(cuotas);
     var envio    = getEnvio();
+    var gratis   = envioEsGratisPorMonto();
     var zonaLbl  = envioZona === 'local' ? 'Catamarca' : 'Resto del país';
+    var envioLbl = gratis ? 'GRATIS 🎉' : (envio > 0 ? formatearPrecio(envio) : '<em>A coordinar</em>');
 
     resumen.style.display = '';
     resumen.innerHTML =
       '<div class="ard-envio-row"><span>Subtotal productos</span><span>' + formatearPrecio(subtotal) + '</span></div>' +
-      '<div class="ard-envio-row"><span>Envío (' + zonaLbl + ')</span><span>' +
-        (envio > 0 ? formatearPrecio(envio) : '<em>A coordinar</em>') + '</span></div>' +
+      '<div class="ard-envio-row"><span>Envío (' + zonaLbl + ')</span><span>' + envioLbl + '</span></div>' +
       '<div class="ard-envio-grand"><span>Total estimado</span><span>' +
-        (envio > 0 ? formatearPrecio(subtotal + envio) : formatearPrecio(subtotal) + ' + envío') + '</span></div>';
+        (envio > 0 ? formatearPrecio(subtotal + envio) : formatearPrecio(subtotal) + (gratis ? '' : ' + envío')) + '</span></div>';
   }
 
   // ---------- Checkout: paso 1 (carrito) ----------
@@ -733,6 +785,7 @@
       : labelCuotas(cuotas);
     var zonaLbl = envioZona === 'local' ? 'Catamarca cap. / provincia' : 'Resto del país';
     var envio = getEnvio();
+    var gratis = envioEsGratisPorMonto();
     var subtotalBase = getTotal();
     var descuento = cuponActual ? calcularDescuentoCupon() : 0;
     var subtotalConMedio = totalDeCuotas(cuotas);
@@ -752,14 +805,14 @@
       '<div class="ard-revision-section">' +
         '<div class="ard-revision-row"><span>Subtotal</span><span>' + formatearPrecio(subtotalBase) + '</span></div>' +
         (descuento > 0 ? '<div class="ard-revision-row" style="color:#219653;"><span>Descuento (' + cuponActual.code + ')</span><span>− ' + formatearPrecio(descuento) + '</span></div>' : '') +
-        '<div class="ard-revision-row"><span>Envío (' + zonaLbl + ')</span><span>' + (envio > 0 ? formatearPrecio(envio) : 'A coordinar') + '</span></div>' +
+        '<div class="ard-revision-row"><span>Envío (' + zonaLbl + ')</span><span>' + (gratis ? 'GRATIS 🎉' : (envio > 0 ? formatearPrecio(envio) : 'A coordinar')) + '</span></div>' +
       '</div>' +
       '<div class="ard-revision-section">' +
         '<div class="ard-revision-titulo">Entrega y pago</div>' +
         '<div class="ard-revision-row"><span>Método de entrega</span><span>' + zonaLbl + '</span></div>' +
         '<div class="ard-revision-row"><span>Forma de pago</span><span>' + formaPagoLbl + '</span></div>' +
       '</div>' +
-      '<div class="ard-revision-total"><span>Total' + (envio > 0 ? '' : ' (+ envío a coordinar)') + '</span><span>' + formatearPrecio(totalFinal) + '</span></div>';
+      '<div class="ard-revision-total"><span>Total' + (envio > 0 || gratis ? '' : ' (+ envío a coordinar)') + '</span><span>' + formatearPrecio(totalFinal) + '</span></div>';
 
     actualizarBotonConfirmar();
   }
@@ -1107,7 +1160,10 @@
     var subtotal = totalDeCuotas(cuotas || 0);
     var zonaLbl  = envioZona === 'local' ? 'Catamarca cap. / provincia' : 'Resto del país';
     lineas.push('Zona de envío: ' + zonaLbl);
-    if (envio > 0) {
+    if (envioEsGratisPorMonto()) {
+      lineas.push('Envío: GRATIS 🎉 (supera los ' + formatearPrecio(ENVIO_GRATIS_LOCAL_DESDE) + ' en Catamarca Capital)');
+      lineas.push('Total: ' + formatearPrecio(subtotal));
+    } else if (envio > 0) {
       lineas.push('Envío: ' + formatearPrecio(envio));
       lineas.push('Total (con envío): ' + formatearPrecio(subtotal + envio));
     } else {
@@ -1132,7 +1188,8 @@
     var notasBase = (notasInput.value || '').trim();
     var zonaLbl = envioZona === 'local' ? 'Catamarca cap. / provincia' : 'Resto del país';
     var envioMonto = getEnvio();
-    var notaEnvio = 'Envío: ' + zonaLbl + (envioMonto > 0 ? ' — ' + formatearPrecio(envioMonto) : ' — A coordinar');
+    var envioMontoTxt = envioEsGratisPorMonto() ? 'GRATIS' : (envioMonto > 0 ? formatearPrecio(envioMonto) : 'A coordinar');
+    var notaEnvio = 'Envío: ' + zonaLbl + ' — ' + envioMontoTxt;
     var notas = notasBase ? notasBase + ' | ' + notaEnvio : notaEnvio;
     var cuotas = cuotasSeleccionadas();
     var canal = cuotas < 1 ? 'whatsapp' : 'mercadopago';
