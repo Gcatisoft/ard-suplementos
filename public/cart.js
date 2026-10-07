@@ -61,18 +61,50 @@
   var quoteActual = null;
   // Cupón aplicado actualmente (null si ninguno).
   var cuponActual = null; // { code, discountType, discountValue, discountAmount, campaignId, sponsorId, products[] }
-  // Envío
-  var envioTarifas = { local: 0, nacional: 0 };
-  var envioZona = 'local';
-  // Promo envío gratis: solo para Catamarca Capital (zona "local"), a partir
-  // de este subtotal de productos. No afecta la tarifa de "Resto del país".
-  var ENVIO_GRATIS_LOCAL_DESDE = 130000;
+  // ---------- Envío / entrega ----------
+  // "domicilio" (zona de Catamarca Capital, con precio por zona),
+  // "retiro" (punto de retiro, siempre gratis) o
+  // "nacional" (interior de Catamarca / resto del país, tarifa plana de siempre).
+  var tipoEntrega = 'domicilio';
+  var zonasCapital = [];       // [{id, name, price}] — admin → pestaña "Envíos"
+  var puntosRetiro = [];       // [{id, name, address, description, schedule}]
+  var zonaSeleccionadaId = null;
+  var puntoSeleccionadoId = null;
+  var envioTarifas = { nacional: 0 }; // tarifa plana de interior/resto del país (sin cambios)
+  // Monto a partir del cual el envío a domicilio en Catamarca Capital es
+  // gratis. Configurable desde el panel; 120000 es solo el valor por
+  // defecto hasta que responda /api/config.
+  var ENVIO_GRATIS_MONTO_CAPITAL = 120000;
+
+  function zonaActual() {
+    return zonasCapital.filter(function (z) { return z.id === zonaSeleccionadaId; })[0] || null;
+  }
+  function puntoActual() {
+    return puntosRetiro.filter(function (p) { return p.id === puntoSeleccionadoId; })[0] || null;
+  }
   function envioEsGratisPorMonto() {
-    return envioZona === 'local' && getTotal() >= ENVIO_GRATIS_LOCAL_DESDE;
+    return tipoEntrega === 'domicilio' && getTotal() >= ENVIO_GRATIS_MONTO_CAPITAL;
   }
   function getEnvio() {
-    if (envioEsGratisPorMonto()) return 0;
-    return envioTarifas[envioZona] || 0;
+    if (tipoEntrega === 'retiro') return 0;
+    if (tipoEntrega === 'domicilio') {
+      if (envioEsGratisPorMonto()) return 0;
+      var z = zonaActual();
+      return z ? Number(z.price) : 0;
+    }
+    return envioTarifas.nacional || 0; // nacional
+  }
+  // Texto para el resumen, la revisión final y el mensaje de WhatsApp.
+  function labelEntrega() {
+    if (tipoEntrega === 'retiro') {
+      var p = puntoActual();
+      return p ? ('Retiro en ' + p.name) : 'Retiro en punto ARD';
+    }
+    if (tipoEntrega === 'domicilio') {
+      var z = zonaActual();
+      return 'Envío a domicilio' + (z ? ' — Zona ' + z.name : '') + ' (Catamarca Capital)';
+    }
+    return 'Envío al interior de Catamarca / resto del país';
   }
   function labelCuotas(n) {
     if (!n || n < 1) return 'Efectivo o transferencia';
@@ -273,6 +305,7 @@
     + '.ard-envio-resumen{background:#f4f6f8;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;}'
     + '.ard-envio-row{display:flex;justify-content:space-between;color:#5c7091;margin-bottom:3px;}'
     + '.ard-envio-grand{display:flex;justify-content:space-between;font-weight:700;color:#0d1b2a;font-size:14px;margin-top:6px;border-top:1px solid #dde3ec;padding-top:6px;}'
+    + '.ard-entrega-detalle{margin:2px 0 14px;}'
     // ---- Checkout en 3 pasos ----
     + '.ard-checkout-modal{position:relative;max-width:480px;padding-top:40px;}'
     + '.ard-checkout-modal .ard-cart-close{position:absolute;top:12px;right:14px;z-index:1;}'
@@ -353,7 +386,7 @@
       '<div id="ard-envio-gratis-barra" class="ard-envio-gratis-wrap" style="display:none;">' +
         '<div class="ard-envio-gratis-msg" id="ard-envio-gratis-msg"></div>' +
         '<div class="ard-envio-gratis-track"><div class="ard-envio-gratis-fill" id="ard-envio-gratis-fill" style="width:0%"></div></div>' +
-        '<div class="ard-envio-gratis-sub">Envío gratis en Catamarca Capital desde ' + formatearPrecio(ENVIO_GRATIS_LOCAL_DESDE) + '</div>' +
+        '<div class="ard-envio-gratis-sub" id="ard-envio-gratis-sub">Envío gratis en Catamarca Capital desde ' + formatearPrecio(ENVIO_GRATIS_MONTO_CAPITAL) + '</div>' +
       '</div>' +
       '<div class="ard-cart-total"><span>Total</span><span id="ard-cart-total">$0</span></div>' +
       '<button class="ard-cart-checkout" id="ard-cart-checkout">' + ICON_CART + ' Finalizar compra</button>' +
@@ -429,26 +462,21 @@
                 '<textarea id="ard-cart-notas" placeholder="Alguna aclaración sobre tu pedido…"></textarea>' +
               '</div>' +
               '<div class="ard-cart-field">' +
-                '<div class="ard-cart-modos-titulo" style="margin-bottom:6px;">🚚 Zona de envío</div>' +
-                '<div id="ard-cart-envio-lista">' +
-                  '<label class="ard-cart-modo sel" data-zona="local">' +
-                    '<input type="radio" name="ard-envio-zona" value="local" checked>' +
-                    '<span class="ard-cart-modo-txt">' +
-                      '<span class="ard-cart-modo-nombre">📍 Catamarca cap. / provincia</span>' +
-                      '<span class="ard-cart-modo-detalle">Entrega coordinada por WhatsApp</span>' +
-                    '</span>' +
-                    '<span class="ard-cart-modo-precio" id="ard-envio-precio-local">…</span>' +
-                  '</label>' +
-                  '<label class="ard-cart-modo" data-zona="nacional">' +
-                    '<input type="radio" name="ard-envio-zona" value="nacional">' +
-                    '<span class="ard-cart-modo-txt">' +
-                      '<span class="ard-cart-modo-nombre">📦 Resto del país</span>' +
-                      '<span class="ard-cart-modo-detalle">Correo / encomienda</span>' +
-                    '</span>' +
-                    '<span class="ard-cart-modo-precio" id="ard-envio-precio-nacional">…</span>' +
-                  '</label>' +
-                '</div>' +
+                '<div class="ard-cart-modos-titulo" style="margin-bottom:6px;">¿Cómo querés recibir tu pedido?</div>' +
+                '<div id="ard-entrega-lista"></div>' +
               '</div>' +
+              '<div id="ard-entrega-detalle-domicilio" class="ard-entrega-detalle">' +
+                '<div class="ard-cart-field">' +
+                  '<label for="ard-cart-zona">Tu zona en Catamarca Capital</label>' +
+                  '<select id="ard-cart-zona"></select>' +
+                '</div>' +
+                '<div class="ard-cart-field">' +
+                  '<label for="ard-cart-direccion">Dirección completa</label>' +
+                  '<input type="text" id="ard-cart-direccion" placeholder="Calle, número, barrio…">' +
+                '</div>' +
+                '<div id="ard-entrega-tiempos" class="ard-envio-resumen" style="display:none;"></div>' +
+              '</div>' +
+              '<div id="ard-entrega-detalle-retiro" class="ard-entrega-detalle" style="display:none;"></div>' +
               '<div id="ard-cart-modos" class="ard-cart-modos">' +
                 '<div class="ard-cart-modos-titulo">¿Cómo vas a pagar?</div>' +
                 '<div id="ard-cart-modos-lista"></div>' +
@@ -545,6 +573,14 @@
       errorEl.textContent = 'Completá tu nombre y teléfono para continuar.';
       errorEl.classList.add('visible');
       return;
+    }
+    if (tipoEntrega === 'domicilio') {
+      var direccionInput = document.getElementById('ard-cart-direccion');
+      if (!direccionInput || !direccionInput.value.trim()) {
+        errorEl.textContent = 'Completá tu dirección para el envío a domicilio.';
+        errorEl.classList.add('visible');
+        return;
+      }
     }
     errorEl.classList.remove('visible');
     irAPaso(3);
@@ -666,17 +702,24 @@
     wrap.style.display = '';
 
     var total = getTotal();
-    var completo = total >= ENVIO_GRATIS_LOCAL_DESDE;
-    var pct = Math.max(0, Math.min(100, Math.round((total / ENVIO_GRATIS_LOCAL_DESDE) * 100)));
+    var completo = total >= ENVIO_GRATIS_MONTO_CAPITAL;
+    var pct = Math.max(0, Math.min(100, Math.round((total / ENVIO_GRATIS_MONTO_CAPITAL) * 100)));
     fill.style.width = pct + '%';
     wrap.classList.toggle('completo', completo);
 
     if (completo) {
       msg.innerHTML = '🎉 ¡Tenés envío gratis!';
     } else {
-      var falta = ENVIO_GRATIS_LOCAL_DESDE - total;
+      var falta = ENVIO_GRATIS_MONTO_CAPITAL - total;
       msg.innerHTML = 'Agregá ' + formatearPrecio(falta) + ' más y obtené envío gratis 🚚';
     }
+  }
+
+  // Actualiza el pie "Envío gratis desde $X" cuando cambia el monto
+  // configurado (al cargar /api/config).
+  function actualizarSubEnvioGratis() {
+    var sub = document.getElementById('ard-envio-gratis-sub');
+    if (sub) sub.textContent = 'Envío gratis en Catamarca Capital desde ' + formatearPrecio(ENVIO_GRATIS_MONTO_CAPITAL);
   }
 
   panel.addEventListener('click', function (e) {
@@ -692,27 +735,118 @@
     else if (btn.dataset.action === 'remove') remove(key);
   });
 
-  // ---------- Envío ----------
-  function iniciarSelectorEnvio() {
-    var lista = document.getElementById('ard-cart-envio-lista');
+  // ---------- Envío / entrega ----------
+  // Construye las opciones "¿Cómo querés recibir tu pedido?": domicilio
+  // (Catamarca Capital, por zona) + un punto de retiro por cada activo +
+  // interior/resto del país (tarifa plana de siempre).
+  function renderOpcionesEntrega() {
+    var lista = document.getElementById('ard-entrega-lista');
     if (!lista) return;
-    lista.querySelectorAll('input[name="ard-envio-zona"]').forEach(function (r) {
+
+    var html =
+      '<label class="ard-cart-modo" data-entrega="domicilio">' +
+        '<input type="radio" name="ard-tipo-entrega" value="domicilio">' +
+        '<span class="ard-cart-modo-txt">' +
+          '<span class="ard-cart-modo-nombre">🚚 Envío a domicilio</span>' +
+          '<span class="ard-cart-modo-detalle">Catamarca Capital — elegís tu zona</span>' +
+        '</span>' +
+        '<span class="ard-cart-modo-precio" id="ard-entrega-precio-domicilio">…</span>' +
+      '</label>';
+
+    puntosRetiro.forEach(function (p) {
+      html +=
+        '<label class="ard-cart-modo" data-entrega="retiro:' + p.id + '">' +
+          '<input type="radio" name="ard-tipo-entrega" value="retiro:' + p.id + '">' +
+          '<span class="ard-cart-modo-txt">' +
+            '<span class="ard-cart-modo-nombre">🏪 Retirar en ' + escapeHtml(p.name) + '</span>' +
+            '<span class="ard-cart-modo-detalle">' + escapeHtml(p.address || 'Sin costo') + '</span>' +
+          '</span>' +
+          '<span class="ard-cart-modo-precio">Gratis</span>' +
+        '</label>';
+    });
+
+    html +=
+      '<label class="ard-cart-modo" data-entrega="nacional">' +
+        '<input type="radio" name="ard-tipo-entrega" value="nacional">' +
+        '<span class="ard-cart-modo-txt">' +
+          '<span class="ard-cart-modo-nombre">📦 Envío al interior / resto del país</span>' +
+          '<span class="ard-cart-modo-detalle">Coordinamos por WhatsApp</span>' +
+        '</span>' +
+        '<span class="ard-cart-modo-precio" id="ard-entrega-precio-nacional">…</span>' +
+      '</label>';
+
+    lista.innerHTML = html;
+
+    lista.querySelectorAll('input[name="ard-tipo-entrega"]').forEach(function (r) {
       r.addEventListener('change', function () {
-        envioZona = r.value;
         lista.querySelectorAll('.ard-cart-modo').forEach(function (el) {
-          el.classList.toggle('sel', el.getAttribute('data-zona') === r.value);
+          el.classList.toggle('sel', el.getAttribute('data-entrega') === r.value);
         });
-        actualizarResumenEnvio();
+        aplicarTipoEntrega(r.value);
       });
     });
+
+    var def = lista.querySelector('input[value="domicilio"]');
+    if (def) { def.checked = true; def.dispatchEvent(new Event('change')); }
   }
 
-  function actualizarPreciosEnvioUI() {
-    var elLocal    = document.getElementById('ard-envio-precio-local');
-    var elNacional = document.getElementById('ard-envio-precio-nacional');
-    if (elLocal) {
-      elLocal.textContent = envioEsGratisPorMonto() ? 'GRATIS 🎉'
-        : (envioTarifas.local > 0 ? formatearPrecio(envioTarifas.local) : 'A coordinar');
+  function aplicarTipoEntrega(valor) {
+    if (valor === 'nacional') {
+      tipoEntrega = 'nacional';
+    } else if (valor.indexOf('retiro:') === 0) {
+      tipoEntrega = 'retiro';
+      puntoSeleccionadoId = valor.slice('retiro:'.length);
+    } else {
+      tipoEntrega = 'domicilio';
+    }
+    var elDomicilio = document.getElementById('ard-entrega-detalle-domicilio');
+    var elRetiro = document.getElementById('ard-entrega-detalle-retiro');
+    if (elDomicilio) elDomicilio.style.display = tipoEntrega === 'domicilio' ? '' : 'none';
+    if (elRetiro) elRetiro.style.display = tipoEntrega === 'retiro' ? '' : 'none';
+    if (tipoEntrega === 'retiro') renderDetallePunto();
+    actualizarPreciosEntregaUI();
+    actualizarResumenEnvio();
+    actualizarBotonConfirmar();
+  }
+
+  function renderZonaSelect() {
+    var sel = document.getElementById('ard-cart-zona');
+    if (!sel) return;
+    if (!zonasCapital.length) {
+      sel.innerHTML = '<option value="">No hay zonas configuradas</option>';
+      zonaSeleccionadaId = null;
+      return;
+    }
+    sel.innerHTML = zonasCapital.map(function (z) {
+      return '<option value="' + z.id + '">' + escapeHtml(z.name) + ' — ' + formatearPrecio(z.price) + '</option>';
+    }).join('');
+    zonaSeleccionadaId = zonasCapital[0].id;
+    sel.value = zonaSeleccionadaId;
+  }
+
+  function renderDetallePunto() {
+    var cont = document.getElementById('ard-entrega-detalle-retiro');
+    if (!cont) return;
+    var p = puntoActual();
+    if (!p) { cont.innerHTML = ''; return; }
+    cont.innerHTML =
+      '<div class="ard-envio-resumen" style="display:block;">' +
+        (p.address ? '<div class="ard-envio-row"><span>📍 Dirección</span><span>' + escapeHtml(p.address) + '</span></div>' : '') +
+        (p.description ? '<div class="ard-envio-row"><span>ℹ️ Info</span><span>' + escapeHtml(p.description) + '</span></div>' : '') +
+        (p.schedule ? '<div class="ard-envio-row"><span>🕐 Horario</span><span>' + escapeHtml(p.schedule) + '</span></div>' : '') +
+      '</div>';
+  }
+
+  function actualizarPreciosEntregaUI() {
+    var elDomicilio = document.getElementById('ard-entrega-precio-domicilio');
+    var elNacional  = document.getElementById('ard-entrega-precio-nacional');
+    if (elDomicilio) {
+      if (envioEsGratisPorMonto()) {
+        elDomicilio.textContent = 'GRATIS 🎉';
+      } else {
+        var z = zonaActual();
+        elDomicilio.textContent = z ? formatearPrecio(z.price) : (zonasCapital.length ? formatearPrecio(zonasCapital[0].price) : '—');
+      }
     }
     if (elNacional) elNacional.textContent = envioTarifas.nacional > 0 ? formatearPrecio(envioTarifas.nacional) : 'A coordinar';
     actualizarResumenEnvio();
@@ -725,15 +859,15 @@
     var subtotal = totalDeCuotas(cuotas);
     var envio    = getEnvio();
     var gratis   = envioEsGratisPorMonto();
-    var zonaLbl  = envioZona === 'local' ? 'Catamarca' : 'Resto del país';
-    var envioLbl = gratis ? 'GRATIS 🎉' : (envio > 0 ? formatearPrecio(envio) : '<em>A coordinar</em>');
+    var zonaLbl  = labelEntrega();
+    var envioLbl = gratis ? 'GRATIS 🎉' : (envio > 0 ? formatearPrecio(envio) : (tipoEntrega === 'retiro' ? 'Gratis' : '<em>A coordinar</em>'));
 
     resumen.style.display = '';
     resumen.innerHTML =
       '<div class="ard-envio-row"><span>Subtotal productos</span><span>' + formatearPrecio(subtotal) + '</span></div>' +
-      '<div class="ard-envio-row"><span>Envío (' + zonaLbl + ')</span><span>' + envioLbl + '</span></div>' +
+      '<div class="ard-envio-row"><span>' + zonaLbl + '</span><span>' + envioLbl + '</span></div>' +
       '<div class="ard-envio-grand"><span>Total estimado</span><span>' +
-        (envio > 0 ? formatearPrecio(subtotal + envio) : formatearPrecio(subtotal) + (gratis ? '' : ' + envío')) + '</span></div>';
+        (envio > 0 ? formatearPrecio(subtotal + envio) : formatearPrecio(subtotal) + (gratis || tipoEntrega === 'retiro' ? '' : ' + envío')) + '</span></div>';
   }
 
   // ---------- Checkout: paso 1 (carrito) ----------
@@ -805,7 +939,7 @@
     var formaPagoLbl = modo === 'transferencia' ? 'Transferencia bancaria'
       : modo === 'efectivo' ? 'Efectivo'
       : labelCuotas(cuotas);
-    var zonaLbl = envioZona === 'local' ? 'Catamarca cap. / provincia' : 'Resto del país';
+    var zonaLbl = labelEntrega();
     var envio = getEnvio();
     var gratis = envioEsGratisPorMonto();
     var subtotalBase = getTotal();
@@ -827,14 +961,16 @@
       '<div class="ard-revision-section">' +
         '<div class="ard-revision-row"><span>Subtotal</span><span>' + formatearPrecio(subtotalBase) + '</span></div>' +
         (descuento > 0 ? '<div class="ard-revision-row" style="color:#219653;"><span>Descuento (' + cuponActual.code + ')</span><span>− ' + formatearPrecio(descuento) + '</span></div>' : '') +
-        '<div class="ard-revision-row"><span>Envío (' + zonaLbl + ')</span><span>' + (gratis ? 'GRATIS 🎉' : (envio > 0 ? formatearPrecio(envio) : 'A coordinar')) + '</span></div>' +
+        '<div class="ard-revision-row"><span>Envío</span><span>' + (gratis || tipoEntrega === 'retiro' ? (gratis ? 'GRATIS 🎉' : 'Gratis') : (envio > 0 ? formatearPrecio(envio) : 'A coordinar')) + '</span></div>' +
       '</div>' +
       '<div class="ard-revision-section">' +
         '<div class="ard-revision-titulo">Entrega y pago</div>' +
         '<div class="ard-revision-row"><span>Método de entrega</span><span>' + zonaLbl + '</span></div>' +
+        (tipoEntrega === 'domicilio' && document.getElementById('ard-cart-direccion') && document.getElementById('ard-cart-direccion').value.trim()
+          ? '<div class="ard-revision-row"><span>Dirección</span><span>' + escapeHtml(document.getElementById('ard-cart-direccion').value.trim()) + '</span></div>' : '') +
         '<div class="ard-revision-row"><span>Forma de pago</span><span>' + formaPagoLbl + '</span></div>' +
       '</div>' +
-      '<div class="ard-revision-total"><span>Total' + (envio > 0 || gratis ? '' : ' (+ envío a coordinar)') + '</span><span>' + formatearPrecio(totalFinal) + '</span></div>';
+      '<div class="ard-revision-total"><span>Total' + (envio > 0 || gratis || tipoEntrega === 'retiro' ? '' : ' (+ envío a coordinar)') + '</span><span>' + formatearPrecio(totalFinal) + '</span></div>';
 
     actualizarBotonConfirmar();
   }
@@ -856,24 +992,36 @@
     irAPaso(1);
     renderCheckoutItems();
 
-    // Restablecer zona de envío al abrir
-    envioZona = 'local';
-    var listaEnvio = document.getElementById('ard-cart-envio-lista');
-    if (listaEnvio) {
-      listaEnvio.querySelectorAll('.ard-cart-modo').forEach(function (el) {
-        el.classList.toggle('sel', el.getAttribute('data-zona') === 'local');
-      });
-      var rLocal = listaEnvio.querySelector('input[value="local"]');
-      if (rLocal) rLocal.checked = true;
-    }
-    iniciarSelectorEnvio();
+    // Restablecer tipo de entrega al abrir
+    tipoEntrega = 'domicilio';
+    var direccionInput = document.getElementById('ard-cart-direccion');
+    if (direccionInput) direccionInput.value = '';
 
-    // Cargar tarifas de envío desde config
-    fetch('/api/config').then(function (r) { return r.json(); }).then(function (cfg) {
-      envioTarifas.local    = Math.max(0, Number(cfg.envioLocal)    || 0);
+    // Zonas, puntos de retiro y tarifas/textos configurados desde el panel.
+    Promise.all([
+      fetch('/api/shipping/zones').then(function (r) { return r.json(); }).catch(function () { return []; }),
+      fetch('/api/shipping/pickup-points').then(function (r) { return r.json(); }).catch(function () { return []; }),
+      fetch('/api/config').then(function (r) { return r.json(); }).catch(function () { return {}; }),
+    ]).then(function (res) {
+      zonasCapital = Array.isArray(res[0]) ? res[0] : [];
+      puntosRetiro = Array.isArray(res[1]) ? res[1] : [];
+      var cfg = res[2] || {};
       envioTarifas.nacional = Math.max(0, Number(cfg.envioNacional) || 0);
-      actualizarPreciosEnvioUI();
-    }).catch(function () {});
+      ENVIO_GRATIS_MONTO_CAPITAL = Math.max(0, Number(cfg.envioGratisMontoCapital) || ENVIO_GRATIS_MONTO_CAPITAL);
+      actualizarSubEnvioGratis();
+      renderEnvioGratisBarra();
+
+      renderZonaSelect();
+      renderOpcionesEntrega();
+
+      var tiemposEl = document.getElementById('ard-entrega-tiempos');
+      if (tiemposEl && cfg.envioTiemposTexto) {
+        tiemposEl.style.display = '';
+        tiemposEl.innerHTML =
+          '<div class="ard-envio-row" style="color:#0d1b2a;font-weight:600;">' + escapeHtml(cfg.envioTiemposTitulo || 'Tiempos de entrega') + '</div>' +
+          '<div class="ard-envio-row"><span>' + escapeHtml(cfg.envioTiemposTexto) + '</span></div>';
+      }
+    });
 
     cargarModosPago();
 
@@ -1180,10 +1328,16 @@
     lineas.push('Forma de pago: ' + formaPago);
     var envio    = getEnvio();
     var subtotal = totalDeCuotas(cuotas || 0);
-    var zonaLbl  = envioZona === 'local' ? 'Catamarca cap. / provincia' : 'Resto del país';
-    lineas.push('Zona de envío: ' + zonaLbl);
+    lineas.push('Entrega: ' + labelEntrega());
+    if (tipoEntrega === 'domicilio') {
+      var direccionInput = document.getElementById('ard-cart-direccion');
+      if (direccionInput && direccionInput.value.trim()) lineas.push('Dirección: ' + direccionInput.value.trim());
+    }
     if (envioEsGratisPorMonto()) {
-      lineas.push('Envío: GRATIS 🎉 (supera los ' + formatearPrecio(ENVIO_GRATIS_LOCAL_DESDE) + ' en Catamarca Capital)');
+      lineas.push('Envío: GRATIS 🎉 (supera los ' + formatearPrecio(ENVIO_GRATIS_MONTO_CAPITAL) + ' en Catamarca Capital)');
+      lineas.push('Total: ' + formatearPrecio(subtotal));
+    } else if (tipoEntrega === 'retiro') {
+      lineas.push('Envío: Gratis (retiro en punto ARD)');
       lineas.push('Total: ' + formatearPrecio(subtotal));
     } else if (envio > 0) {
       lineas.push('Envío: ' + formatearPrecio(envio));
@@ -1208,10 +1362,14 @@
     var nombre = (nombreInput.value || '').trim();
     var telefono = (telInput.value || '').trim();
     var notasBase = (notasInput.value || '').trim();
-    var zonaLbl = envioZona === 'local' ? 'Catamarca cap. / provincia' : 'Resto del país';
+    var zonaLbl = labelEntrega();
     var envioMonto = getEnvio();
-    var envioMontoTxt = envioEsGratisPorMonto() ? 'GRATIS' : (envioMonto > 0 ? formatearPrecio(envioMonto) : 'A coordinar');
-    var notaEnvio = 'Envío: ' + zonaLbl + ' — ' + envioMontoTxt;
+    var envioMontoTxt = envioEsGratisPorMonto() ? 'GRATIS' : (tipoEntrega === 'retiro' ? 'Gratis' : (envioMonto > 0 ? formatearPrecio(envioMonto) : 'A coordinar'));
+    var notaEnvio = 'Entrega: ' + zonaLbl + ' — ' + envioMontoTxt;
+    var direccionInput = document.getElementById('ard-cart-direccion');
+    if (tipoEntrega === 'domicilio' && direccionInput && direccionInput.value.trim()) {
+      notaEnvio += ' | Dirección: ' + direccionInput.value.trim();
+    }
     var notas = notasBase ? notasBase + ' | ' + notaEnvio : notaEnvio;
     var cuotas = cuotasSeleccionadas();
     var canal = cuotas < 1 ? 'whatsapp' : 'mercadopago';
@@ -1321,6 +1479,13 @@
     montarDOM();
     render();
     refrescarCuenta();
+    // Monto de envío gratis (Catamarca Capital) para que la barra del
+    // carrito ya muestre el valor correcto desde el primer render.
+    fetch('/api/config').then(function (r) { return r.json(); }).then(function (cfg) {
+      ENVIO_GRATIS_MONTO_CAPITAL = Math.max(0, Number(cfg.envioGratisMontoCapital) || ENVIO_GRATIS_MONTO_CAPITAL);
+      actualizarSubEnvioGratis();
+      renderEnvioGratisBarra();
+    }).catch(function () {});
   }
 
   if (document.readyState === 'loading') {
