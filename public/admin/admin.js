@@ -366,6 +366,7 @@
     stats: document.getElementById('tab-stats'),
     marketing: document.getElementById('tab-marketing'),
     ventas: document.getElementById('tab-ventas'),
+    envios: document.getElementById('tab-envios'),
     config: document.getElementById('tab-config'),
   };
 

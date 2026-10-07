@@ -274,7 +274,17 @@ async function borrarImagenPorUrl(url) {
 // Se cachea en memoria para no golpear la DB en cada petición. Se refresca
 // al arrancar y cada 2 minutos. La función es síncrona → los handlers no
 // necesitan awaitar nada extra para usar la config.
-let _configCache = { efectivoDescPct: 20, envioLocal: 0, envioNacional: 0, tarjetaRecargo1: 7.69, tarjetaRecargo2: 20.28, tarjetaRecargo3: 25 };
+let _configCache = {
+  efectivoDescPct: 20, envioLocal: 0, envioNacional: 0,
+  tarjetaRecargo1: 7.69, tarjetaRecargo2: 20.28, tarjetaRecargo3: 25,
+  envioGratisMontoCapital: 120000,
+  envioTiemposTitulo: '🚚 Tiempos de entrega',
+  envioTiemposTexto: 'Los pedidos realizados de lunes a sábado hasta las 18:00 hs se entregan durante el mismo día. Los pedidos realizados después de las 18:00 hs salen al siguiente día.',
+  envioInteriorTitulo: '📦 Envíos al interior de Catamarca',
+  envioInteriorTexto: 'Tiempo estimado: 2 a 4 días hábiles, dependiendo de la localidad y el transporte.',
+  envioNacionalTitulo: '🇦🇷 Envíos a todo el país',
+  envioNacionalTexto: 'Tiempo estimado: 2 a 4 días hábiles, dependiendo de la localidad y empresa de transporte.',
+};
 
 async function refreshConfig() {
   try {
@@ -290,6 +300,13 @@ async function refreshConfig() {
         if (r.key === 'tarjeta_recargo_1') _configCache.tarjetaRecargo1 = Math.max(0, Number(r.value) || 7.69);
         if (r.key === 'tarjeta_recargo_2') _configCache.tarjetaRecargo2 = Math.max(0, Number(r.value) || 20.28);
         if (r.key === 'tarjeta_recargo_3') _configCache.tarjetaRecargo3 = Math.max(0, Number(r.value) || 25);
+        if (r.key === 'envio_gratis_monto_capital') _configCache.envioGratisMontoCapital = Math.max(0, Number(r.value) || 0);
+        if (r.key === 'envio_tiempos_titulo')   _configCache.envioTiemposTitulo   = r.value;
+        if (r.key === 'envio_tiempos_texto')    _configCache.envioTiemposTexto    = r.value;
+        if (r.key === 'envio_interior_titulo')  _configCache.envioInteriorTitulo  = r.value;
+        if (r.key === 'envio_interior_texto')   _configCache.envioInteriorTexto   = r.value;
+        if (r.key === 'envio_nacional_titulo')  _configCache.envioNacionalTitulo  = r.value;
+        if (r.key === 'envio_nacional_texto')   _configCache.envioNacionalTexto   = r.value;
       });
     }
   } catch (e) { /* mantiene el valor anterior */ }
@@ -1345,7 +1362,15 @@ app.delete('/api/admin/products/:id', requireAuth, async (req, res) => {
 // ---------- Venta Rápida (POS local) ----------
 // ---------- Configuración del sitio (pública de lectura, admin para escritura) ----------
 app.get('/api/config', (req, res) => {
-  res.json({ efectivoDescPct: getConfig().efectivoDescPct, envioLocal: getConfig().envioLocal, envioNacional: getConfig().envioNacional, tarjetaRecargo1: getConfig().tarjetaRecargo1, tarjetaRecargo2: getConfig().tarjetaRecargo2, tarjetaRecargo3: getConfig().tarjetaRecargo3 });
+  const c = getConfig();
+  res.json({
+    efectivoDescPct: c.efectivoDescPct, envioLocal: c.envioLocal, envioNacional: c.envioNacional,
+    tarjetaRecargo1: c.tarjetaRecargo1, tarjetaRecargo2: c.tarjetaRecargo2, tarjetaRecargo3: c.tarjetaRecargo3,
+    envioGratisMontoCapital: c.envioGratisMontoCapital,
+    envioTiemposTitulo: c.envioTiemposTitulo, envioTiemposTexto: c.envioTiemposTexto,
+    envioInteriorTitulo: c.envioInteriorTitulo, envioInteriorTexto: c.envioInteriorTexto,
+    envioNacionalTitulo: c.envioNacionalTitulo, envioNacionalTexto: c.envioNacionalTexto,
+  });
 });
 
 app.get('/api/admin/settings', requireAuth, async (req, res) => {
@@ -1371,6 +1396,311 @@ app.put('/api/admin/settings/:key', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al guardar la configuración' });
+  }
+});
+
+// ---------- Envíos: zonas (Catamarca Capital), puntos de retiro y FAQ ----------
+// Por ahora solo Catamarca Capital tiene cotización por zona; interior de
+// Catamarca y resto del país siguen con la tarifa plana de siempre
+// (envio_nacional, ya en app_settings).
+function mapZonaEnvio(row) {
+  return { id: row.id, name: row.name, price: Number(row.price), active: row.active, position: row.position };
+}
+function mapPuntoRetiro(row) {
+  return {
+    id: row.id, name: row.name, address: row.address || '', description: row.description || '',
+    schedule: row.schedule || '', active: row.active, position: row.position,
+  };
+}
+function mapFaqEnvio(row) {
+  return { id: row.id, question: row.question, answer: row.answer || '', position: row.position };
+}
+
+// Públicas (checkout y página /envios.html): solo lo activo.
+app.get('/api/shipping/zones', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('shipping_zones').select('*').eq('active', true).order('position', { ascending: true });
+    if (error) throw error;
+    res.json((data || []).map(mapZonaEnvio));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las zonas de envío' });
+  }
+});
+
+app.get('/api/shipping/pickup-points', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('pickup_points').select('*').eq('active', true).order('position', { ascending: true });
+    if (error) throw error;
+    res.json((data || []).map(mapPuntoRetiro));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener los puntos de retiro' });
+  }
+});
+
+app.get('/api/shipping/faqs', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('shipping_faqs').select('*').order('position', { ascending: true });
+    if (error) throw error;
+    res.json((data || []).map(mapFaqEnvio));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las preguntas frecuentes' });
+  }
+});
+
+// ---- Admin: zonas de envío (Catamarca Capital) ----
+app.get('/api/admin/shipping/zones', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('shipping_zones').select('*').order('position', { ascending: true });
+    if (error) throw error;
+    res.json((data || []).map(mapZonaEnvio));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las zonas de envío' });
+  }
+});
+
+app.post('/api/admin/shipping/zones', requireAuth, async (req, res) => {
+  try {
+    const { name, price, active } = req.body;
+    if (!name || price === undefined || price === '') {
+      return res.status(400).json({ error: 'Nombre y precio son obligatorios' });
+    }
+    const { data: maxRow } = await supabase.from('shipping_zones').select('position').order('position', { ascending: false }).limit(1).maybeSingle();
+    const nuevo = {
+      name: String(name).trim(),
+      price: Number(price) || 0,
+      active: active === undefined ? true : active === 'true' || active === true,
+      position: maxRow ? maxRow.position + 1 : 0,
+    };
+    const { data, error } = await supabase.from('shipping_zones').insert(nuevo).select().single();
+    if (error) throw error;
+    res.status(201).json(mapZonaEnvio(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear la zona de envío' });
+  }
+});
+
+app.put('/api/admin/shipping/zones/:id', requireAuth, async (req, res) => {
+  try {
+    const { name, price, active } = req.body;
+    const cambios = {};
+    if (name !== undefined) cambios.name = String(name).trim();
+    if (price !== undefined && price !== '') cambios.price = Number(price);
+    if (active !== undefined) cambios.active = active === 'true' || active === true;
+
+    const { data, error } = await supabase.from('shipping_zones').update(cambios).eq('id', req.params.id).select().maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Zona no encontrada' });
+    res.json(mapZonaEnvio(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar la zona de envío' });
+  }
+});
+
+// Sube o baja una zona un lugar, intercambiando su posición con la vecina.
+app.put('/api/admin/shipping/zones/:id/mover', requireAuth, async (req, res) => {
+  try {
+    const { direction } = req.body;
+    const { data: todas, error } = await supabase.from('shipping_zones').select('id, position').order('position', { ascending: true });
+    if (error) throw error;
+    const idx = todas.findIndex((z) => z.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Zona no encontrada' });
+    const idxVecino = direction === 'up' ? idx - 1 : idx + 1;
+    if (idxVecino < 0 || idxVecino >= todas.length) return res.json({ ok: true });
+    const actual = todas[idx];
+    const vecino = todas[idxVecino];
+    await Promise.all([
+      supabase.from('shipping_zones').update({ position: vecino.position }).eq('id', actual.id),
+      supabase.from('shipping_zones').update({ position: actual.position }).eq('id', vecino.id),
+    ]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al reordenar' });
+  }
+});
+
+app.delete('/api/admin/shipping/zones/:id', requireAuth, async (req, res) => {
+  try {
+    const { error } = await supabase.from('shipping_zones').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar la zona de envío' });
+  }
+});
+
+// ---- Admin: puntos de retiro ----
+app.get('/api/admin/shipping/pickup-points', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('pickup_points').select('*').order('position', { ascending: true });
+    if (error) throw error;
+    res.json((data || []).map(mapPuntoRetiro));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener los puntos de retiro' });
+  }
+});
+
+app.post('/api/admin/shipping/pickup-points', requireAuth, async (req, res) => {
+  try {
+    const { name, address, description, schedule, active } = req.body;
+    if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
+    const { data: maxRow } = await supabase.from('pickup_points').select('position').order('position', { ascending: false }).limit(1).maybeSingle();
+    const nuevo = {
+      name: String(name).trim(),
+      address: address ? String(address).trim() : '',
+      description: description ? String(description).trim() : '',
+      schedule: schedule ? String(schedule).trim() : '',
+      active: active === undefined ? true : active === 'true' || active === true,
+      position: maxRow ? maxRow.position + 1 : 0,
+    };
+    const { data, error } = await supabase.from('pickup_points').insert(nuevo).select().single();
+    if (error) throw error;
+    res.status(201).json(mapPuntoRetiro(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear el punto de retiro' });
+  }
+});
+
+app.put('/api/admin/shipping/pickup-points/:id', requireAuth, async (req, res) => {
+  try {
+    const { name, address, description, schedule, active } = req.body;
+    const cambios = {};
+    if (name !== undefined) cambios.name = String(name).trim();
+    if (address !== undefined) cambios.address = String(address).trim();
+    if (description !== undefined) cambios.description = String(description).trim();
+    if (schedule !== undefined) cambios.schedule = String(schedule).trim();
+    if (active !== undefined) cambios.active = active === 'true' || active === true;
+
+    const { data, error } = await supabase.from('pickup_points').update(cambios).eq('id', req.params.id).select().maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Punto de retiro no encontrado' });
+    res.json(mapPuntoRetiro(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar el punto de retiro' });
+  }
+});
+
+app.put('/api/admin/shipping/pickup-points/:id/mover', requireAuth, async (req, res) => {
+  try {
+    const { direction } = req.body;
+    const { data: todos, error } = await supabase.from('pickup_points').select('id, position').order('position', { ascending: true });
+    if (error) throw error;
+    const idx = todos.findIndex((p) => p.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Punto de retiro no encontrado' });
+    const idxVecino = direction === 'up' ? idx - 1 : idx + 1;
+    if (idxVecino < 0 || idxVecino >= todos.length) return res.json({ ok: true });
+    const actual = todos[idx];
+    const vecino = todos[idxVecino];
+    await Promise.all([
+      supabase.from('pickup_points').update({ position: vecino.position }).eq('id', actual.id),
+      supabase.from('pickup_points').update({ position: actual.position }).eq('id', vecino.id),
+    ]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al reordenar' });
+  }
+});
+
+app.delete('/api/admin/shipping/pickup-points/:id', requireAuth, async (req, res) => {
+  try {
+    const { error } = await supabase.from('pickup_points').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar el punto de retiro' });
+  }
+});
+
+// ---- Admin: preguntas frecuentes de envíos ----
+app.get('/api/admin/shipping/faqs', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('shipping_faqs').select('*').order('position', { ascending: true });
+    if (error) throw error;
+    res.json((data || []).map(mapFaqEnvio));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener las preguntas frecuentes' });
+  }
+});
+
+app.post('/api/admin/shipping/faqs', requireAuth, async (req, res) => {
+  try {
+    const { question, answer } = req.body;
+    if (!question) return res.status(400).json({ error: 'La pregunta es obligatoria' });
+    const { data: maxRow } = await supabase.from('shipping_faqs').select('position').order('position', { ascending: false }).limit(1).maybeSingle();
+    const nuevo = {
+      question: String(question).trim(),
+      answer: answer ? String(answer).trim() : '',
+      position: maxRow ? maxRow.position + 1 : 0,
+    };
+    const { data, error } = await supabase.from('shipping_faqs').insert(nuevo).select().single();
+    if (error) throw error;
+    res.status(201).json(mapFaqEnvio(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear la pregunta frecuente' });
+  }
+});
+
+app.put('/api/admin/shipping/faqs/:id', requireAuth, async (req, res) => {
+  try {
+    const { question, answer } = req.body;
+    const cambios = {};
+    if (question !== undefined) cambios.question = String(question).trim();
+    if (answer !== undefined) cambios.answer = String(answer).trim();
+
+    const { data, error } = await supabase.from('shipping_faqs').update(cambios).eq('id', req.params.id).select().maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Pregunta no encontrada' });
+    res.json(mapFaqEnvio(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar la pregunta frecuente' });
+  }
+});
+
+app.put('/api/admin/shipping/faqs/:id/mover', requireAuth, async (req, res) => {
+  try {
+    const { direction } = req.body;
+    const { data: todas, error } = await supabase.from('shipping_faqs').select('id, position').order('position', { ascending: true });
+    if (error) throw error;
+    const idx = todas.findIndex((f) => f.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Pregunta no encontrada' });
+    const idxVecino = direction === 'up' ? idx - 1 : idx + 1;
+    if (idxVecino < 0 || idxVecino >= todas.length) return res.json({ ok: true });
+    const actual = todas[idx];
+    const vecino = todas[idxVecino];
+    await Promise.all([
+      supabase.from('shipping_faqs').update({ position: vecino.position }).eq('id', actual.id),
+      supabase.from('shipping_faqs').update({ position: actual.position }).eq('id', vecino.id),
+    ]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al reordenar' });
+  }
+});
+
+app.delete('/api/admin/shipping/faqs/:id', requireAuth, async (req, res) => {
+  try {
+    const { error } = await supabase.from('shipping_faqs').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar la pregunta frecuente' });
   }
 });
 

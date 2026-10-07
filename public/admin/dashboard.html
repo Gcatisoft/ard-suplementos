@@ -968,6 +968,7 @@
     <button type="button" class="tab-btn" data-tab="stats">Estadísticas</button>
     <button type="button" class="tab-btn" data-tab="marketing">Marketing</button>
     <button type="button" class="tab-btn" data-tab="ventas">Venta Rápida</button>
+    <button type="button" class="tab-btn" data-tab="envios">Envíos</button>
     <button type="button" class="tab-btn" data-tab="config">Configuración</button>
   </nav>
 
@@ -1466,6 +1467,189 @@
           <button type="button" class="vr-confirm-btn" id="vr-confirmar-btn" disabled>Confirmar venta</button>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- TAB: Envíos -->
+  <section class="tab-panel" id="tab-envios">
+    <div class="section-header">
+      <div>
+        <h2 class="section-title">Envíos</h2>
+        <p class="section-subtitle">
+          Zonas de Catamarca Capital, puntos de retiro, envío gratis y toda la información de envíos que ve el cliente.
+          Por ahora solo Capital tiene cotización por zona; interior y resto del país siguen con la tarifa plana de
+          "Configuración".
+        </p>
+      </div>
+    </div>
+
+    <div class="cfg-stack">
+
+      <!-- Zonas de envío -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">📍</div>
+          <div>
+            <h3 class="cfg-card-title">Zonas de envío — Catamarca Capital</h3>
+            <p class="cfg-card-desc">
+              El cliente elige su zona en el checkout y ve el precio al instante. Desactivá una zona para ocultarla
+              sin borrarla, y usá las flechas para ordenarlas como aparecen en el desplegable.
+            </p>
+          </div>
+        </div>
+        <div class="dash-toolbar" style="margin-bottom:12px;">
+          <span></span>
+          <button type="button" class="btn btn-primary" id="nueva-zona-btn" style="width:auto;">+ Nueva zona</button>
+        </div>
+        <div class="tabla-wrap">
+          <table class="productos-tabla">
+            <thead><tr><th>Zona</th><th>Precio</th><th>Estado</th><th>Orden</th><th></th></tr></thead>
+            <tbody id="zonas-tabla-body"></tbody>
+          </table>
+          <div class="empty-state" id="zonas-empty-state" style="display:none;">Todavía no cargaste ninguna zona.</div>
+        </div>
+      </div>
+
+      <!-- Envío gratis -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">🎁</div>
+          <div>
+            <h3 class="cfg-card-title">Envío gratis</h3>
+            <p class="cfg-card-desc">
+              Si el subtotal del carrito supera este monto, el envío a domicilio en <strong>Catamarca Capital</strong>
+              pasa a ser gratis automáticamente. No afecta al interior ni al resto del país.
+            </p>
+          </div>
+        </div>
+        <div class="cfg-inline-row">
+          <div class="cfg-field">
+            <label for="cfg-envio-gratis-monto">Monto mínimo ($)</label>
+            <input type="number" id="cfg-envio-gratis-monto" min="0" step="1000" placeholder="120000">
+          </div>
+        </div>
+        <div class="cfg-save-row">
+          <button type="button" class="cfg-save-btn" id="cfg-envio-gratis-guardar-btn">Guardar</button>
+          <span id="cfg-envio-gratis-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
+        </div>
+      </div>
+
+      <!-- Tiempos de entrega -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">🕐</div>
+          <div>
+            <h3 class="cfg-card-title">Tiempos de entrega</h3>
+            <p class="cfg-card-desc">Este texto se muestra en el checkout y en la página de envíos.</p>
+          </div>
+        </div>
+        <div class="cfg-field">
+          <label for="cfg-envio-tiempos-titulo">Título</label>
+          <input type="text" id="cfg-envio-tiempos-titulo" placeholder="🚚 Tiempos de entrega">
+        </div>
+        <div class="cfg-field">
+          <label for="cfg-envio-tiempos-texto">Descripción</label>
+          <textarea id="cfg-envio-tiempos-texto" rows="3" placeholder="Los pedidos realizados de lunes a sábado…"></textarea>
+        </div>
+        <div class="cfg-save-row">
+          <button type="button" class="cfg-save-btn" id="cfg-envio-tiempos-guardar-btn">Guardar</button>
+          <span id="cfg-envio-tiempos-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
+        </div>
+      </div>
+
+      <!-- Puntos de retiro -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">🏪</div>
+          <div>
+            <h3 class="cfg-card-title">Puntos de retiro</h3>
+            <p class="cfg-card-desc">
+              Sin costo para el cliente, e independientes de las zonas de envío: cualquiera puede elegir retirar en
+              cualquier punto, sin importar dónde viva.
+            </p>
+          </div>
+        </div>
+        <div class="dash-toolbar" style="margin-bottom:12px;">
+          <span></span>
+          <button type="button" class="btn btn-primary" id="nuevo-punto-btn" style="width:auto;">+ Nuevo punto de retiro</button>
+        </div>
+        <div class="tabla-wrap">
+          <table class="productos-tabla">
+            <thead><tr><th>Nombre</th><th>Dirección</th><th>Horario</th><th>Estado</th><th>Orden</th><th></th></tr></thead>
+            <tbody id="puntos-tabla-body"></tbody>
+          </table>
+          <div class="empty-state" id="puntos-empty-state" style="display:none;">Todavía no cargaste ningún punto de retiro.</div>
+        </div>
+      </div>
+
+      <!-- Interior de Catamarca -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">📦</div>
+          <div>
+            <h3 class="cfg-card-title">Envíos al interior de Catamarca</h3>
+            <p class="cfg-card-desc">Información general (todavía sin cotización automática por localidad).</p>
+          </div>
+        </div>
+        <div class="cfg-field">
+          <label for="cfg-envio-interior-titulo">Título</label>
+          <input type="text" id="cfg-envio-interior-titulo" placeholder="📦 Envíos al interior de Catamarca">
+        </div>
+        <div class="cfg-field">
+          <label for="cfg-envio-interior-texto">Descripción</label>
+          <textarea id="cfg-envio-interior-texto" rows="3" placeholder="Tiempo estimado: 2 a 4 días hábiles…"></textarea>
+        </div>
+        <div class="cfg-save-row">
+          <button type="button" class="cfg-save-btn" id="cfg-envio-interior-guardar-btn">Guardar</button>
+          <span id="cfg-envio-interior-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
+        </div>
+      </div>
+
+      <!-- Resto del país -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">🇦🇷</div>
+          <div>
+            <h3 class="cfg-card-title">Envíos a todo el país</h3>
+            <p class="cfg-card-desc">Información general (todavía sin cotización automática por provincia).</p>
+          </div>
+        </div>
+        <div class="cfg-field">
+          <label for="cfg-envio-nacional-titulo">Título</label>
+          <input type="text" id="cfg-envio-nacional-titulo" placeholder="🇦🇷 Envíos a todo el país">
+        </div>
+        <div class="cfg-field">
+          <label for="cfg-envio-nacional-texto">Descripción</label>
+          <textarea id="cfg-envio-nacional-texto" rows="3" placeholder="Tiempo estimado: 2 a 4 días hábiles…"></textarea>
+        </div>
+        <div class="cfg-save-row">
+          <button type="button" class="cfg-save-btn" id="cfg-envio-nacional-guardar-btn">Guardar</button>
+          <span id="cfg-envio-nacional-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
+        </div>
+      </div>
+
+      <!-- Preguntas frecuentes -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">❓</div>
+          <div>
+            <h3 class="cfg-card-title">Preguntas frecuentes de envíos</h3>
+            <p class="cfg-card-desc">Se muestran en la página de envíos, en el orden de esta lista.</p>
+          </div>
+        </div>
+        <div class="dash-toolbar" style="margin-bottom:12px;">
+          <span></span>
+          <button type="button" class="btn btn-primary" id="nueva-faq-btn" style="width:auto;">+ Nueva pregunta</button>
+        </div>
+        <div class="tabla-wrap">
+          <table class="productos-tabla">
+            <thead><tr><th>Pregunta</th><th>Respuesta</th><th>Orden</th><th></th></tr></thead>
+            <tbody id="faqs-tabla-body"></tbody>
+          </table>
+          <div class="empty-state" id="faqs-empty-state" style="display:none;">Todavía no agregaste preguntas frecuentes.</div>
+        </div>
+      </div>
+
     </div>
   </section>
 
@@ -2295,6 +2479,105 @@
   </div>
 </div>
 
+<!-- ============ MODAL ZONA DE ENVÍO ============ -->
+<div class="modal-overlay" id="modal-overlay-zona">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h2 id="modal-zona-title">Nueva zona</h2>
+      <button class="modal-close" id="modal-zona-close" type="button">✕</button>
+    </div>
+    <div class="error-msg" id="form-zona-error"></div>
+    <form id="zona-form">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="zona-nombre">Nombre *</label>
+          <input type="text" id="zona-nombre" required placeholder="Ej: Centro">
+        </div>
+        <div class="form-group full">
+          <label for="zona-precio">Precio de envío ($) *</label>
+          <input type="number" id="zona-precio" min="0" step="100" required placeholder="1000">
+        </div>
+        <div class="form-group full">
+          <div class="checkbox-row">
+            <label class="checkbox-item"><input type="checkbox" id="zona-activa" checked> Visible en el checkout</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-zona-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" style="width:auto;">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL PUNTO DE RETIRO ============ -->
+<div class="modal-overlay" id="modal-overlay-punto">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h2 id="modal-punto-title">Nuevo punto de retiro</h2>
+      <button class="modal-close" id="modal-punto-close" type="button">✕</button>
+    </div>
+    <div class="error-msg" id="form-punto-error"></div>
+    <form id="punto-form">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="punto-nombre">Nombre *</label>
+          <input type="text" id="punto-nombre" required placeholder="Ej: Retiro en ARD — Centro">
+        </div>
+        <div class="form-group full">
+          <label for="punto-direccion">Dirección</label>
+          <input type="text" id="punto-direccion" placeholder="Ej: Sarmiento 722, Catamarca Capital">
+        </div>
+        <div class="form-group full">
+          <label for="punto-descripcion">Descripción (opcional)</label>
+          <textarea id="punto-descripcion" placeholder="Ej: Local central de ARD Suplementos."></textarea>
+        </div>
+        <div class="form-group full">
+          <label for="punto-horario">Horario de retiro</label>
+          <input type="text" id="punto-horario" placeholder="Ej: Lunes a sábado de 9 a 20 hs.">
+        </div>
+        <div class="form-group full">
+          <div class="checkbox-row">
+            <label class="checkbox-item"><input type="checkbox" id="punto-activo" checked> Visible en el checkout</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-punto-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" style="width:auto;">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL FAQ DE ENVÍOS ============ -->
+<div class="modal-overlay" id="modal-overlay-faq">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h2 id="modal-faq-title">Nueva pregunta</h2>
+      <button class="modal-close" id="modal-faq-close" type="button">✕</button>
+    </div>
+    <div class="error-msg" id="form-faq-error"></div>
+    <form id="faq-form">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="faq-pregunta">Pregunta *</label>
+          <input type="text" id="faq-pregunta" required placeholder="Ej: ¿Cuándo llega mi pedido?">
+        </div>
+        <div class="form-group full">
+          <label for="faq-respuesta">Respuesta</label>
+          <textarea id="faq-respuesta" rows="4" placeholder="Escribí la respuesta…"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="cancelar-faq-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" style="width:auto;">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ============ MODAL: EDITOR DE TAMAÑO DE IMAGEN ============ -->
 <div class="modal-overlay" id="resize-modal-overlay">
   <div class="modal" style="max-width:420px;">
@@ -2338,5 +2621,6 @@
 <script src="admin.js"></script>
 <script src="marketing.js"></script>
 <script src="ventas.js"></script>
+<script src="envios.js"></script>
 </body>
 </html>
