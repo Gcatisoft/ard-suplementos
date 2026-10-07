@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Envíos y retiro | ARD Suplementos Catamarca</title>
+<meta name="description" content="Zonas de envío en Catamarca Capital, puntos de retiro sin cargo, tiempos de entrega, envíos al interior y a todo el país, y preguntas frecuentes.">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#0a1626">
+<link rel="canonical" href="https://ardsuplementos.com.ar/envios.html">
+<link rel="icon" href="/logoard.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+  :root{
+    --white:#ffffff;
+    --bg-soft:#f5f8fc;
+    --ink:#0e1c30;
+    --navy-950:#0a1626;
+    --navy-900:#11223c;
+    --navy-800:#1a3357;
+    --steel-600:#4f76a8;
+    --steel-500:#6f93c1;
+    --steel-300:#a9c3de;
+    --steel-100:#e7eef7;
+    --line:#e3e9f2;
+    --accent:#2f6fb0;
+    --accent-light:#4886c9;
+    --flame:#e0563f;
+    --flame-dark:#c73f2a;
+    --ok:#1a7a44;
+
+    --font-display:'Poppins', sans-serif;
+    --font-cond:'Poppins', sans-serif;
+    --font-body:'Inter', sans-serif;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--font-body); background:var(--white); color:var(--ink); -webkit-font-smoothing:antialiased; overflow-x:hidden;}
+  img{max-width:100%;display:block;}
+  a{text-decoration:none;color:inherit;}
+  button, input, select{font-family:inherit;}
+  button{cursor:pointer;}
+
+  .wrap{max-width:1220px;margin:0 auto;padding:0 24px;}
+  @media (max-width:480px){ .wrap{padding:0 16px;} }
+
+  /* -------- Header -------- */
+  header.nav{position:sticky; top:0; z-index:60; background:rgba(255,255,255,0.98); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); box-shadow:0 2px 14px rgba(10,22,38,0.08);}
+  .nav-inner{display:flex; align-items:center; justify-content:space-between; padding:12px 0; position:relative; gap:10px;}
+  .nav-brand{display:flex;align-items:center;gap:12px;min-width:0;flex:1 1 auto;overflow:hidden;}
+  .nav-brand .logo-img{height:140px;width:auto;display:block;max-width:100%;}
+  .nav-links{display:flex;gap:22px;align-items:center;}
+  .nav-links a{font-family:var(--font-cond); font-weight:600; font-size:14px; letter-spacing:0.02em; text-transform:uppercase; color:var(--navy-900); transition:color .18s ease;}
+  .nav-links a:hover{color:var(--accent);}
+  .nav-links a.active{color:var(--accent); text-decoration:underline; text-underline-offset:6px;}
+  .nav-cta{background:var(--flame); color:#fff !important; padding:10px 20px; border-radius:999px; font-weight:700; box-shadow:0 8px 18px rgba(224,86,63,0.35);}
+  .nav-cta:hover{background:var(--flame-dark);}
+  .nav-toggle{display:none; width:40px;height:40px; border:none; background:transparent; color:var(--navy-900); align-items:center; justify-content:center; flex-direction:column; gap:5px; flex-shrink:0; position:relative; z-index:75;}
+  .nav-toggle span{ display:block; width:24px; height:2px; background:var(--navy-900); border-radius:2px; transition:transform .2s ease, opacity .2s ease; }
+  .nav-toggle[aria-expanded="true"] span:nth-child(1){ transform:translateY(7px) rotate(45deg); }
+  .nav-toggle[aria-expanded="true"] span:nth-child(2){ opacity:0; }
+  .nav-toggle[aria-expanded="true"] span:nth-child(3){ transform:translateY(-7px) rotate(-45deg); }
+  @media (max-width:480px){ .nav-brand .logo-img{ height:100px; } }
+  @media (max-width:360px){ .nav-brand .logo-img{ height:82px; } }
+  @media (max-width:820px){
+    .nav-toggle{ display:flex; }
+    .nav-links{
+      position:fixed; top:0; left:0; right:0; height:100vh; height:100dvh; box-sizing:border-box;
+      padding:88px 22px calc(24px + env(safe-area-inset-bottom, 0px)); margin:0;
+      flex-direction:column; align-items:stretch; gap:0; background:var(--navy-950);
+      transform:translateX(100%); transition:transform .28s ease; overflow-y:auto;
+      -webkit-overflow-scrolling:touch; overscroll-behavior:contain; z-index:65;
+    }
+    .nav-links.open{ transform:translateX(0); }
+    .nav-links a{ padding:15px 2px; border-bottom:1px solid rgba(255,255,255,0.08); font-size:15px; flex-shrink:0; color:var(--steel-100); }
+    .nav-links a:hover{ color:#fff; }
+    .nav-links a.active{ color:#fff; }
+    .nav-links .nav-cta{ margin-top:16px; justify-content:center; text-align:center; border-bottom:none; flex-shrink:0; color:#fff !important; }
+    .nav-toggle[aria-expanded="true"] span{ background:#fff; }
+  }
+
+  /* -------- Page head -------- */
+  .page-head{background:var(--bg-soft); padding:36px 0 28px; border-bottom:1px solid var(--line);}
+  .page-head span{font-family:var(--font-cond); font-weight:600; letter-spacing:0.08em; text-transform:uppercase; font-size:12.5px; color:var(--accent); display:block; margin-bottom:8px;}
+  .page-head h1{font-family:var(--font-display); font-weight:700; font-size:clamp(26px,4vw,38px); text-transform:uppercase; color:var(--navy-900);}
+  .page-head p{color:var(--steel-600); margin-top:8px; font-size:14.5px;}
+  .volver-inicio{display:inline-flex; align-items:center; gap:6px; font-family:var(--font-cond); font-weight:600; font-size:13px; color:var(--steel-600); text-decoration:none; margin-bottom:14px; transition:color .15s ease;}
+  .volver-inicio svg{ width:15px; height:15px; transition:transform .15s ease; }
+  .volver-inicio:hover{ color:var(--accent); }
+  .volver-inicio:hover svg{ transform:translateX(-3px); }
+
+  /* -------- Secciones de envío -------- */
+  .envios-section{padding:40px 0;}
+  .envios-section + .envios-section{border-top:1px solid var(--line);}
+  .envios-section-head{margin-bottom:22px;}
+  .envios-section-head h2{font-family:var(--font-display); font-size:clamp(20px,2.6vw,26px); color:var(--navy-900); margin-bottom:6px;}
+  .envios-section-head p{color:var(--steel-600); font-size:14.5px; line-height:1.6; max-width:680px;}
+
+  .envios-gratis-banner{
+    background:linear-gradient(135deg, #e8f7ed, #f5fcf7); border:1px solid #c9ecd4; border-radius:14px;
+    padding:16px 20px; margin-bottom:22px; font-size:14.5px; color:var(--ok); font-weight:600;
+    display:flex; align-items:center; gap:10px;
+  }
+  .envios-gratis-banner svg{width:22px;height:22px;flex-shrink:0;}
+
+  .zonas-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px;}
+  .zona-card{
+    background:var(--bg-soft); border:1px solid var(--line); border-radius:14px; padding:18px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .zona-card .nombre{font-family:var(--font-cond); font-weight:700; font-size:15px; color:var(--navy-900);}
+  .zona-card .precio{font-family:var(--font-display); font-weight:800; font-size:17px; color:var(--accent);}
+
+  .puntos-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:16px;}
+  .punto-card{background:#fff; border:1px solid var(--line); border-radius:14px; padding:20px;}
+  .punto-card .nombre{font-family:var(--font-cond); font-weight:700; font-size:15.5px; color:var(--navy-900); margin-bottom:8px; display:flex; align-items:center; gap:8px;}
+  .punto-card .nombre i{color:var(--flame);}
+  .punto-card .dato{font-size:13.5px; color:var(--steel-600); margin-bottom:5px; line-height:1.5;}
+  .punto-card .dato strong{color:var(--navy-800);}
+
+  .envios-info-box{background:var(--bg-soft); border:1px solid var(--line); border-radius:14px; padding:22px 24px; max-width:720px;}
+  .envios-info-box p{font-size:14.5px; color:var(--steel-600); line-height:1.7;}
+
+  .faq-list{max-width:760px;}
+  .faq-item{border-bottom:1px solid var(--line);}
+  .faq-item:first-child{border-top:1px solid var(--line);}
+  .faq-pregunta{
+    width:100%; text-align:left; background:none; border:none; padding:18px 4px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    font-family:var(--font-cond); font-weight:600; font-size:15px; color:var(--navy-900);
+  }
+  .faq-pregunta .mas{font-size:20px; color:var(--accent); transition:transform .18s ease; flex-shrink:0;}
+  .faq-item.open .faq-pregunta .mas{transform:rotate(45deg);}
+  .faq-respuesta{max-height:0; overflow:hidden; transition:max-height .22s ease;}
+  .faq-respuesta-inner{padding:0 4px 18px; font-size:14px; color:var(--steel-600); line-height:1.6;}
+
+  .estado-lista{font-family:var(--font-body); color:var(--steel-600); padding:30px 4px;}
+
+  /* -------- Footer -------- */
+  footer{background:var(--navy-950); color:var(--steel-300); padding:52px 0 22px; margin-top:20px;}
+  .foot-grid{display:grid; grid-template-columns:1.3fr 1fr 1fr 1fr; gap:32px; padding-bottom:32px; border-bottom:1px solid rgba(255,255,255,0.08);}
+  .foot-col{min-width:0;}
+  .foot-brand{display:flex; align-items:center; gap:12px; margin-bottom:14px;}
+  .foot-logo-img{height:46px;width:46px;object-fit:contain;flex-shrink:0;display:block;background:#fff;border-radius:50%;padding:4px;}
+  .foot-brand-name{font-family:var(--font-cond); font-weight:700; font-size:15px; letter-spacing:0.02em; text-transform:uppercase; color:#fff;}
+  .foot-desc{font-size:13.5px; line-height:1.6; color:var(--steel-300); margin-bottom:16px;}
+  .foot-social{display:flex; gap:10px; margin-bottom:20px;}
+  .foot-social-link{width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.08); color:#fff; font-size:16px; transition:transform .16s ease, background .16s ease;}
+  .foot-social-link:hover{ transform:translateY(-3px); }
+  .foot-social-ig:hover{ background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); }
+  .foot-social-wsp:hover{ background:#25D366; }
+  .foot-col h4{font-family:var(--font-cond); font-weight:700; text-transform:uppercase; letter-spacing:0.02em; font-size:13px; color:#fff; margin-bottom:14px;}
+  .foot-col ul li{margin-bottom:9px; font-size:13.5px;}
+  .foot-col ul li a:hover{color:#fff;}
+  .pay-icons, .ship-icons{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;}
+  .pay-chip{font-family:var(--font-cond); font-size:10.5px; font-weight:600; letter-spacing:0.02em; background:rgba(255,255,255,0.08); color:var(--steel-100); padding:5px 9px; border-radius:6px;}
+  .foot-bottom{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; padding-top:20px; font-size:12.5px; color:#5c7091; text-align:left;}
+  .foot-bottom a{color:var(--steel-300);}
+  @media (max-width:980px){ .foot-grid{grid-template-columns:1fr 1fr; gap:30px 26px;} .foot-brand-col{grid-column:1 / -1;} .foot-brand-col .foot-desc{max-width:480px;} }
+  @media (max-width:560px){ .foot-grid{grid-template-columns:1fr; gap:28px;} .foot-brand-col{grid-column:auto;} .foot-bottom{flex-direction:column; text-align:center; gap:8px;} }
+
+  .wa-float{position:fixed; bottom:calc(22px + env(safe-area-inset-bottom, 0px)); right:calc(22px + env(safe-area-inset-right, 0px)); z-index:50; width:58px;height:58px;border-radius:50%; background:#25D366; display:flex;align-items:center;justify-content:center; box-shadow:0 10px 24px rgba(37,211,102,0.45);}
+  .wa-float i{font-size:30px;color:#fff;line-height:1;}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="nav-brand" href="/"><img class="logo-img" src="logogrande.jpeg" alt="ARD Suplementos"></a>
+    <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="nav-links">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="nav-links" id="nav-links">
+      <a href="/">Inicio</a>
+      <a href="/productos.html">Productos</a>
+      <a href="/envios.html" class="active">Envíos</a>
+      <a href="/cuenta.html">Mi cuenta</a>
+      <a class="nav-cta" href="https://wa.me/5493834993955" target="_blank" rel="noopener">Escribinos</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-head">
+  <div class="wrap">
+    <a class="volver-inicio" href="/">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 4.5L7 10l5.5 5.5"/></svg>
+      Volver al inicio
+    </a>
+    <span>Información</span>
+    <h1>Envíos y retiro</h1>
+    <p>Todo lo que necesitás saber para recibir tu pedido.</p>
+  </div>
+</section>
+
+<section class="envios-section" id="sec-tiempos">
+  <div class="wrap">
+    <div class="envios-section-head">
+      <h2 id="tiempos-titulo">🚚 Tiempos de entrega</h2>
+      <p id="tiempos-texto">Cargando…</p>
+    </div>
+  </div>
+</section>
+
+<section class="envios-section" id="sec-zonas">
+  <div class="wrap">
+    <div class="envios-section-head">
+      <h2>📍 Envío a domicilio — Catamarca Capital</h2>
+      <p>Elegís tu zona al finalizar la compra y el precio se calcula al instante.</p>
+    </div>
+    <div class="envios-gratis-banner" id="envios-gratis-banner" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v8H4v-8M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7z"/></svg>
+      <span id="envios-gratis-texto"></span>
+    </div>
+    <div class="zonas-grid" id="zonas-grid"><div class="estado-lista">Cargando zonas…</div></div>
+  </div>
+</section>
+
+<section class="envios-section" id="sec-puntos">
+  <div class="wrap">
+    <div class="envios-section-head">
+      <h2>🏪 Puntos de retiro</h2>
+      <p>Sin costo. Podés elegir cualquiera, sin importar en qué zona vivas.</p>
+    </div>
+    <div class="puntos-grid" id="puntos-grid"><div class="estado-lista">Cargando puntos de retiro…</div></div>
+  </div>
+</section>
+
+<section class="envios-section" id="sec-interior">
+  <div class="wrap">
+    <div class="envios-section-head">
+      <h2 id="interior-titulo">📦 Envíos al interior de Catamarca</h2>
+    </div>
+    <div class="envios-info-box"><p id="interior-texto">Cargando…</p></div>
+  </div>
+</section>
+
+<section class="envios-section" id="sec-nacional">
+  <div class="wrap">
+    <div class="envios-section-head">
+      <h2 id="nacional-titulo">🇦🇷 Envíos a todo el país</h2>
+    </div>
+    <div class="envios-info-box"><p id="nacional-texto">Cargando…</p></div>
+  </div>
+</section>
+
+<section class="envios-section" id="sec-faq">
+  <div class="wrap">
+    <div class="envios-section-head">
+      <h2>❓ Preguntas frecuentes</h2>
+    </div>
+    <div class="faq-list" id="faq-list"><div class="estado-lista">Cargando preguntas frecuentes…</div></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-col foot-brand-col">
+        <div class="foot-brand">
+          <img class="foot-logo-img" src="logogrande.jpeg" alt="ARD Suplementos">
+          <span class="foot-brand-name">ARD Suplementos</span>
+        </div>
+        <p class="foot-desc">Suplementos deportivos en Catamarca. Asesoramiento por WhatsApp, envíos a domicilio y retiro en local.</p>
+        <div class="foot-social">
+          <a href="https://instagram.com" target="_blank" rel="noopener" aria-label="Instagram" class="foot-social-link foot-social-ig"><i class="fa-brands fa-instagram"></i></a>
+          <a href="https://wa.me/5493834993955" target="_blank" rel="noopener" aria-label="WhatsApp" class="foot-social-link foot-social-wsp"><i class="fa-brands fa-whatsapp"></i></a>
+        </div>
+        <div class="pay-icons">
+          <span class="pay-chip">VISA</span>
+          <span class="pay-chip">MASTERCARD</span>
+          <span class="pay-chip">NARANJA</span>
+          <span class="pay-chip">CABAL</span>
+          <span class="pay-chip">TRANSFERENCIA</span>
+          <span class="pay-chip">EFECTIVO</span>
+        </div>
+      </div>
+      <div class="foot-col">
+        <h4>Tienda</h4>
+        <ul>
+          <li><a href="/#destacados">Destacados</a></li>
+          <li><a href="/productos.html">Ver todo el catálogo</a></li>
+          <li><a href="/envios.html">Envíos y retiro</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Medios de envío</h4>
+        <div class="ship-icons">
+          <span class="pay-chip">CADETE PROPIO</span>
+          <span class="pay-chip">RETIRO EN LOCAL</span>
+        </div>
+      </div>
+      <div class="foot-col">
+        <h4>Contacto</h4>
+        <ul>
+          <li>Sarmiento 722, Catamarca</li>
+          <li><a href="https://wa.me/5493834993955" target="_blank" rel="noopener">WhatsApp +54 9 383 499-3955</a></li>
+          <li><a href="https://instagram.com" target="_blank" rel="noopener">Instagram @ard.suplementos</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 ARD Suplementos — Catamarca, Argentina.</span>
+      <span>Desarrollado por <a href="https://www.devhub.com.ar/" target="_blank" rel="noopener">DevHub</a></span>
+    </div>
+  </div>
+</footer>
+
+<a class="wa-float" href="https://wa.me/5493834993955" target="_blank" rel="noopener" aria-label="WhatsApp">
+  <i class="fa-brands fa-whatsapp"></i>
+</a>
+
+<script src="/cart.js" data-whatsapp="5493834993955" defer></script>
+<script>
+(function(){
+  function escapeHtml(str){
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function(c){
+      return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c];
+    });
+  }
+  function formatearPrecio(valor){
+    try { return new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS', maximumFractionDigits:0 }).format(valor); }
+    catch(e){ return '$' + valor; }
+  }
+
+  fetch('/api/config').then(function(r){ return r.json(); }).then(function(cfg){
+    document.getElementById('tiempos-titulo').textContent = cfg.envioTiemposTitulo || '🚚 Tiempos de entrega';
+    document.getElementById('tiempos-texto').textContent = cfg.envioTiemposTexto || '';
+    document.getElementById('interior-titulo').textContent = cfg.envioInteriorTitulo || '📦 Envíos al interior de Catamarca';
+    document.getElementById('interior-texto').textContent = cfg.envioInteriorTexto || '';
+    document.getElementById('nacional-titulo').textContent = cfg.envioNacionalTitulo || '🇦🇷 Envíos a todo el país';
+    document.getElementById('nacional-texto').textContent = cfg.envioNacionalTexto || '';
+
+    var monto = Number(cfg.envioGratisMontoCapital) || 0;
+    if (monto > 0) {
+      var banner = document.getElementById('envios-gratis-banner');
+      document.getElementById('envios-gratis-texto').textContent =
+        '¡Envío gratis en Catamarca Capital superando ' + formatearPrecio(monto) + ' de compra!';
+      banner.style.display = '';
+    }
+  }).catch(function(){});
+
+  fetch('/api/shipping/zones').then(function(r){ return r.json(); }).then(function(zonas){
+    var grid = document.getElementById('zonas-grid');
+    if (!Array.isArray(zonas) || !zonas.length) {
+      grid.innerHTML = '<div class="estado-lista">Todavía no hay zonas configuradas.</div>';
+      return;
+    }
+    grid.innerHTML = zonas.map(function(z){
+      return '<div class="zona-card"><span class="nombre">📍 ' + escapeHtml(z.name) + '</span><span class="precio">' + formatearPrecio(z.price) + '</span></div>';
+    }).join('');
+  }).catch(function(){
+    document.getElementById('zonas-grid').innerHTML = '<div class="estado-lista">No pudimos cargar las zonas de envío.</div>';
+  });
+
+  fetch('/api/shipping/pickup-points').then(function(r){ return r.json(); }).then(function(puntos){
+    var grid = document.getElementById('puntos-grid');
+    if (!Array.isArray(puntos) || !puntos.length) {
+      grid.innerHTML = '<div class="estado-lista">Todavía no hay puntos de retiro configurados.</div>';
+      return;
+    }
+    grid.innerHTML = puntos.map(function(p){
+      return '<div class="punto-card">' +
+        '<div class="nombre"><i class="fa-solid fa-store"></i>' + escapeHtml(p.name) + '</div>' +
+        (p.address ? '<div class="dato"><strong>Dirección:</strong> ' + escapeHtml(p.address) + '</div>' : '') +
+        (p.description ? '<div class="dato">' + escapeHtml(p.description) + '</div>' : '') +
+        (p.schedule ? '<div class="dato"><strong>Horario:</strong> ' + escapeHtml(p.schedule) + '</div>' : '') +
+      '</div>';
+    }).join('');
+  }).catch(function(){
+    document.getElementById('puntos-grid').innerHTML = '<div class="estado-lista">No pudimos cargar los puntos de retiro.</div>';
+  });
+
+  fetch('/api/shipping/faqs').then(function(r){ return r.json(); }).then(function(faqs){
+    var cont = document.getElementById('faq-list');
+    if (!Array.isArray(faqs) || !faqs.length) {
+      cont.innerHTML = '<div class="estado-lista">Todavía no hay preguntas frecuentes.</div>';
+      return;
+    }
+    cont.innerHTML = faqs.map(function(f, i){
+      return '<div class="faq-item" data-faq="' + i + '">' +
+        '<button type="button" class="faq-pregunta">' + escapeHtml(f.question) + '<span class="mas">+</span></button>' +
+        '<div class="faq-respuesta"><div class="faq-respuesta-inner">' + escapeHtml(f.answer) + '</div></div>' +
+      '</div>';
+    }).join('');
+    cont.querySelectorAll('.faq-item').forEach(function(item){
+      var btn = item.querySelector('.faq-pregunta');
+      var resp = item.querySelector('.faq-respuesta');
+      btn.addEventListener('click', function(){
+        var abierto = item.classList.contains('open');
+        cont.querySelectorAll('.faq-item.open').forEach(function(otro){
+          otro.classList.remove('open');
+          otro.querySelector('.faq-respuesta').style.maxHeight = null;
+        });
+        if (!abierto) {
+          item.classList.add('open');
+          resp.style.maxHeight = resp.scrollHeight + 'px';
+        }
+      });
+    });
+  }).catch(function(){
+    document.getElementById('faq-list').innerHTML = '<div class="estado-lista">No pudimos cargar las preguntas frecuentes.</div>';
+  });
+
+  /* ---------- Menú hamburguesa (mobile) ---------- */
+  (function(){
+    var navToggle = document.getElementById('nav-toggle');
+    var navLinks = document.getElementById('nav-links');
+    if (!navToggle || !navLinks) return;
+    navToggle.addEventListener('click', function(){
+      var abierto = navLinks.classList.toggle('open');
+      navToggle.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+      document.body.style.overflow = abierto ? 'hidden' : '';
+    });
+    navLinks.querySelectorAll('a').forEach(function(a){
+      a.addEventListener('click', function(){
+        navLinks.classList.remove('open');
+        navToggle.setAttribute('aria-expanded', 'false');
+        document.body.style.overflow = '';
+      });
+    });
+  })();
+})();
+</script>
+</body>
+</html>
