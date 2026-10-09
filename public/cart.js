@@ -747,10 +747,9 @@
       '<label class="ard-cart-modo" data-entrega="domicilio">' +
         '<input type="radio" name="ard-tipo-entrega" value="domicilio">' +
         '<span class="ard-cart-modo-txt">' +
-          '<span class="ard-cart-modo-nombre">🚚 Envío a domicilio</span>' +
-          '<span class="ard-cart-modo-detalle">Catamarca Capital — elegís tu zona</span>' +
+          '<span class="ard-cart-modo-nombre">🚚 Envío a domicilio (Catamarca Capital)</span>' +
         '</span>' +
-        '<span class="ard-cart-modo-precio" id="ard-entrega-precio-domicilio">…</span>' +
+        '<span class="ard-cart-modo-precio" id="ard-entrega-precio-domicilio"></span>' +
       '</label>';
 
     puntosRetiro.forEach(function (p) {
@@ -840,13 +839,11 @@
   function actualizarPreciosEntregaUI() {
     var elDomicilio = document.getElementById('ard-entrega-precio-domicilio');
     var elNacional  = document.getElementById('ard-entrega-precio-nacional');
+    // Ojo: acá NUNCA se muestra el precio de una zona puntual — el envío a
+    // domicilio no tiene un precio propio, depende exclusivamente de la
+    // zona que elija el cliente en el selector de abajo.
     if (elDomicilio) {
-      if (envioEsGratisPorMonto()) {
-        elDomicilio.textContent = 'GRATIS 🎉';
-      } else {
-        var z = zonaActual();
-        elDomicilio.textContent = z ? formatearPrecio(z.price) : (zonasCapital.length ? formatearPrecio(zonasCapital[0].price) : '—');
-      }
+      elDomicilio.textContent = envioEsGratisPorMonto() ? 'GRATIS 🎉' : '';
     }
     if (elNacional) elNacional.textContent = envioTarifas.nacional > 0 ? formatearPrecio(envioTarifas.nacional) : 'A coordinar';
     actualizarResumenEnvio();
