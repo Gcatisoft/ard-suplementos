@@ -624,6 +624,13 @@
   let TODOS = [];
   let EFECTIVO_DESC_PCT = 20;
   let TARJETA_RECARGO_3_PROD = 25;
+  let DESCUENTO_GENERAL_ACTIVO = false;
+  let DESCUENTO_GENERAL_PCT = 5;
+  function pctInsigniaDe(p){
+    if (p.discountBadgeMode === 'custom' && p.discountBadgePercent) return Math.round(Number(p.discountBadgePercent));
+    if (p.discountBadgeMode === 'none') return null;
+    return DESCUENTO_GENERAL_ACTIVO ? DESCUENTO_GENERAL_PCT : null;
+  }
 
   function precioListaDe(efectivo) {
     return Math.round(efectivo * (1 + TARJETA_RECARGO_3_PROD / 100));
@@ -673,8 +680,9 @@
     const linkWhatsapp = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + mensaje;
     const imagenHtml = p.image ? '<img src="' + p.image + '" alt="' + p.name.replace(/"/g,'') + '" loading="lazy" decoding="async">' : iconoPlaceholder();
     let badgeHtml = '';
-    if (p.discountBadgeActive && p.discountBadgePercent){
-      badgeHtml = '<span class="producto-badge oferta">' + Math.round(Number(p.discountBadgePercent)) + '% OFF</span>';
+    const pctInsignia = pctInsigniaDe(p);
+    if (pctInsignia){
+      badgeHtml = '<span class="producto-badge oferta">' + pctInsignia + '% OFF</span>';
     } else if (p.featured) badgeHtml = '<span class="producto-badge">Destacado</span>';
     else if (tieneOferta) {
       const descPctBadge = Math.ceil((Number(p.oldPrice) - Number(p.price)) / Number(p.oldPrice) * 100);
@@ -853,6 +861,8 @@
     ]).then(([productos, config]) => {
         EFECTIVO_DESC_PCT = Number(config.efectivoDescPct) || 20;
         TARJETA_RECARGO_3_PROD = Number(config.tarjetaRecargo3) || 25;
+        DESCUENTO_GENERAL_ACTIVO = !!config.descuentoGeneralActivo;
+        DESCUENTO_GENERAL_PCT = Number(config.descuentoGeneralPct) || 5;
         TODOS = Array.isArray(productos) ? productos : [];
         window.TODOS_PRODUCTOS = TODOS;
         cargarCategorias(TODOS);

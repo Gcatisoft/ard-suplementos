@@ -284,6 +284,8 @@ let _configCache = {
   envioInteriorTexto: 'Tiempo estimado: 2 a 4 días hábiles, dependiendo de la localidad y el transporte.',
   envioNacionalTitulo: '🇦🇷 Envíos a todo el país',
   envioNacionalTexto: 'Tiempo estimado: 2 a 4 días hábiles, dependiendo de la localidad y empresa de transporte.',
+  descuentoGeneralActivo: false,
+  descuentoGeneralPct: 5,
 };
 
 async function refreshConfig() {
@@ -307,6 +309,11 @@ async function refreshConfig() {
         if (r.key === 'envio_interior_texto')   _configCache.envioInteriorTexto   = r.value;
         if (r.key === 'envio_nacional_titulo')  _configCache.envioNacionalTitulo  = r.value;
         if (r.key === 'envio_nacional_texto')   _configCache.envioNacionalTexto   = r.value;
+        if (r.key === 'descuento_general_activo') _configCache.descuentoGeneralActivo = r.value === 'true';
+        if (r.key === 'descuento_general_pct') {
+          const v = Number(r.value);
+          if (v > 0 && v < 100) _configCache.descuentoGeneralPct = v;
+        }
       });
     }
   } catch (e) { /* mantiene el valor anterior */ }
@@ -407,7 +414,9 @@ function mapProducto(row) {
     paymentPlans: normalizarPlanesPago(row.payment_plans),
     featured: row.featured,
     active: row.active,
-    discountBadgeActive: !!row.discount_badge_active,
+    // 'general' (hereda el descuento general del sitio), 'custom' (usa
+    // discountBadgePercent) o 'none' (nunca muestra insignia).
+    discountBadgeMode: row.discount_badge_mode || 'general',
     discountBadgePercent:
       row.discount_badge_percent !== null && row.discount_badge_percent !== undefined
         ? Number(row.discount_badge_percent)
@@ -1202,8 +1211,9 @@ app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), maneja
     const {
       name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, barcode, costPrice,
       description, featured, active, imageUrl, flavors, installments, paymentPlans,
-      discountBadgeActive, discountBadgePercent,
+      discountBadgeMode, discountBadgePercent,
     } = req.body;
+    const modoBadge = ['general', 'custom', 'none'].includes(discountBadgeMode) ? discountBadgeMode : 'general';
     if (!name || !category || price === undefined || price === '') {
       return res.status(400).json({ error: 'Nombre, categoría y precio son obligatorios' });
     }
@@ -1237,9 +1247,11 @@ app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), maneja
       payment_plans: planes,
       featured: featured === 'true' || featured === true,
       active: active === undefined ? true : active === 'true' || active === true,
-      discount_badge_active: discountBadgeActive === 'true' || discountBadgeActive === true,
+      discount_badge_mode: modoBadge,
       discount_badge_percent:
-        discountBadgePercent !== undefined && discountBadgePercent !== '' ? Number(discountBadgePercent) : null,
+        modoBadge === 'custom' && discountBadgePercent !== undefined && discountBadgePercent !== ''
+          ? Number(discountBadgePercent)
+          : null,
     };
 
     const { data, error } = await supabase.from('products').insert(nuevo).select().single();
@@ -1265,7 +1277,7 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), man
     const {
       name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, barcode, costPrice,
       description, featured, active, imagenesExistentes, flavors, installments, paymentPlans,
-      discountBadgeActive, discountBadgePercent,
+      discountBadgeMode, discountBadgePercent,
     } = req.body;
 
     const cambios = {};
@@ -1285,8 +1297,16 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), man
     if (paymentPlans !== undefined) cambios.payment_plans = normalizarPlanesPago(paymentPlans);
     if (featured !== undefined) cambios.featured = featured === 'true' || featured === true;
     if (active !== undefined) cambios.active = active === 'true' || active === true;
-    if (discountBadgeActive !== undefined) cambios.discount_badge_active = discountBadgeActive === 'true' || discountBadgeActive === true;
-    if (discountBadgePercent !== undefined) cambios.discount_badge_percent = discountBadgePercent === '' ? null : Number(discountBadgePercent);
+    if (discountBadgeMode !== undefined) {
+      cambios.discount_badge_mode = ['general', 'custom', 'none'].includes(discountBadgeMode) ? discountBadgeMode : 'general';
+    }
+    if (discountBadgePercent !== undefined || discountBadgeMode !== undefined) {
+      const modoFinal = cambios.discount_badge_mode || existing.discount_badge_mode || 'general';
+      cambios.discount_badge_percent =
+        modoFinal === 'custom' && discountBadgePercent !== undefined && discountBadgePercent !== ''
+          ? Number(discountBadgePercent)
+          : (modoFinal === 'custom' ? existing.discount_badge_percent : null);
+    }
 
     // -------- Galería de imágenes --------
     // El frontend manda en `imagenesExistentes` (JSON) las URLs que el admin
@@ -1370,6 +1390,7 @@ app.get('/api/config', (req, res) => {
     envioTiemposTitulo: c.envioTiemposTitulo, envioTiemposTexto: c.envioTiemposTexto,
     envioInteriorTitulo: c.envioInteriorTitulo, envioInteriorTexto: c.envioInteriorTexto,
     envioNacionalTitulo: c.envioNacionalTitulo, envioNacionalTexto: c.envioNacionalTexto,
+    descuentoGeneralActivo: c.descuentoGeneralActivo, descuentoGeneralPct: c.descuentoGeneralPct,
   });
 });
 

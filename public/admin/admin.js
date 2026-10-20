@@ -449,6 +449,11 @@
       if (elR2) elR2.value = ADMIN_RECARGO_2;
       if (elR3) elR3.value = ADMIN_RECARGO_3;
       actualizarRecargosPreview();
+
+      const elDescGeneralActivo = document.getElementById('cfg-descuento-general-activo');
+      const elDescGeneralPct    = document.getElementById('cfg-descuento-general-pct');
+      if (elDescGeneralActivo) elDescGeneralActivo.checked = (find('descuento_general_activo') || {}).value === 'true';
+      if (elDescGeneralPct)    elDescGeneralPct.value = (find('descuento_general_pct') || {}).value || '5';
     } catch (e) { ADMIN_DESC_PCT = 20; }
     const input = document.getElementById('cfg-descuento-pct');
     if (input) {
@@ -546,6 +551,31 @@
       } finally {
         cfgEnvioGuardarBtn.disabled = false;
         cfgEnvioGuardarBtn.textContent = 'Guardar tarifas';
+      }
+    });
+  }
+
+  const cfgDescGeneralGuardarBtn = document.getElementById('cfg-descuento-general-guardar-btn');
+  if (cfgDescGeneralGuardarBtn) {
+    cfgDescGeneralGuardarBtn.addEventListener('click', async () => {
+      const activo = document.getElementById('cfg-descuento-general-activo').checked;
+      const pct = Math.max(1, Math.min(99, parseFloat(document.getElementById('cfg-descuento-general-pct').value) || 5));
+      cfgDescGeneralGuardarBtn.disabled = true;
+      cfgDescGeneralGuardarBtn.textContent = 'Guardando…';
+      try {
+        const [r1, r2] = await Promise.all([
+          fetch('/api/admin/settings/descuento_general_activo', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: String(activo) }) }),
+          fetch('/api/admin/settings/descuento_general_pct',    { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: String(pct) }) }),
+        ]);
+        if (!r1.ok || !r2.ok) throw new Error('Error al guardar');
+        document.getElementById('cfg-descuento-general-pct').value = pct;
+        const status = document.getElementById('cfg-descuento-general-status');
+        if (status) { status.style.display = ''; setTimeout(() => { status.style.display = 'none'; }, 3000); }
+      } catch (e) {
+        alert('Error al guardar el descuento general: ' + e.message);
+      } finally {
+        cfgDescGeneralGuardarBtn.disabled = false;
+        cfgDescGeneralGuardarBtn.textContent = 'Guardar';
       }
     });
   }
@@ -928,9 +958,9 @@
     document.getElementById('producto-id').value = '';
     document.getElementById('activo').checked = true;
     document.getElementById('destacado').checked = false;
-    document.getElementById('badge-descuento-activo').checked = false;
+    document.getElementById('badge-modo-general').checked = true;
     document.getElementById('badge-descuento-pct').value = '';
-    document.getElementById('badge-descuento-pct-wrap').style.display = 'none';
+    document.getElementById('badge-descuento-pct').disabled = true;
     cargarPlanesEnForm(null);
     imagenesExistentes = [];
     imagenesNuevas = [];
@@ -967,10 +997,13 @@
     document.getElementById('descripcion').value = p.description || '';
     document.getElementById('destacado').checked = !!p.featured;
     document.getElementById('activo').checked = !!p.active;
-    document.getElementById('badge-descuento-activo').checked = !!p.discountBadgeActive;
+    var modoBadge = p.discountBadgeMode || 'general';
+    document.getElementById('badge-modo-general').checked = modoBadge === 'general';
+    document.getElementById('badge-modo-custom').checked = modoBadge === 'custom';
+    document.getElementById('badge-modo-none').checked = modoBadge === 'none';
     document.getElementById('badge-descuento-pct').value =
       p.discountBadgePercent !== null && p.discountBadgePercent !== undefined ? p.discountBadgePercent : '';
-    document.getElementById('badge-descuento-pct-wrap').style.display = p.discountBadgeActive ? '' : 'none';
+    document.getElementById('badge-descuento-pct').disabled = modoBadge !== 'custom';
     calcularPrecioLista();
     calcularMargen();
 
@@ -1003,8 +1036,10 @@
   document.getElementById('precio').addEventListener('input', function () { calcularPrecioLista(); calcularMargen(); });
   document.getElementById('costo').addEventListener('input', calcularMargen);
 
-  document.getElementById('badge-descuento-activo').addEventListener('change', function () {
-    document.getElementById('badge-descuento-pct-wrap').style.display = this.checked ? '' : 'none';
+  document.querySelectorAll('input[name="badge-descuento-modo"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      document.getElementById('badge-descuento-pct').disabled = this.value !== 'custom';
+    });
   });
 
   document.getElementById('nuevo-btn').addEventListener('click', abrirModalNuevo);
@@ -1038,7 +1073,8 @@
     formData.append('description', document.getElementById('descripcion').value.trim());
     formData.append('featured', document.getElementById('destacado').checked);
     formData.append('active', document.getElementById('activo').checked);
-    formData.append('discountBadgeActive', document.getElementById('badge-descuento-activo').checked);
+    var modoBadgeForm = (document.querySelector('input[name="badge-descuento-modo"]:checked') || {}).value || 'general';
+    formData.append('discountBadgeMode', modoBadgeForm);
     formData.append('discountBadgePercent', document.getElementById('badge-descuento-pct').value);
 
     formData.append('imagenesExistentes', JSON.stringify(imagenesExistentes));

@@ -591,6 +591,13 @@
   var TARJETA_RECARGO_1 = 7.69;
   var TARJETA_RECARGO_2 = 20.28;
   var TARJETA_RECARGO_3 = 25;
+  var DESCUENTO_GENERAL_ACTIVO = false;
+  var DESCUENTO_GENERAL_PCT = 5;
+  function pctInsigniaDe(p){
+    if (p.discountBadgeMode === 'custom' && p.discountBadgePercent) return Math.round(Number(p.discountBadgePercent));
+    if (p.discountBadgeMode === 'none') return null;
+    return DESCUENTO_GENERAL_ACTIVO ? DESCUENTO_GENERAL_PCT : null;
+  }
 
   function precioListaDe(efectivo) {
     return Math.round(efectivo * 100 / (100 - EFECTIVO_DESC_PCT));
@@ -702,8 +709,9 @@
 
     let badgesHtml = '';
     if (p.featured) badgesHtml += '<span class="detalle-badge">Destacado</span>';
-    if (p.discountBadgeActive && p.discountBadgePercent){
-      badgesHtml += '<span class="detalle-badge oferta">' + Math.round(Number(p.discountBadgePercent)) + '% OFF</span>';
+    const pctInsignia = pctInsigniaDe(p);
+    if (pctInsignia){
+      badgesHtml += '<span class="detalle-badge oferta">' + pctInsignia + '% OFF</span>';
     } else if (tieneOferta) {
       const descPctBadge = Math.ceil((Number(p.oldPrice) - Number(p.price)) / Number(p.oldPrice) * 100);
       badgesHtml += '<span class="detalle-badge oferta">' + descPctBadge + '% OFF</span>';
@@ -897,6 +905,8 @@
         TARJETA_RECARGO_1    = Number(results[1].tarjetaRecargo1)   || 7.69;
         TARJETA_RECARGO_2    = Number(results[1].tarjetaRecargo2)   || 20.28;
         TARJETA_RECARGO_3    = Number(results[1].tarjetaRecargo3)   || 25;
+        DESCUENTO_GENERAL_ACTIVO = !!results[1].descuentoGeneralActivo;
+        DESCUENTO_GENERAL_PCT    = Number(results[1].descuentoGeneralPct) || 5;
         pintarProducto(results[0]);
       })
       .catch((err) => {
