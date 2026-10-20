@@ -5,7 +5,8 @@
 
 -- Permite asignar un descuento diferente (%) por producto dentro de un cupón.
 -- Si un cupón NO tiene filas en esta tabla → aplica el descuento global como antes.
--- Si tiene filas → solo los productos listados tienen descuento; el resto no.
+-- Si tiene filas → son excepciones: esos productos usan su propio descuento (en lugar del
+-- global, sin acumular) y el resto usa el descuento global del cupón (si es 0, no tienen descuento).
 create table if not exists public.coupon_products (
   id            uuid primary key default gen_random_uuid(),
   coupon_id     uuid not null references public.coupons(id) on delete cascade,

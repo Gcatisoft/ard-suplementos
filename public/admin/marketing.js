@@ -517,9 +517,14 @@
     if (!lista.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
     empty.style.display = 'none';
     tbody.innerHTML = lista.map(function (c) {
+      var generalText = c.discountValue > 0
+        ? esc(c.discountType === 'porcentaje' ? c.discountValue + '%' : fmt(c.discountValue))
+        : '';
       var descText = (c.products && c.products.length)
-        ? '<span style="font-size:11px;background:#eef2ff;color:#3b5bdb;padding:2px 6px;border-radius:4px;">Por producto (' + c.products.length + ')</span>'
-        : (c.discountType === 'porcentaje' ? c.discountValue + '%' : fmt(c.discountValue));
+        ? (generalText ? generalText + ' ' : '') +
+          '<span style="font-size:11px;background:#eef2ff;color:#3b5bdb;padding:2px 6px;border-radius:4px;">' +
+            c.products.length + (c.products.length === 1 ? ' excepción' : ' excepciones') + '</span>'
+        : generalText;
       var vigencia = (c.startDate ? fmtFecha(c.startDate) : '—') + ' → ' + (c.endDate ? fmtFecha(c.endDate) : 'Sin venc.');
       var clienteTxt = c.customerName
         ? '<span style="font-size:12px;color:#3159c9;">&#128100; ' + esc(c.customerName) + '</span>'
@@ -528,7 +533,7 @@
         '<td><span class="mk-code">' + esc(c.code) + '</span></td>' +
         '<td>' + esc(c.sponsorName) + '</td>' +
         '<td>' + esc(c.campaignName) + '</td>' +
-        '<td><strong>' + esc(descText) + '</strong></td>' +
+        '<td><strong>' + descText + '</strong></td>' +
         '<td>' + clienteTxt + '</td>' +
         '<td style="font-size:12px;">' + esc(vigencia) + '</td>' +
         '<td>' + badgeEstado(c.status) + '</td>' +
@@ -624,82 +629,110 @@
     });
   }
 
+  function poblarCategoriasPicker() {
+    var sel = document.getElementById('cupon-prod-categoria');
+    if (!sel) return;
+    var cats = [];
+    allProductos.forEach(function (p) { if (p.category && cats.indexOf(p.category) === -1) cats.push(p.category); });
+    cats.sort();
+    while (sel.options.length > 1) sel.remove(1);
+    cats.forEach(function (c) {
+      var opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      sel.appendChild(opt);
+    });
+    sel.value = '';
+  }
+
+  function descuentoGeneral() {
+    return {
+      tipo: document.getElementById('cupon-tipo').value || 'porcentaje',
+      valor: parseFloat(document.getElementById('cupon-valor').value) || 0,
+    };
+  }
+
+  // Descuento que recibe un producto: su excepción si está marcado; si no, el descuento general.
+  // Un monto fijo general se descuenta sobre el total del carrito, no por producto, así que no se refleja en la fila.
+  function descuentoEfectivo(id) {
+    var s = pickerState[id];
+    if (s && s.selected) return { tipo: s.discountType || 'porcentaje', valor: parseFloat(s.discountValue) || 0 };
+    var g = descuentoGeneral();
+    return g.tipo === 'monto_fijo' ? { tipo: 'porcentaje', valor: 0 } : g;
+  }
+
+  function metricasProducto(p) {
+    var d = descuentoEfectivo(p.id);
+    var precio = Number(p.price) || 0;
+    var costo  = Number(p.costPrice) || 0;
+    var precioFinal = d.tipo === 'monto_fijo' ? precio - d.valor : precio * (1 - d.valor / 100);
+    if (precioFinal < 0) precioFinal = 0;
+    var m = { precioFinal: precioFinal, costoTxt: '—', ganTxt: '—', margenTxt: '—', margenColor: '#9aa8bb', margenFW: 'normal' };
+    if (costo > 0 && precioFinal > 0) {
+      var ganancia = precioFinal - costo;
+      var margen   = Math.round((ganancia / precioFinal) * 100);
+      m.costoTxt    = fmt(costo);
+      m.ganTxt      = fmt(ganancia);
+      m.margenTxt   = margen + '%';
+      m.margenColor = margen < 0 ? '#c62828' : margen < 15 ? '#e65100' : '#2e7d32';
+      m.margenFW    = '700';
+    }
+    return m;
+  }
+
   function calcularFilaCupon(id) {
     var p = allProductos.find(function (x) { return String(x.id) === String(id); });
     if (!p) return;
-    var tipoEl   = document.querySelector('.cupon-prod-tipo[data-id="'    + id + '"]');
-    var valorEl  = document.querySelector('.cupon-prod-valor[data-id="'   + id + '"]');
     var precioEl = document.querySelector('.cupon-col-precio[data-id="'  + id + '"]');
     var costoEl  = document.querySelector('.cupon-col-costo[data-id="'   + id + '"]');
     var ganEl    = document.querySelector('.cupon-col-ganancia[data-id="' + id + '"]');
     var margenEl = document.querySelector('.cupon-col-margen[data-id="'  + id + '"]');
-    if (!tipoEl || !valorEl || !precioEl) return;
-
-    var precio = Number(p.price) || 0;
-    var costo  = Number(p.costPrice) || 0;
-    var tipo   = tipoEl.value;
-    var valor  = parseFloat(valorEl.value) || 0;
-    var precioFinal = tipo === 'monto_fijo' ? precio - valor : precio * (1 - valor / 100);
-    if (precioFinal < 0) precioFinal = 0;
-
-    precioEl.textContent = fmt(precioFinal);
-
-    if (costo > 0 && precioFinal > 0) {
-      var ganancia = precioFinal - costo;
-      var margen   = Math.round((ganancia / precioFinal) * 100);
-      if (costoEl)  costoEl.textContent = fmt(costo);
-      if (ganEl)    ganEl.textContent   = fmt(ganancia);
-      if (margenEl) {
-        margenEl.textContent = margen + '%';
-        margenEl.style.color = margen < 0 ? '#c62828' : margen < 15 ? '#e65100' : '#2e7d32';
-        margenEl.style.fontWeight = '700';
-      }
-    } else {
-      if (costoEl)  costoEl.textContent  = '—';
-      if (ganEl)    ganEl.textContent    = '—';
-      if (margenEl) { margenEl.textContent = '—'; margenEl.style.color = '#9aa8bb'; margenEl.style.fontWeight = 'normal'; }
+    var filaEl   = document.querySelector('tr[data-row-id="' + id + '"]');
+    if (!precioEl) return;
+    var m = metricasProducto(p);
+    precioEl.textContent = fmt(m.precioFinal);
+    if (costoEl) costoEl.textContent = m.costoTxt;
+    if (ganEl)   ganEl.textContent   = m.ganTxt;
+    if (margenEl) {
+      margenEl.textContent = m.margenTxt;
+      margenEl.style.color = m.margenColor;
+      margenEl.style.fontWeight = m.margenFW;
     }
+    if (filaEl) filaEl.style.background = (pickerState[id] && pickerState[id].selected) ? '#f5f8ff' : '';
+  }
+
+  function productosFiltradosPicker() {
+    var buscar = ((document.getElementById('cupon-prod-buscar') || {}).value || '').toLowerCase();
+    var categoria = (document.getElementById('cupon-prod-categoria') || {}).value || '';
+    return allProductos.filter(function (p) {
+      if (categoria && p.category !== categoria) return false;
+      return !buscar || p.name.toLowerCase().includes(buscar) || (p.brand || '').toLowerCase().includes(buscar);
+    });
   }
 
   function renderProductosPicker() {
     var tbody = document.getElementById('cupon-prod-tbody');
     var empty = document.getElementById('cupon-prod-empty');
     if (!tbody) return;
-    var buscar = ((document.getElementById('cupon-prod-buscar') || {}).value || '').toLowerCase();
-    var lista = allProductos.filter(function (p) {
-      return !buscar || p.name.toLowerCase().includes(buscar) || (p.brand || '').toLowerCase().includes(buscar);
-    });
+    var lista = productosFiltradosPicker();
     if (!lista.length) {
       tbody.innerHTML = '';
       if (empty) empty.style.display = '';
       return;
     }
     if (empty) empty.style.display = 'none';
+    var g = descuentoGeneral();
+    var placeholderGeneral = g.valor > 0 ? String(g.valor) : '0';
     tbody.innerHTML = lista.map(function (p) {
       var s = pickerState[p.id] || {};
       var checked = s.selected ? 'checked' : '';
-      var tipo = s.discountType || 'porcentaje';
-      var valor = s.discountValue != null ? s.discountValue : '';
+      var tipo = s.selected ? (s.discountType || 'porcentaje') : g.tipo;
+      var valor = s.selected && s.discountValue != null ? s.discountValue : '';
+      var m = metricasProducto(p);
 
-      var precio = Number(p.price) || 0;
-      var costo  = Number(p.costPrice) || 0;
-      var descNum = parseFloat(valor) || 0;
-      var precioFinal = tipo === 'monto_fijo' ? precio - descNum : precio * (1 - descNum / 100);
-      if (precioFinal < 0) precioFinal = 0;
-      var costoTxt = '—', ganTxt = '—', margenTxt = '—', margenColor = '#9aa8bb', margenFW = 'normal';
-      if (costo > 0 && precioFinal > 0) {
-        var ganancia = precioFinal - costo;
-        var margen   = Math.round((ganancia / precioFinal) * 100);
-        costoTxt   = fmt(costo);
-        ganTxt     = fmt(ganancia);
-        margenTxt  = margen + '%';
-        margenColor = margen < 0 ? '#c62828' : margen < 15 ? '#e65100' : '#2e7d32';
-        margenFW = '700';
-      }
-
-      return '<tr style="border-top:1px solid #eaeef5;">' +
+      return '<tr data-row-id="' + esc(p.id) + '" style="border-top:1px solid #eaeef5;' + (s.selected ? 'background:#f5f8ff;' : '') + '">' +
         '<td style="padding:5px 8px;text-align:center;">' +
-          '<input type="checkbox" class="cupon-prod-check" data-id="' + esc(p.id) + '" ' + checked + '>' +
+          '<input type="checkbox" class="cupon-prod-check" data-id="' + esc(p.id) + '" ' + checked + ' title="Usar un descuento distinto al general">' +
         '</td>' +
         '<td style="padding:5px 8px;">' +
           '<span style="font-weight:500;">' + esc(p.name) + '</span>' +
@@ -712,12 +745,12 @@
           '</select>' +
         '</td>' +
         '<td style="padding:5px 8px;">' +
-          '<input type="number" class="cupon-prod-valor" data-id="' + esc(p.id) + '" min="0" step="0.01" placeholder="0" value="' + esc(String(valor)) + '" style="font-size:12px;width:70px;text-align:right;">' +
+          '<input type="number" class="cupon-prod-valor" data-id="' + esc(p.id) + '" min="0" step="0.01" placeholder="' + esc(placeholderGeneral) + '" value="' + esc(String(valor)) + '" style="font-size:12px;width:70px;text-align:right;">' +
         '</td>' +
-        '<td class="cupon-col-precio" data-id="' + esc(p.id) + '" style="padding:5px 8px;text-align:right;font-size:12px;white-space:nowrap;">' + fmt(precioFinal) + '</td>' +
-        '<td class="cupon-col-costo"  data-id="' + esc(p.id) + '" style="padding:5px 8px;text-align:right;font-size:12px;white-space:nowrap;color:#6b7686;">' + costoTxt + '</td>' +
-        '<td class="cupon-col-ganancia" data-id="' + esc(p.id) + '" style="padding:5px 8px;text-align:right;font-size:12px;white-space:nowrap;">' + ganTxt + '</td>' +
-        '<td class="cupon-col-margen" data-id="' + esc(p.id) + '" style="padding:5px 8px;text-align:right;font-size:12px;white-space:nowrap;color:' + margenColor + ';font-weight:' + margenFW + ';">' + margenTxt + '</td>' +
+        '<td class="cupon-col-precio" data-id="' + esc(p.id) + '" style="padding:5px 8px;text-align:right;font-size:12px;white-space:nowrap;">' + fmt(m.precioFinal) + '</td>' +
+        '<td class="cupon-col-costo"  data-id="' + esc(p.id) + '" style="padding:5px 8px;text-align:right;font-size:12px;white-space:nowrap;color:#6b7686;">' + m.costoTxt + '</td>' +
+        '<td class="cupon-col-ganancia" data-id="' + esc(p.id) + '" style="padding:5px 8px;text-align:right;font-size:12px;white-space:nowrap;">' + m.ganTxt + '</td>' +
+        '<td class="cupon-col-margen" data-id="' + esc(p.id) + '" style="padding:5px 8px;text-align:right;font-size:12px;white-space:nowrap;color:' + m.margenColor + ';font-weight:' + m.margenFW + ';">' + m.margenTxt + '</td>' +
       '</tr>';
     }).join('');
 
@@ -725,14 +758,21 @@
     tbody.querySelectorAll('.cupon-prod-check').forEach(function (chk) {
       chk.addEventListener('change', function () {
         var id = this.getAttribute('data-id');
-        if (!pickerState[id]) pickerState[id] = { discountType: 'porcentaje', discountValue: '' };
+        var tipoEl = tbody.querySelector('.cupon-prod-tipo[data-id="' + id + '"]');
+        var valorEl = tbody.querySelector('.cupon-prod-valor[data-id="' + id + '"]');
+        if (!pickerState[id]) pickerState[id] = {};
         pickerState[id].selected = this.checked;
+        pickerState[id].discountType = tipoEl ? tipoEl.value : 'porcentaje';
+        pickerState[id].discountValue = valorEl && valorEl.value !== '' ? Number(valorEl.value) : '';
+        if (valorEl && !this.checked) valorEl.value = '';
+        calcularFilaCupon(id);
+        if (this.checked && valorEl && valorEl.value === '') valorEl.focus();
       });
     });
     tbody.querySelectorAll('.cupon-prod-tipo').forEach(function (sel) {
       sel.addEventListener('change', function () {
         var id = this.getAttribute('data-id');
-        if (!pickerState[id]) pickerState[id] = {};
+        if (!pickerState[id]) pickerState[id] = { discountValue: '' };
         pickerState[id].discountType = this.value;
         calcularFilaCupon(id);
       });
@@ -740,14 +780,52 @@
     tbody.querySelectorAll('.cupon-prod-valor').forEach(function (inp) {
       inp.addEventListener('input', function () {
         var id = this.getAttribute('data-id');
+        var tipoEl = tbody.querySelector('.cupon-prod-tipo[data-id="' + id + '"]');
         if (!pickerState[id]) pickerState[id] = {};
+        pickerState[id].discountType = tipoEl ? tipoEl.value : 'porcentaje';
         pickerState[id].discountValue = this.value !== '' ? Number(this.value) : '';
+        // Escribir un valor convierte al producto en excepción automáticamente
+        if (this.value !== '' && !pickerState[id].selected) {
+          pickerState[id].selected = true;
+          var chk = tbody.querySelector('.cupon-prod-check[data-id="' + id + '"]');
+          if (chk) chk.checked = true;
+        }
         calcularFilaCupon(id);
       });
     });
   }
 
   document.getElementById('cupon-prod-buscar') && document.getElementById('cupon-prod-buscar').addEventListener('input', renderProductosPicker);
+  document.getElementById('cupon-prod-categoria') && document.getElementById('cupon-prod-categoria').addEventListener('change', renderProductosPicker);
+
+  // Al cambiar el descuento general se recalculan los productos que lo usan
+  ['cupon-tipo', 'cupon-valor'].forEach(function (elId) {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    el.addEventListener(elId === 'cupon-valor' ? 'input' : 'change', function () {
+      if (document.getElementById('cupon-por-producto').checked) renderProductosPicker();
+    });
+  });
+
+  // Aplicar el mismo descuento a todos los productos listados (ej: filtrar "Proteínas" y poner 3%)
+  document.getElementById('cupon-prod-bulk-aplicar') && document.getElementById('cupon-prod-bulk-aplicar').addEventListener('click', function () {
+    clearErr('form-cupon-error');
+    var valorRaw = document.getElementById('cupon-prod-bulk-valor').value;
+    if (valorRaw === '' || Number(valorRaw) < 0) {
+      showErr('form-cupon-error', 'Ingresá el descuento a aplicar a los productos listados.');
+      return;
+    }
+    var tipo = document.getElementById('cupon-prod-bulk-tipo').value;
+    productosFiltradosPicker().forEach(function (p) {
+      pickerState[p.id] = { selected: true, discountType: tipo, discountValue: Number(valorRaw) };
+    });
+    renderProductosPicker();
+  });
+
+  document.getElementById('cupon-prod-bulk-quitar') && document.getElementById('cupon-prod-bulk-quitar').addEventListener('click', function () {
+    productosFiltradosPicker().forEach(function (p) { delete pickerState[p.id]; });
+    renderProductosPicker();
+  });
 
   function leerProductosPicker() {
     return Object.keys(pickerState)
@@ -762,27 +840,22 @@
       });
   }
 
+  // El descuento general siempre está visible; "por producto" solo agrega la lista de excepciones.
   function toggleModoDescuento(porProducto) {
-    var globalFields = document.getElementById('cupon-global-fields');
     var prodSection = document.getElementById('cupon-productos-section');
-    var tipoSel = document.getElementById('cupon-tipo');
     var valorInp = document.getElementById('cupon-valor');
     if (porProducto) {
-      if (globalFields) globalFields.style.display = 'none';
       if (prodSection) prodSection.style.display = '';
-      if (tipoSel)  tipoSel.removeAttribute('required');
       if (valorInp) valorInp.removeAttribute('required');
       renderProductosPicker();
     } else {
-      if (globalFields) globalFields.style.display = 'contents';
       if (prodSection) prodSection.style.display = 'none';
-      if (tipoSel)  tipoSel.setAttribute('required', '');
       if (valorInp) valorInp.setAttribute('required', '');
     }
   }
 
+  // No se borran las excepciones al activar/desactivar: se conservan mientras el modal esté abierto.
   document.getElementById('cupon-por-producto') && document.getElementById('cupon-por-producto').addEventListener('change', function () {
-    if (this.checked) inicializarPickerState([]);
     toggleModoDescuento(this.checked);
   });
 
@@ -795,17 +868,20 @@
     ]);
     var porProducto = !!(opts.products && opts.products.length);
     inicializarPickerState(opts.products || []);
+    poblarCategoriasPicker();
     document.getElementById('cupon-id').value          = opts.id || '';
     document.getElementById('cupon-campana').value     = opts.campaignId || '';
     document.getElementById('cupon-codigo').value      = opts.code || '';
     document.getElementById('cupon-tipo').value        = opts.discountType || 'porcentaje';
-    document.getElementById('cupon-valor').value       = (porProducto ? '' : (opts.discountValue || ''));
+    document.getElementById('cupon-valor').value       = opts.discountValue || '';
     document.getElementById('cupon-inicio').value      = opts.startDate || '';
     document.getElementById('cupon-fin').value         = opts.endDate || '';
     document.getElementById('cupon-estado').value      = opts.status || 'activo';
     document.getElementById('cupon-cliente').value     = opts.customerId || '';
     var buscarEl = document.getElementById('cupon-prod-buscar');
     if (buscarEl) buscarEl.value = '';
+    var bulkEl = document.getElementById('cupon-prod-bulk-valor');
+    if (bulkEl) bulkEl.value = '';
     document.getElementById('cupon-por-producto').checked = porProducto;
     document.getElementById('modal-cupon-title').textContent = opts.id ? 'Editar cupón' : 'Nuevo cupón';
     toggleModoDescuento(porProducto);
@@ -830,21 +906,25 @@
     var id = document.getElementById('cupon-id').value;
     var porProducto = document.getElementById('cupon-por-producto').checked;
     var productos = porProducto ? leerProductosPicker() : [];
+    var valorGeneral = parseFloat(document.getElementById('cupon-valor').value) || 0;
 
-    if (porProducto && !productos.length) {
-      showErr('form-cupon-error', 'Seleccioná al menos un producto con descuento.');
-      return;
-    }
     if (porProducto) {
-      var sinValor = productos.find(function (p) { return !p.discountValue || p.discountValue <= 0; });
-      if (sinValor) { showErr('form-cupon-error', 'Todos los productos seleccionados deben tener un valor de descuento mayor a 0.'); return; }
+      var sinValor = Object.keys(pickerState).find(function (pid) {
+        var s = pickerState[pid];
+        return s.selected && (s.discountValue === '' || s.discountValue == null);
+      });
+      if (sinValor) { showErr('form-cupon-error', 'Completá el descuento de todos los productos marcados como excepción (o desmarcalos para que usen el general).'); return; }
+    }
+    if (valorGeneral <= 0 && !productos.length) {
+      showErr('form-cupon-error', 'Ingresá un descuento general mayor a 0 o al menos un producto con descuento propio.');
+      return;
     }
 
     var body = {
       campaignId:    document.getElementById('cupon-campana').value,
       code:          document.getElementById('cupon-codigo').value.trim().toUpperCase(),
       discountType:  document.getElementById('cupon-tipo').value,
-      discountValue: porProducto ? 0 : parseFloat(document.getElementById('cupon-valor').value) || 0,
+      discountValue: valorGeneral,
       startDate:     document.getElementById('cupon-inicio').value,
       endDate:       document.getElementById('cupon-fin').value,
       status:        document.getElementById('cupon-estado').value,

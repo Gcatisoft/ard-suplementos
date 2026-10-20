@@ -2023,10 +2023,10 @@ app.post('/api/orders', publicWriteLimiter, async (req, res) => {
         return res.status(400).json({ error: resultCupon.error });
       }
       cuponAplicado = resultCupon.coupon;
-      // Si el cupón tiene reglas por producto, calculamos con ellas; si no, usamos el descuento global.
+      // Descuento general para todos los productos; las reglas por producto (excepciones) lo reemplazan.
       const perProductRules = cuponAplicado.coupon_products || [];
       const desc = perProductRules.length
-        ? calcularDescuentoPorProductos(perProductRules, itemsValidados)
+        ? calcularDescuentoPorProductos(perProductRules, itemsValidados, cuponAplicado)
         : calcularDescuento(cuponAplicado, subtotal);
       descuentoMonto = desc.monto;
       descuentoPct   = desc.pct;
@@ -3148,18 +3148,24 @@ function calcularDescuento(coupon, subtotal) {
 }
 
 // Calcula el descuento cuando el cupón tiene reglas por producto (coupon_products).
+// Las reglas son excepciones: el producto con regla usa SU descuento (no se acumula con el general);
+// el resto de los productos usa el descuento general del cupón (si tiene).
 // items: array de { productId, price, qty } con precios ya validados contra la DB.
-function calcularDescuentoPorProductos(couponProducts, items) {
+function calcularDescuentoPorProductos(couponProducts, items, coupon) {
   let monto = 0;
+  let subtotalGeneral = 0;
   items.forEach((it) => {
-    const rule = couponProducts.find((cp) => cp.product_id === it.productId);
-    if (!rule) return;
     const lineTotal = (Number(it.price) || 0) * (Number(it.qty) || 1);
+    const rule = couponProducts.find((cp) => cp.product_id === it.productId);
+    if (!rule) { subtotalGeneral += lineTotal; return; }
     const disc = rule.discount_type === 'porcentaje'
       ? Math.round((lineTotal * (Number(rule.discount_value) || 0)) / 100 * 100) / 100
       : Math.min(Number(rule.discount_value) || 0, lineTotal);
     monto += disc;
   });
+  if (coupon && subtotalGeneral > 0 && Number(coupon.discount_value) > 0) {
+    monto += calcularDescuento(coupon, subtotalGeneral).monto;
+  }
   const subtotal = items.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.qty) || 1), 0);
   const pct = subtotal > 0 ? Math.round((monto / subtotal) * 10000) / 100 : 0;
   return {
@@ -3636,7 +3642,7 @@ app.post('/api/admin/coupons', requireAuth, async (req, res) => {
   try {
     const { campaignId, code, discountType, discountValue, startDate, endDate, status, customerId, products } = req.body || {};
     if (!campaignId || !code) return res.status(400).json({ error: 'Campaña y código son obligatorios' });
-    // Requiere valor global si no hay reglas por producto
+    // Requiere valor general si no hay excepciones por producto
     const tieneProductos = Array.isArray(products) && products.length > 0;
     if (!tieneProductos && (!discountValue || Number(discountValue) <= 0)) return res.status(400).json({ error: 'El valor del descuento debe ser mayor a 0' });
 
@@ -3652,7 +3658,7 @@ app.post('/api/admin/coupons', requireAuth, async (req, res) => {
         customer_id:    customerId || null,
         code:           String(code).trim().toUpperCase(),
         discount_type:  discountType || 'porcentaje',
-        discount_value: tieneProductos ? 0 : Number(discountValue),
+        discount_value: Math.max(0, Number(discountValue) || 0),
         start_date:     startDate || null,
         end_date:       endDate   || null,
         status:         status    || 'activo',
@@ -3682,11 +3688,14 @@ app.put('/api/admin/coupons/:id', requireAuth, async (req, res) => {
     const cambios = {};
     if (code !== undefined)          cambios.code           = String(code).trim().toUpperCase();
     if (discountType !== undefined)  cambios.discount_type  = discountType;
-    if (discountValue !== undefined) cambios.discount_value = tieneProductos ? 0 : Number(discountValue);
+    if (discountValue !== undefined) cambios.discount_value = Math.max(0, Number(discountValue) || 0);
     if (startDate !== undefined)     cambios.start_date     = startDate || null;
     if (endDate !== undefined)       cambios.end_date       = endDate   || null;
     if (status !== undefined)        cambios.status         = status;
     if (customerId !== undefined)    cambios.customer_id    = customerId || null;
+    if (!tieneProductos && discountValue !== undefined && !(Number(discountValue) > 0)) {
+      return res.status(400).json({ error: 'El valor del descuento debe ser mayor a 0' });
+    }
 
     const { data, error } = await supabase
       .from('coupons')

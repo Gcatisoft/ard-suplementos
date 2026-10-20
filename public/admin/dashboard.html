@@ -1966,38 +1966,51 @@
           <input type="text" id="cupon-codigo" required placeholder="Ej: JUAN5" style="text-transform:uppercase;">
           <div class="form-hint">El código se guarda en mayúsculas. Sin espacios ni caracteres especiales.</div>
         </div>
-        <!-- Modo de descuento: global o por producto -->
-        <div class="form-group full" style="margin-bottom:0;">
-          <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;">
-            <input type="checkbox" id="cupon-por-producto" style="width:16px;height:16px;">
-            Descuento diferente por producto
-          </label>
-          <div class="form-hint">Activá esto para asignar un % o $ distinto a cada producto.</div>
-        </div>
-
-        <!-- Descuento global (se oculta cuando está activo "por producto") -->
+        <!-- Descuento general: aplica a todos los productos salvo las excepciones -->
         <div id="cupon-global-fields" style="display:contents;">
           <div class="form-group">
-            <label for="cupon-tipo">Tipo de descuento *</label>
+            <label for="cupon-tipo">Tipo de descuento general *</label>
             <select id="cupon-tipo">
               <option value="porcentaje">Porcentaje (%)</option>
               <option value="monto_fijo">Monto fijo ($)</option>
             </select>
           </div>
           <div class="form-group">
-            <label for="cupon-valor">Valor *</label>
-            <input type="number" id="cupon-valor" min="0.01" step="0.01" placeholder="5">
+            <label for="cupon-valor">Valor general *</label>
+            <input type="number" id="cupon-valor" min="0" step="0.01" placeholder="5">
           </div>
         </div>
 
-        <!-- Selector de productos (visible solo cuando "por producto" está activo) -->
+        <!-- Excepciones por producto -->
+        <div class="form-group full" style="margin-bottom:0;">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;">
+            <input type="checkbox" id="cupon-por-producto" style="width:16px;height:16px;">
+            Descuento diferente por producto
+          </label>
+          <div class="form-hint">El descuento general se mantiene para todos los productos. Marcá solo los que tengan un descuento distinto (ej: proteínas al 3%): ese valor reemplaza al general, no se suman.</div>
+        </div>
+
+        <!-- Selector de excepciones (visible solo cuando "por producto" está activo) -->
         <div id="cupon-productos-section" class="form-group full" style="display:none;">
-          <div style="font-weight:600;margin-bottom:8px;color:#2c3e50;">Productos con descuento</div>
+          <div style="font-weight:600;margin-bottom:8px;color:#2c3e50;">Excepciones por producto</div>
           <div style="font-size:12px;color:#6b7686;margin-bottom:10px;">
-            Buscá y agregá los productos que participan del cupón. Cada uno puede tener su propio descuento.
+            Los productos sin marcar usan el descuento general. Filtrá por categoría para aplicar el mismo descuento a varios productos de una vez.
           </div>
-          <div style="display:flex;gap:8px;margin-bottom:10px;">
-            <input type="text" id="cupon-prod-buscar" placeholder="Buscar producto…" style="flex:1;font-size:13px;">
+          <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+            <input type="text" id="cupon-prod-buscar" placeholder="Buscar producto…" style="flex:1;min-width:140px;font-size:13px;">
+            <select id="cupon-prod-categoria" style="font-size:13px;min-width:140px;">
+              <option value="">Todas las categorías</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:#5c7091;">
+            <span>A los productos listados:</span>
+            <select id="cupon-prod-bulk-tipo" style="font-size:12px;padding:2px 4px;">
+              <option value="porcentaje">%</option>
+              <option value="monto_fijo">$</option>
+            </select>
+            <input type="number" id="cupon-prod-bulk-valor" min="0" step="0.01" placeholder="3" style="font-size:12px;width:70px;text-align:right;">
+            <button type="button" class="btn btn-ghost btn-sm" id="cupon-prod-bulk-aplicar">Aplicar</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="cupon-prod-bulk-quitar">Volver al general</button>
           </div>
           <div id="cupon-prod-lista-wrap" style="max-height:240px;overflow-y:auto;border:1px solid #dde3ef;border-radius:6px;">
             <table style="width:100%;border-collapse:collapse;font-size:13px;">

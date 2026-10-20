@@ -1062,47 +1062,57 @@
   }
 
   // Calcula el descuento total del cupón sobre los items actuales del carrito.
-  // Si el cupón tiene reglas por producto, aplica solo esos; si no, descuento global.
-  function calcularDescuentoCupon() {
-    if (!cuponActual) return 0;
-    if (cuponActual.products && cuponActual.products.length) {
-      return items.reduce(function (sum, it) {
-        var rule = cuponActual.products.find(function (p) { return p.productId === it.id; });
-        if (!rule) return sum;
-        var lineTotal = it.price * it.qty;
-        var disc = rule.discountType === 'porcentaje'
-          ? Math.round(lineTotal * rule.discountValue / 100)
-          : Math.min(rule.discountValue, lineTotal);
-        return sum + disc;
-      }, 0);
+  // El descuento general aplica a todos los productos; los productos con regla propia
+  // (excepciones) usan su descuento en lugar del general, sin acumularse.
+  function desgloseDescuentoCupon() {
+    var res = { excepciones: [], general: 0, total: 0 };
+    if (!cuponActual) return res;
+    var reglas = cuponActual.products || [];
+    var subtotalGeneral = 0;
+    items.forEach(function (it) {
+      var lineTotal = it.price * it.qty;
+      var rule = reglas.find(function (p) { return p.productId === it.id; });
+      if (!rule) { subtotalGeneral += lineTotal; return; }
+      var disc = rule.discountType === 'porcentaje'
+        ? Math.round(lineTotal * rule.discountValue / 100)
+        : Math.min(rule.discountValue, lineTotal);
+      res.excepciones.push({ name: it.name, disc: disc });
+      res.total += disc;
+    });
+    var valorGeneral = Number(cuponActual.discountValue) || 0;
+    if (subtotalGeneral > 0 && valorGeneral > 0) {
+      res.general = cuponActual.discountType === 'porcentaje'
+        ? Math.round(subtotalGeneral * valorGeneral / 100)
+        : Math.min(valorGeneral, subtotalGeneral);
+      res.total += res.general;
     }
-    // Descuento global
-    var subtotal = getTotal();
-    return cuponActual.discountType === 'porcentaje'
-      ? Math.round(subtotal * cuponActual.discountValue / 100)
-      : Math.min(cuponActual.discountValue, subtotal);
+    return res;
+  }
+
+  function calcularDescuentoCupon() {
+    return desgloseDescuentoCupon().total;
   }
 
   function mostrarDescuentoBox() {
     var boxEl = document.getElementById('ard-cart-descuento-box');
     if (!boxEl || !cuponActual) return;
     var subtotal = getTotal();
-    var descTotal = calcularDescuentoCupon();
+    var desglose = desgloseDescuentoCupon();
+    var descTotal = desglose.total;
 
     var lineas = '';
     if (cuponActual.products && cuponActual.products.length) {
       // Mostrar detalle por producto
-      items.forEach(function (it) {
-        var rule = cuponActual.products.find(function (p) { return p.productId === it.id; });
-        if (!rule) return;
-        var lineTotal = it.price * it.qty;
-        var disc = rule.discountType === 'porcentaje'
-          ? Math.round(lineTotal * rule.discountValue / 100)
-          : Math.min(rule.discountValue, lineTotal);
+      desglose.excepciones.forEach(function (ex) {
         lineas += '<div class="ard-descuento-row" style="font-size:11px;color:#6b8099;">' +
-          '<span>' + (it.name || 'Producto') + '</span>' +
-          '<span style="color:#219653;">− ' + formatearPrecio(disc) + '</span></div>';
+          '<span>' + (ex.name || 'Producto') + '</span>' +
+          '<span style="color:#219653;">− ' + formatearPrecio(ex.disc) + '</span></div>';
       });
+      if (desglose.general > 0) {
+        lineas += '<div class="ard-descuento-row" style="font-size:11px;color:#6b8099;">' +
+          '<span>Resto de productos (' + (cuponActual.discountType === 'porcentaje' ? cuponActual.discountValue + '%' : formatearPrecio(cuponActual.discountValue)) + ')</span>' +
+          '<span style="color:#219653;">− ' + formatearPrecio(desglose.general) + '</span></div>';
+      }
     }
 
     boxEl.style.display = '';
