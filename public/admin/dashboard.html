@@ -858,6 +858,21 @@
     padding-bottom: 13px;
     white-space: nowrap;
   }
+  .cfg-subtitulo {
+    font-family: var(--font-cond);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy-800);
+    margin: 18px 0 10px;
+  }
+  .tarifas-tabla { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 620px; }
+  .tarifas-tabla th, .tarifas-tabla td { padding: 6px 6px; border-bottom: 1px solid rgba(111,147,193,0.15); text-align: left; }
+  .tarifas-tabla th { font-family: var(--font-cond); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--navy-800); }
+  .tarifas-tabla td.region { font-weight: 600; color: var(--ink); }
+  .tarifas-tabla td.region small { display: block; font-weight: 400; color: #5a6a80; font-size: 11px; }
+  .tarifas-tabla input { width: 100%; min-width: 80px; padding: 7px 8px; border: 1.5px solid rgba(111,147,193,0.35); border-radius: 7px; font-size: 14px; }
+  .tarifas-tabla input:focus { outline: none; border-color: var(--accent); }
+  .tarifas-scroll { overflow-x: auto; margin-bottom: 14px; }
   .cfg-hint {
     font-size: 12.5px;
     color: #5a6a80;
@@ -1477,8 +1492,7 @@
         <h2 class="section-title">Envíos</h2>
         <p class="section-subtitle">
           Zonas de Catamarca Capital, puntos de retiro, envío gratis y toda la información de envíos que ve el cliente.
-          Por ahora solo Capital tiene cotización por zona; interior y resto del país siguen con la tarifa plana de
-          "Configuración".
+          El interior de Catamarca y el resto del país se cotizan con <strong>Andreani</strong> según el código postal.
         </p>
       </div>
     </div>
@@ -1588,7 +1602,7 @@
           <div class="cfg-card-icon">📦</div>
           <div>
             <h3 class="cfg-card-title">Envíos al interior de Catamarca</h3>
-            <p class="cfg-card-desc">Información general (todavía sin cotización automática por localidad).</p>
+            <p class="cfg-card-desc">Texto de tiempos que ve el cliente al cotizar Andreani con destino en Catamarca.</p>
           </div>
         </div>
         <div class="cfg-field">
@@ -1611,7 +1625,7 @@
           <div class="cfg-card-icon">🇦🇷</div>
           <div>
             <h3 class="cfg-card-title">Envíos a todo el país</h3>
-            <p class="cfg-card-desc">Información general (todavía sin cotización automática por provincia).</p>
+            <p class="cfg-card-desc">Texto de tiempos que ve el cliente al cotizar Andreani fuera de Catamarca.</p>
           </div>
         </div>
         <div class="cfg-field">
@@ -1626,6 +1640,76 @@
           <button type="button" class="cfg-save-btn" id="cfg-envio-nacional-guardar-btn">Guardar</button>
           <span id="cfg-envio-nacional-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
         </div>
+      </div>
+
+      <!-- Andreani -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">🚛</div>
+          <div>
+            <h3 class="cfg-card-title">Andreani — interior de Catamarca y todo el país</h3>
+            <p class="cfg-card-desc">
+              El cliente elige provincia, localidad y código postal, y ve el costo a domicilio y a sucursal.
+              Con las credenciales de Andreani en el <code>.env</code> se cotiza en vivo; si no están (o la API no
+              responde) se usan las tarifas manuales de abajo. Una tarifa en <strong>0</strong> aparece como
+              <em>"A coordinar"</em>.
+            </p>
+          </div>
+        </div>
+
+        <div id="andreani-estado" class="cfg-hint">Cargando estado de la conexión…</div>
+
+        <h4 class="cfg-subtitulo">Bulto y recargo</h4>
+        <div class="cfg-grid-3">
+          <div class="cfg-field">
+            <label for="cfg-andreani-peso">Peso por producto (kg)</label>
+            <input type="number" id="cfg-andreani-peso" min="0.1" step="0.1" placeholder="1">
+          </div>
+          <div class="cfg-field">
+            <label for="cfg-andreani-volumen">Volumen por producto (cm³)</label>
+            <input type="number" id="cfg-andreani-volumen" min="1" step="100" placeholder="3000">
+          </div>
+          <div class="cfg-field">
+            <label for="cfg-andreani-recargo">Recargo sobre Andreani (%)</label>
+            <input type="number" id="cfg-andreani-recargo" min="0" step="1" placeholder="0">
+          </div>
+        </div>
+        <p class="cfg-hint" style="margin-top:10px;">
+          El peso y el volumen se usan para los productos que no tengan peso/medidas cargados en su ficha.
+          El recargo se suma a la tarifa de la API (embalaje, gestión, etc.).
+        </p>
+
+        <h4 class="cfg-subtitulo">Tarifas manuales por región y peso</h4>
+        <p class="cfg-hint">
+          Se usan mientras no tengas contrato con Andreani (o si su API no responde). Cargá el precio final que
+          paga el cliente según el peso del paquete. Podés sacar los valores del cotizador de
+          <a href="https://www.andreani.com" target="_blank" rel="noopener">andreani.com</a> con origen Catamarca (CP 4700).
+          Si un tramo queda vacío se usa el siguiente con precio; todo vacío = <em>"A coordinar"</em>.
+        </p>
+        <div id="andreani-tarifas-tablas"></div>
+
+        <div class="cfg-save-row">
+          <button type="button" class="cfg-save-btn" id="cfg-andreani-guardar-btn">Guardar</button>
+          <span id="cfg-andreani-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
+        </div>
+
+        <h4 class="cfg-subtitulo">Probar cotización</h4>
+        <div class="cfg-inline-row">
+          <div class="cfg-field">
+            <label for="andreani-probar-cp">Código postal</label>
+            <input type="text" id="andreani-probar-cp" inputmode="numeric" maxlength="4" placeholder="4740">
+          </div>
+          <div class="cfg-field" style="flex:0 0 110px;">
+            <label for="andreani-probar-kilos">Peso (kg)</label>
+            <input type="number" id="andreani-probar-kilos" min="0.1" step="0.1" placeholder="1">
+          </div>
+          <div class="cfg-field" style="flex:1 1 200px;">
+            <label for="andreani-probar-provincia">Provincia</label>
+            <input type="text" id="andreani-probar-provincia" placeholder="Catamarca" value="Catamarca">
+          </div>
+          <button type="button" class="cfg-save-btn" id="andreani-probar-btn">Cotizar</button>
+        </div>
+        <div id="andreani-probar-resultado" class="cfg-hint" style="margin-bottom:0;"></div>
       </div>
 
       <!-- Preguntas frecuentes -->
@@ -1731,8 +1815,8 @@
           <div>
             <h3 class="cfg-card-title">Tarifas de Envío</h3>
             <p class="cfg-card-desc">
-              Costo de envío por zona. Si ponés <strong>0</strong> aparece como
-              <em>"A coordinar"</em> en el checkout.
+              Tarifas planas anteriores. <strong>El checkout ya no las usa</strong>: Catamarca Capital se cobra por
+              zona y el interior / resto del país se cotiza con Andreani (pestaña <em>Envíos</em>).
             </p>
           </div>
         </div>
@@ -2210,6 +2294,22 @@
         <div class="form-group">
           <label for="costo">Precio de costo ($)</label>
           <input type="number" id="costo" min="0" step="1" placeholder="0">
+        </div>
+
+        <div class="form-group">
+          <label for="peso-kg">Peso para envío (kg)</label>
+          <input type="number" id="peso-kg" min="0" step="0.01" placeholder="Ej: 1.2">
+          <div class="form-hint">Peso con envase. Vacío = el valor por defecto de Envíos → Andreani.</div>
+        </div>
+
+        <div class="form-group">
+          <label>Medidas de la caja (cm)</label>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+            <input type="number" id="largo-cm" min="0" step="0.5" placeholder="Largo" aria-label="Largo (cm)">
+            <input type="number" id="ancho-cm" min="0" step="0.5" placeholder="Ancho" aria-label="Ancho (cm)">
+            <input type="number" id="alto-cm" min="0" step="0.5" placeholder="Alto" aria-label="Alto (cm)">
+          </div>
+          <div class="form-hint">Opcional. Se usan para el volumen del bulto que cotiza Andreani.</div>
         </div>
 
         <div class="form-group full" id="margen-info" style="display:none;">

@@ -134,6 +134,34 @@ Así cada cliente queda con su propia base de datos aislada, sin tocar código.
   sin sesión de administrador activa.
 - Validación de tipo y tamaño de archivo en la subida de imágenes (JPG/PNG/WEBP/GIF, máx. 5MB).
 
+## Envíos con Andreani (interior de Catamarca y todo el país)
+
+En el checkout, además del envío por zona en Catamarca Capital y los puntos de retiro, el cliente
+puede elegir **"Envío por Andreani"**: selecciona provincia, localidad (con autocompletado de las
+localidades de Catamarca) y código postal, y ve al instante el costo **a domicilio** y **a sucursal**
+(con el listado de sucursales de Andreani para ese destino). La página `/envios.html` tiene la misma
+calculadora.
+
+1. Corré `supabase/migration-andreani.sql` en el SQL Editor de Supabase (agrega peso/medidas a los
+   productos, los datos de envío a los pedidos y la configuración de Andreani).
+2. Cargá en el `.env` los datos de tu contrato con Andreani (`ANDREANI_CLIENTE`,
+   `ANDREANI_CONTRATO_DOMICILIO`, `ANDREANI_CONTRATO_SUCURSAL` y, si tu cuenta lo pide,
+   `ANDREANI_USUARIO` / `ANDREANI_PASSWORD`) — ver `.env.example`. Reiniciá el servidor.
+3. En el panel → **Envíos → Andreani** revisá el estado de la conexión, el peso/volumen por defecto,
+   el recargo y probá una cotización con un código postal.
+4. Opcional: cargá el **peso y las medidas** de cada producto (ficha del producto). Los que no los
+   tengan usan el valor por defecto.
+
+**Sin contrato con Andreani** (o si su API no responde) se usa la **tabla de tarifas manuales** del
+panel → Envíos → Andreani: un precio por **región de destino** (Catamarca, NOA, Centro, Cuyo, NEA,
+Buenos Aires y CABA, Patagonia) y **tramo de peso** (hasta 1, 3, 5 y 10 kg, + $ por kg extra), para
+envío a domicilio y a sucursal. Si un tramo queda vacío se usa el siguiente con precio; si no hay
+ninguno, se muestra "A coordinar". Cuando tengas contrato, cargá las variables del `.env` y la
+cotización pasa a ser en vivo automáticamente (la tabla queda como respaldo).
+
+El costo de envío lo recalcula siempre el servidor y se guarda en el pedido (`shipping_cost`,
+aparte del total de productos). En los pagos con Mercado Pago se cobra como un ítem "Envío".
+
 ## Variable para el botón de WhatsApp
 
 El número que usa el botón "Consultar" de cada producto está en `public/index.html`, dentro del

@@ -1,7 +1,7 @@
 /**
  * ARD Suplementos — Módulo de Envíos (panel admin)
  * Zonas de Catamarca Capital · Puntos de retiro · Envío gratis ·
- * Tiempos de entrega · Interior / Resto del país · Preguntas frecuentes
+ * Tiempos de entrega · Interior / Resto del país · Andreani · Preguntas frecuentes
  */
 (function () {
   'use strict';
@@ -420,6 +420,9 @@
       setVal('cfg-envio-interior-texto', 'envio_interior_texto', '');
       setVal('cfg-envio-nacional-titulo', 'envio_nacional_titulo', '🇦🇷 Envíos a todo el país');
       setVal('cfg-envio-nacional-texto', 'envio_nacional_texto', '');
+      ANDREANI_CAMPOS.forEach(([id, key, def]) => setVal(id, key, def));
+      try { andreaniTarifas = JSON.parse(porKey.andreani_tarifas_manuales || '{}') || {}; } catch (e) { andreaniTarifas = {}; }
+      renderTablasTarifas();
     } catch (e) {
       console.error('Error al cargar la configuración de envíos:', e);
     }
@@ -445,6 +448,103 @@
         btn.disabled = false;
       }
     });
+  }
+
+  // ==================================================
+  // Andreani: estado de la API (.env), bulto, recargo y tarifas manuales
+  // ==================================================
+  const ANDREANI_CAMPOS = [
+    ['cfg-andreani-peso', 'andreani_peso_default_kg', '1'],
+    ['cfg-andreani-volumen', 'andreani_volumen_default_cm3', '3000'],
+    ['cfg-andreani-recargo', 'andreani_recargo_pct', '0'],
+  ];
+
+  // Tabla de tarifas manuales: regiones × tramos de peso, una por servicio.
+  let andreaniRegiones = [];
+  let andreaniTramos = [];
+  let andreaniTarifas = {};
+
+  function renderTablasTarifas() {
+    const cont = document.getElementById('andreani-tarifas-tablas');
+    if (!cont || !andreaniRegiones.length) return;
+    const cols = andreaniTramos.map((t) => 'Hasta ' + t + ' kg').concat('$ por kg extra (+' + andreaniTramos[andreaniTramos.length - 1] + ' kg)');
+    cont.innerHTML = [['domicilio', '🏠 A domicilio'], ['sucursal', '🏢 A sucursal Andreani']].map(([serv, titulo]) =>
+      '<div class="cfg-subtitulo" style="margin-top:6px;">' + titulo + '</div>' +
+      '<div class="tarifas-scroll"><table class="tarifas-tabla">' +
+        '<thead><tr><th>Región</th>' + cols.map((c) => '<th>' + esc(c) + '</th>').join('') + '</tr></thead>' +
+        '<tbody>' + andreaniRegiones.map((r) => {
+          const fila = (andreaniTarifas[r.id] && andreaniTarifas[r.id][serv]) || [];
+          return '<tr><td class="region">' + esc(r.nombre) + '<small>' + esc(r.provincias.join(', ')) + '</small></td>' +
+            cols.map((_, i) => '<td><input type="number" min="0" step="100" placeholder="—" data-region="' + r.id +
+              '" data-servicio="' + serv + '" data-col="' + i + '" value="' + (Number(fila[i]) > 0 ? Number(fila[i]) : '') + '"></td>').join('') +
+          '</tr>';
+        }).join('') + '</tbody>' +
+      '</table></div>'
+    ).join('');
+  }
+
+  function leerTablasTarifas() {
+    const tabla = {};
+    document.querySelectorAll('#andreani-tarifas-tablas input[data-region]').forEach((inp) => {
+      const r = inp.dataset.region;
+      const s = inp.dataset.servicio;
+      tabla[r] = tabla[r] || {};
+      tabla[r][s] = tabla[r][s] || [];
+      tabla[r][s][Number(inp.dataset.col)] = Math.max(0, Number(inp.value) || 0);
+    });
+    return tabla;
+  }
+
+  async function cargarEstadoAndreani() {
+    const el = document.getElementById('andreani-estado');
+    if (!el) return;
+    try {
+      const e = await api('/api/admin/shipping/andreani/estado');
+      andreaniRegiones = e.regiones || [];
+      andreaniTramos = e.tramosKg || [];
+      renderTablasTarifas();
+      const ok = (v) => (v ? '✅' : '❌');
+      el.innerHTML = e.apiConfigurada
+        ? '<strong style="color:#1a7a44;">Cotización en vivo activa</strong> (' + esc(e.apiUrl) + ') · ' +
+          ok(e.contratoDomicilio) + ' contrato a domicilio · ' + ok(e.contratoSucursal) + ' contrato a sucursal · ' +
+          ok(e.credenciales) + ' usuario/contraseña' + (e.sucursalOrigen ? ' · origen ' + esc(e.sucursalOrigen) : '')
+        : '<strong style="color:#b7791f;">Sin contrato con Andreani</strong> — el checkout usa la tabla de tarifas manuales de abajo. ' +
+          'Cuando tengas contrato, ' +
+          'cargá <code>ANDREANI_CLIENTE</code> y <code>ANDREANI_CONTRATO_DOMICILIO</code> / <code>ANDREANI_CONTRATO_SUCURSAL</code> ' +
+          'en el <code>.env</code> (ver README) y reiniciá el servidor.';
+    } catch (err) {
+      el.textContent = 'No se pudo leer el estado de Andreani.';
+    }
+  }
+
+  async function probarAndreani() {
+    const btn = document.getElementById('andreani-probar-btn');
+    const out = document.getElementById('andreani-probar-resultado');
+    const cp = document.getElementById('andreani-probar-cp').value.trim();
+    const provincia = document.getElementById('andreani-probar-provincia').value.trim();
+    const kilos = document.getElementById('andreani-probar-kilos').value;
+    btn.disabled = true;
+    out.textContent = 'Cotizando…';
+    try {
+      const r = await api('/api/admin/shipping/andreani/probar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cp, provincia, kilos }),
+      });
+      const linea = (nombre, c) => nombre + ': <strong>' + (c.precio != null ? fmt(c.precio) : 'A coordinar') + '</strong>' +
+        (c.fuente ? ' <em>(' + (c.fuente === 'andreani' ? 'API Andreani' : 'tarifa manual') + ')</em>' : '') +
+        (c.error ? ' <span style="color:#c0392b;">— error de la API: ' + esc(c.error) + '</span>' : '');
+      out.innerHTML =
+        'Bulto de prueba: ' + r.bulto.kilos + ' kg · ' + r.bulto.volumen + ' cm³' +
+        (r.region ? ' · región <strong>' + esc(r.region) + '</strong>' : ' · <span style="color:#c0392b;">provincia sin región (revisá el nombre)</span>') + '<br>' +
+        linea('A domicilio', r.domicilio) + '<br>' +
+        linea('A sucursal', r.sucursal) + '<br>' +
+        (r.errorSucursales
+          ? '<span style="color:#c0392b;">Sucursales: ' + esc(r.errorSucursales) + '</span>'
+          : 'Sucursales encontradas para ese destino: ' + r.sucursales);
+    } catch (e) {
+      out.innerHTML = '<span style="color:#c0392b;">' + esc(e.message) + '</span>';
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   // ==================================================
@@ -490,6 +590,23 @@
       ['cfg-envio-nacional-titulo', 'envio_nacional_titulo'],
       ['cfg-envio-nacional-texto', 'envio_nacional_texto'],
     ]);
+    const btnAndreani = document.getElementById('cfg-andreani-guardar-btn');
+    btnAndreani.addEventListener('click', async () => {
+      btnAndreani.disabled = true;
+      try {
+        andreaniTarifas = leerTablasTarifas();
+        await Promise.all(
+          ANDREANI_CAMPOS.map(([id, key]) => guardarSetting(key, document.getElementById(id).value))
+            .concat(guardarSetting('andreani_tarifas_manuales', JSON.stringify(andreaniTarifas)))
+        );
+        mostrarGuardado('cfg-andreani-status');
+      } catch (e) {
+        alert(e.message || 'No se pudo guardar');
+      } finally {
+        btnAndreani.disabled = false;
+      }
+    });
+    document.getElementById('andreani-probar-btn').addEventListener('click', probarAndreani);
   }
 
   function onEnviosTabOpen() {
@@ -497,6 +614,7 @@
     cargarPuntos();
     cargarFaqs();
     cargarSettingsEnvio();
+    cargarEstadoAndreani();
   }
 
   // El tab principal "Envíos" vive en admin.js (tabPanels); acá solo

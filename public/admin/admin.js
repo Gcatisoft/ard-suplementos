@@ -991,6 +991,10 @@
     document.getElementById('stock').value = p.stock;
     document.getElementById('barcode').value = p.barcode || '';
     document.getElementById('costo').value = p.costPrice !== null && p.costPrice !== undefined ? p.costPrice : '';
+    document.getElementById('peso-kg').value = p.weightKg != null ? p.weightKg : '';
+    document.getElementById('largo-cm').value = p.lengthCm != null ? p.lengthCm : '';
+    document.getElementById('ancho-cm').value = p.widthCm != null ? p.widthCm : '';
+    document.getElementById('alto-cm').value = p.heightCm != null ? p.heightCm : '';
     _saboresState = Array.isArray(p.flavors) ? p.flavors.map(function (f) { return { name: f.name, active: f.active !== false }; }) : [];
     renderSaboresEditor();
     cargarPlanesEnForm(p);
@@ -1068,6 +1072,10 @@
     formData.append('stock', document.getElementById('stock').value || '0');
     formData.append('barcode', document.getElementById('barcode').value.trim());
     formData.append('costPrice', document.getElementById('costo').value);
+    formData.append('weightKg', document.getElementById('peso-kg').value);
+    formData.append('lengthCm', document.getElementById('largo-cm').value);
+    formData.append('widthCm', document.getElementById('ancho-cm').value);
+    formData.append('heightCm', document.getElementById('alto-cm').value);
     formData.append('flavors', JSON.stringify(_saboresState));
     formData.append('paymentPlans', JSON.stringify(leerPlanesDelForm()));
     formData.append('description', document.getElementById('descripcion').value.trim());
@@ -1148,6 +1156,23 @@
     }
   }
 
+  function textoEnvioPedido(p) {
+    const d = p.shippingData || {};
+    const costo = p.shippingCost > 0 ? ' — ' + formatearPrecio(p.shippingCost) : (d.aCoordinar ? ' — a coordinar' : '');
+    if (p.shippingMethod === 'retiro') return 'Retiro en ' + (d.punto || 'punto ARD');
+    if (p.shippingMethod === 'domicilio') {
+      return 'Domicilio Capital' + (d.zona ? ' (zona ' + d.zona + ')' : '') + (d.direccion ? ': ' + d.direccion : '') + (d.gratis ? ' — GRATIS' : costo);
+    }
+    if (p.shippingMethod === 'andreani_domicilio' || p.shippingMethod === 'andreani_sucursal') {
+      const destino = [d.localidad, d.provincia].filter(Boolean).join(', ') + (d.cp ? ' (CP ' + d.cp + ')' : '');
+      const donde = p.shippingMethod === 'andreani_sucursal'
+        ? 'Andreani a sucursal' + (d.sucursal && d.sucursal.nombre ? ' ' + d.sucursal.nombre + (d.sucursal.direccion ? ' (' + d.sucursal.direccion + ')' : '') : '')
+        : 'Andreani a domicilio' + (d.direccion ? ': ' + d.direccion : '');
+      return donde + ' · ' + destino + costo + (d.fuente === 'manual' ? ' [tarifa manual]' : '');
+    }
+    return '';
+  }
+
   function renderPedidos() {
     if (!pedidos.length) {
       pedidosTablaBody.innerHTML = '';
@@ -1169,6 +1194,10 @@
           ? ' <span class="pago-mp-badge" style="background:#1a56c4;" title="Venta Rápida — ' + escaparHTML(p.paymentMethod || 'efectivo') + '">VR · ' + escaparHTML(p.paymentMethod || 'efectivo') + '</span>'
           : '';
 
+        // Envío elegido en el checkout (zona de Capital, retiro o Andreani).
+        const envioTxt = textoEnvioPedido(p);
+        const envioDetalle = envioTxt ? '<li class="pedido-envio"><strong>Envío:</strong> ' + escaparHTML(envioTxt) + '</li>' : '';
+
         const badgeCuenta = p.accountId
           ? ' <span class="pago-mp-badge" style="background:#1a7a44;" title="Compra hecha desde una cuenta registrada del sitio">CUENTA</span>'
           : '';
@@ -1187,9 +1216,11 @@
           '<td>' + escaparHTML(p.customerPhone) + '</td>' +
           '<td>' +
             '<button type="button" class="pedido-items-toggle" data-toggle-items="' + p.id + '">' + itemsResumen + '</button>' +
-            '<div class="pedido-items-detalle" id="items-detalle-' + p.id + '"><ul>' + itemsDetalle + '</ul></div>' +
+            '<div class="pedido-items-detalle" id="items-detalle-' + p.id + '"><ul>' + itemsDetalle + envioDetalle + '</ul></div>' +
           '</td>' +
-          '<td>' + formatearPrecio(p.total) + '</td>' +
+          '<td>' + formatearPrecio(p.total) +
+            (p.shippingCost > 0 ? '<div style="font-size:11.5px;color:#5c7091;">+ envío ' + formatearPrecio(p.shippingCost) + '</div>' : '') +
+          '</td>' +
           '<td><span class="estado-badge ' + p.status + '">' + p.status + '</span></td>' +
           '<td>' + formatearFecha(p.createdAt) + '</td>' +
           '<td>' +

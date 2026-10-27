@@ -64,13 +64,25 @@
   // ---------- Envío / entrega ----------
   // "domicilio" (zona de Catamarca Capital, con precio por zona),
   // "retiro" (punto de retiro, siempre gratis) o
-  // "nacional" (interior de Catamarca / resto del país, tarifa plana de siempre).
+  // "andreani" (interior de Catamarca y resto del país, cotizado por CP).
   var tipoEntrega = 'domicilio';
   var zonasCapital = [];       // [{id, name, price}] — admin → pestaña "Envíos"
   var puntosRetiro = [];       // [{id, name, address, description, schedule}]
   var zonaSeleccionadaId = null;
   var puntoSeleccionadoId = null;
-  var envioTarifas = { nacional: 0 }; // tarifa plana de interior/resto del país (sin cambios)
+  // Envío con Andreani: destino elegido + cotización a domicilio y a
+  // sucursal (el precio real lo vuelve a calcular el servidor).
+  var destinos = null;         // { provincias: [], localidadesCatamarca: [{nombre, departamento, cp}] }
+  var andreani = {
+    provincia: 'Catamarca', localidad: '', cp: '', cpAutocompletado: false,
+    servicio: 'domicilio',     // 'domicilio' | 'sucursal'
+    cotizacion: null,          // { domicilio: {precio}, sucursal: {precio}, tiempo }
+    cotizando: false,
+    sucursales: null,          // null = sin buscar; [] = no hay
+    sucursalId: null
+  };
+  var andreaniTimer = null;
+  var andreaniPedidoN = 0;     // descarta respuestas viejas si el CP cambió
   // Monto a partir del cual el envío a domicilio en Catamarca Capital es
   // gratis. Configurable desde el panel; 120000 es solo el valor por
   // defecto hasta que responda /api/config.
@@ -92,7 +104,23 @@
       var z = zonaActual();
       return z ? Number(z.price) : 0;
     }
-    return envioTarifas.nacional || 0; // nacional
+    var c = andreani.cotizacion && andreani.cotizacion[andreani.servicio];
+    return c && c.precio > 0 ? Number(c.precio) : 0; // andreani
+  }
+  function cpValido(cp) { return /^\d{4}$/.test(String(cp || '').trim()); }
+  function sucursalActual() {
+    return (andreani.sucursales || []).filter(function (s) { return s.id === andreani.sucursalId; })[0] || null;
+  }
+  function destinoAndreaniTxt() {
+    return [andreani.localidad, andreani.provincia].filter(Boolean).join(', ') + (andreani.cp ? ' (CP ' + andreani.cp + ')' : '');
+  }
+  // Texto del costo de envío para el resumen y la revisión.
+  function textoEnvio(envio) {
+    if (envioEsGratisPorMonto()) return 'GRATIS 🎉';
+    if (tipoEntrega === 'retiro') return 'Gratis';
+    if (envio > 0) return formatearPrecio(envio);
+    if (tipoEntrega === 'andreani' && !andreani.cotizacion) return andreani.cotizando ? 'Calculando…' : 'Ingresá tu CP';
+    return 'A coordinar';
   }
   // Texto para el resumen, la revisión final y el mensaje de WhatsApp.
   function labelEntrega() {
@@ -104,7 +132,11 @@
       var z = zonaActual();
       return 'Envío a domicilio' + (z ? ' — Zona ' + z.name : '') + ' (Catamarca Capital)';
     }
-    return 'Envío al interior de Catamarca / resto del país';
+    if (andreani.servicio === 'sucursal') {
+      var s = sucursalActual();
+      return 'Andreani — retiro en sucursal' + (s ? ' ' + s.nombre : '') + ' · ' + destinoAndreaniTxt();
+    }
+    return 'Andreani a domicilio — ' + destinoAndreaniTxt();
   }
   function labelCuotas(n) {
     if (!n || n < 1) return 'Efectivo o transferencia';
@@ -257,7 +289,7 @@
     + '.ard-cart-modal p{margin:0 0 16px;color:#5c7091;font-size:13px;}'
     + '.ard-cart-field{margin-bottom:12px;}'
     + '.ard-cart-field label{display:block;font-size:12px;font-weight:600;color:#0d1b2a;margin-bottom:4px;}'
-    + '.ard-cart-field input,.ard-cart-field textarea{width:100%;box-sizing:border-box;padding:10px 12px;'
+    + '.ard-cart-field input,.ard-cart-field textarea,.ard-cart-field select{width:100%;box-sizing:border-box;padding:10px 12px;'
     + 'border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;}'
     + '.ard-cart-field textarea{resize:vertical;min-height:60px;}'
     + '.ard-cart-modos{display:flex;flex-direction:column;gap:8px;margin:4px 0 14px;}'
@@ -306,6 +338,12 @@
     + '.ard-envio-row{display:flex;justify-content:space-between;color:#5c7091;margin-bottom:3px;}'
     + '.ard-envio-grand{display:flex;justify-content:space-between;font-weight:700;color:#0d1b2a;font-size:14px;margin-top:6px;border-top:1px solid #dde3ec;padding-top:6px;}'
     + '.ard-entrega-detalle{margin:2px 0 14px;}'
+    + '.ard-andreani-box{border:1px solid #e5e9ef;border-radius:10px;padding:12px 12px 2px;background:#fafbfd;}'
+    + '.ard-andreani-grid{display:grid;grid-template-columns:1fr 110px;gap:0 10px;}'
+    + '.ard-andreani-grid .ard-cart-field.full{grid-column:1 / -1;}'
+    + '.ard-andreani-servicios{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}'
+    + '.ard-andreani-msg{font-size:12px;color:#5c7091;margin:0 0 12px;}'
+    + '.ard-andreani-msg.error{color:#c0392b;}'
     // ---- Checkout en 3 pasos ----
     + '.ard-checkout-modal{position:relative;max-width:480px;padding-top:40px;}'
     + '.ard-checkout-modal .ard-cart-close{position:absolute;top:12px;right:14px;z-index:1;}'
@@ -477,6 +515,35 @@
                 '<div id="ard-entrega-tiempos" class="ard-envio-resumen" style="display:none;"></div>' +
               '</div>' +
               '<div id="ard-entrega-detalle-retiro" class="ard-entrega-detalle" style="display:none;"></div>' +
+              '<div id="ard-entrega-detalle-andreani" class="ard-entrega-detalle" style="display:none;">' +
+                '<div class="ard-andreani-box">' +
+                  '<div class="ard-andreani-grid">' +
+                    '<div class="ard-cart-field full">' +
+                      '<label for="ard-andreani-provincia">Provincia</label>' +
+                      '<select id="ard-andreani-provincia"></select>' +
+                    '</div>' +
+                    '<div class="ard-cart-field">' +
+                      '<label for="ard-andreani-localidad">Localidad</label>' +
+                      '<input type="text" id="ard-andreani-localidad" list="ard-andreani-localidades" autocomplete="address-level2" placeholder="Tu localidad">' +
+                      '<datalist id="ard-andreani-localidades"></datalist>' +
+                    '</div>' +
+                    '<div class="ard-cart-field">' +
+                      '<label for="ard-andreani-cp">Código postal</label>' +
+                      '<input type="text" id="ard-andreani-cp" inputmode="numeric" maxlength="4" autocomplete="postal-code" placeholder="Ej: 4700">' +
+                    '</div>' +
+                  '</div>' +
+                  '<div id="ard-andreani-msg" class="ard-andreani-msg">Ingresá tu código postal para calcular el envío.</div>' +
+                  '<div id="ard-andreani-servicios" class="ard-andreani-servicios" style="display:none;"></div>' +
+                  '<div class="ard-cart-field" id="ard-andreani-sucursal-wrap" style="display:none;">' +
+                    '<label for="ard-andreani-sucursal">Sucursal Andreani</label>' +
+                    '<select id="ard-andreani-sucursal"></select>' +
+                  '</div>' +
+                  '<div class="ard-cart-field" id="ard-andreani-direccion-wrap" style="display:none;">' +
+                    '<label for="ard-andreani-direccion">Dirección completa</label>' +
+                    '<input type="text" id="ard-andreani-direccion" autocomplete="street-address" placeholder="Calle, número, piso/depto, barrio…">' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
               '<div id="ard-cart-modos" class="ard-cart-modos">' +
                 '<div class="ard-cart-modos-titulo">¿Cómo vas a pagar?</div>' +
                 '<div id="ard-cart-modos-lista"></div>' +
@@ -578,6 +645,14 @@
       var direccionInput = document.getElementById('ard-cart-direccion');
       if (!direccionInput || !direccionInput.value.trim()) {
         errorEl.textContent = 'Completá tu dirección para el envío a domicilio.';
+        errorEl.classList.add('visible');
+        return;
+      }
+    }
+    if (tipoEntrega === 'andreani') {
+      var errAndreani = validarAndreani();
+      if (errAndreani) {
+        errorEl.textContent = errAndreani;
         errorEl.classList.add('visible');
         return;
       }
@@ -765,13 +840,13 @@
     });
 
     html +=
-      '<label class="ard-cart-modo" data-entrega="nacional">' +
-        '<input type="radio" name="ard-tipo-entrega" value="nacional">' +
+      '<label class="ard-cart-modo" data-entrega="andreani">' +
+        '<input type="radio" name="ard-tipo-entrega" value="andreani">' +
         '<span class="ard-cart-modo-txt">' +
-          '<span class="ard-cart-modo-nombre">📦 Envío al interior / resto del país</span>' +
-          '<span class="ard-cart-modo-detalle">Coordinamos por WhatsApp</span>' +
+          '<span class="ard-cart-modo-nombre">📦 Envío por Andreani</span>' +
+          '<span class="ard-cart-modo-detalle">Interior de Catamarca y todo el país · a domicilio o sucursal</span>' +
         '</span>' +
-        '<span class="ard-cart-modo-precio" id="ard-entrega-precio-nacional">…</span>' +
+        '<span class="ard-cart-modo-precio" id="ard-entrega-precio-andreani"></span>' +
       '</label>';
 
     lista.innerHTML = html;
@@ -790,8 +865,8 @@
   }
 
   function aplicarTipoEntrega(valor) {
-    if (valor === 'nacional') {
-      tipoEntrega = 'nacional';
+    if (valor === 'andreani') {
+      tipoEntrega = 'andreani';
     } else if (valor.indexOf('retiro:') === 0) {
       tipoEntrega = 'retiro';
       puntoSeleccionadoId = valor.slice('retiro:'.length);
@@ -800,9 +875,12 @@
     }
     var elDomicilio = document.getElementById('ard-entrega-detalle-domicilio');
     var elRetiro = document.getElementById('ard-entrega-detalle-retiro');
+    var elAndreani = document.getElementById('ard-entrega-detalle-andreani');
     if (elDomicilio) elDomicilio.style.display = tipoEntrega === 'domicilio' ? '' : 'none';
     if (elRetiro) elRetiro.style.display = tipoEntrega === 'retiro' ? '' : 'none';
+    if (elAndreani) elAndreani.style.display = tipoEntrega === 'andreani' ? '' : 'none';
     if (tipoEntrega === 'retiro') renderDetallePunto();
+    if (tipoEntrega === 'andreani' && !andreani.cotizacion && cpValido(andreani.cp)) cotizarEnvioAndreani();
     actualizarPreciosEntregaUI();
     actualizarResumenEnvio();
     actualizarBotonConfirmar();
@@ -838,14 +916,19 @@
 
   function actualizarPreciosEntregaUI() {
     var elDomicilio = document.getElementById('ard-entrega-precio-domicilio');
-    var elNacional  = document.getElementById('ard-entrega-precio-nacional');
+    var elAndreani  = document.getElementById('ard-entrega-precio-andreani');
     // Ojo: acá NUNCA se muestra el precio de una zona puntual — el envío a
     // domicilio no tiene un precio propio, depende exclusivamente de la
     // zona que elija el cliente en el selector de abajo.
     if (elDomicilio) {
       elDomicilio.textContent = envioEsGratisPorMonto() ? 'GRATIS 🎉' : '';
     }
-    if (elNacional) elNacional.textContent = envioTarifas.nacional > 0 ? formatearPrecio(envioTarifas.nacional) : 'A coordinar';
+    if (elAndreani) {
+      var precios = andreani.cotizacion
+        ? [andreani.cotizacion.domicilio, andreani.cotizacion.sucursal].map(function (c) { return c && c.precio; }).filter(function (n) { return n > 0; })
+        : [];
+      elAndreani.textContent = precios.length ? 'Desde ' + formatearPrecio(Math.min.apply(null, precios)) : '';
+    }
     actualizarResumenEnvio();
   }
 
@@ -857,7 +940,7 @@
     var envio    = getEnvio();
     var gratis   = envioEsGratisPorMonto();
     var zonaLbl  = labelEntrega();
-    var envioLbl = gratis ? 'GRATIS 🎉' : (envio > 0 ? formatearPrecio(envio) : (tipoEntrega === 'retiro' ? 'Gratis' : '<em>A coordinar</em>'));
+    var envioLbl = textoEnvio(envio);
 
     resumen.style.display = '';
     resumen.innerHTML =
@@ -866,6 +949,230 @@
       '<div class="ard-envio-grand"><span>Total estimado</span><span>' +
         (envio > 0 ? formatearPrecio(subtotal + envio) : formatearPrecio(subtotal) + (gratis || tipoEntrega === 'retiro' ? '' : ' + envío')) + '</span></div>';
   }
+
+  // ---------- Envío con Andreani: destino, cotización y sucursales ----------
+  function direccionEntrega() {
+    var id = tipoEntrega === 'domicilio' ? 'ard-cart-direccion'
+      : (tipoEntrega === 'andreani' && andreani.servicio === 'domicilio') ? 'ard-andreani-direccion' : null;
+    var el = id && document.getElementById(id);
+    return el ? el.value.trim() : '';
+  }
+
+  function shippingPayload() {
+    if (tipoEntrega === 'retiro') return { method: 'retiro', pickupPointId: puntoSeleccionadoId };
+    if (tipoEntrega === 'domicilio') return { method: 'domicilio', zoneId: zonaSeleccionadaId, address: direccionEntrega() };
+    var s = andreani.servicio === 'sucursal' ? sucursalActual() : null;
+    return {
+      method: 'andreani_' + andreani.servicio,
+      destino: { provincia: andreani.provincia, localidad: andreani.localidad, cp: andreani.cp, direccion: direccionEntrega() },
+      sucursalId: s ? s.id : null,
+      sucursalNombre: s ? s.nombre : null
+    };
+  }
+
+  function validarAndreani() {
+    if (!andreani.provincia) return 'Elegí la provincia de destino.';
+    if (!andreani.localidad) return 'Completá tu localidad.';
+    if (!cpValido(andreani.cp)) return 'Ingresá un código postal válido (4 números).';
+    if (andreani.cotizando || !andreani.cotizacion) return 'Esperá a que calculemos el costo del envío.';
+    if (andreani.servicio === 'domicilio' && !direccionEntrega()) return 'Completá tu dirección para el envío a domicilio.';
+    if (andreani.servicio === 'sucursal' && andreani.sucursales && andreani.sucursales.length && !sucursalActual()) {
+      return 'Elegí la sucursal de Andreani donde vas a retirar.';
+    }
+    return '';
+  }
+
+  // Provincias + autocompletado de localidades de Catamarca (con CP sugerido).
+  function renderDestinoAndreani() {
+    var selProv = document.getElementById('ard-andreani-provincia');
+    if (!selProv) return;
+    // Sin listado (falló la carga) al menos queda la provincia actual.
+    selProv.innerHTML = (destinos ? destinos.provincias : [andreani.provincia]).map(function (p) {
+      return '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>';
+    }).join('');
+    selProv.value = andreani.provincia;
+    document.getElementById('ard-andreani-localidad').value = andreani.localidad;
+    document.getElementById('ard-andreani-cp').value = andreani.cp;
+    renderLocalidadesSugeridas();
+  }
+
+  function renderLocalidadesSugeridas() {
+    var dl = document.getElementById('ard-andreani-localidades');
+    if (!dl) return;
+    var lista = destinos && andreani.provincia === 'Catamarca' ? destinos.localidadesCatamarca : [];
+    dl.innerHTML = lista.map(function (l) {
+      return '<option value="' + escapeHtml(l.nombre) + '">' + escapeHtml(l.departamento + (l.cp ? ' · CP ' + l.cp : '')) + '</option>';
+    }).join('');
+  }
+
+  function programarCotizacionAndreani() {
+    clearTimeout(andreaniTimer);
+    andreaniTimer = setTimeout(cotizarEnvioAndreani, 350);
+  }
+
+  function setMsgAndreani(txt, esError) {
+    var el = document.getElementById('ard-andreani-msg');
+    if (!el) return;
+    el.textContent = txt || '';
+    el.style.display = txt ? '' : 'none';
+    el.classList.toggle('error', !!esError);
+  }
+
+  function cotizarEnvioAndreani() {
+    var n = ++andreaniPedidoN;
+    if (!cpValido(andreani.cp)) {
+      andreani.cotizando = false;
+      andreani.cotizacion = null;
+      renderServiciosAndreani();
+      setMsgAndreani('Ingresá tu código postal para calcular el envío.');
+      return;
+    }
+    var s = sucursalActual();
+    andreani.cotizando = true;
+    andreani.cotizacion = null;
+    setMsgAndreani('Calculando el costo del envío…');
+    renderServiciosAndreani();
+    fetch('/api/shipping/andreani/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cp: andreani.cp,
+        provincia: andreani.provincia,
+        sucursalCp: andreani.servicio === 'sucursal' && s ? s.cp : null,
+        items: items.map(function (it) { return { productId: it.id, qty: it.qty }; })
+      })
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (r) {
+        if (n !== andreaniPedidoN) return;
+        andreani.cotizando = false;
+        if (!r.ok) throw new Error(r.data && r.data.error);
+        andreani.cotizacion = r.data;
+        setMsgAndreani(r.data.tiempo || '');
+        renderServiciosAndreani();
+      })
+      .catch(function (err) {
+        if (n !== andreaniPedidoN) return;
+        andreani.cotizando = false;
+        andreani.cotizacion = null;
+        setMsgAndreani((err && err.message) || 'No pudimos calcular el envío. Probá de nuevo en un momento.', true);
+        renderServiciosAndreani();
+      });
+    if (andreani.sucursales === null) cargarSucursalesAndreani();
+  }
+
+  function renderServiciosAndreani() {
+    var cont = document.getElementById('ard-andreani-servicios');
+    if (!cont) return;
+    var c = andreani.cotizacion;
+    if (!c) {
+      cont.style.display = 'none';
+      cont.innerHTML = '';
+    } else {
+      var precioTxt = function (x) { return x && x.precio > 0 ? formatearPrecio(x.precio) : 'A coordinar'; };
+      cont.style.display = '';
+      cont.innerHTML = [
+        { v: 'domicilio', nombre: '🏠 Envío a domicilio', detalle: 'Andreani lo lleva a tu dirección', precio: precioTxt(c.domicilio) },
+        { v: 'sucursal', nombre: '🏢 Retiro en sucursal Andreani', detalle: 'Lo retirás en la sucursal que elijas', precio: precioTxt(c.sucursal) }
+      ].map(function (o) {
+        var sel = andreani.servicio === o.v;
+        return '<label class="ard-cart-modo' + (sel ? ' sel' : '') + '">' +
+          '<input type="radio" name="ard-andreani-servicio" value="' + o.v + '"' + (sel ? ' checked' : '') + '>' +
+          '<span class="ard-cart-modo-txt">' +
+            '<span class="ard-cart-modo-nombre">' + o.nombre + '</span>' +
+            '<span class="ard-cart-modo-detalle">' + o.detalle + '</span>' +
+          '</span>' +
+          '<span class="ard-cart-modo-precio">' + o.precio + '</span>' +
+        '</label>';
+      }).join('');
+    }
+    var wrapDir = document.getElementById('ard-andreani-direccion-wrap');
+    var wrapSuc = document.getElementById('ard-andreani-sucursal-wrap');
+    if (wrapDir) wrapDir.style.display = c && andreani.servicio === 'domicilio' ? '' : 'none';
+    if (wrapSuc) wrapSuc.style.display = c && andreani.servicio === 'sucursal' ? '' : 'none';
+    actualizarPreciosEntregaUI();
+  }
+
+  function cargarSucursalesAndreani() {
+    var cp = andreani.cp;
+    var sel = document.getElementById('ard-andreani-sucursal');
+    andreani.sucursales = [];
+    andreani.sucursalId = null;
+    if (sel) sel.innerHTML = '<option value="">Buscando sucursales…</option>';
+    fetch('/api/shipping/andreani/sucursales?cp=' + encodeURIComponent(cp) + '&provincia=' + encodeURIComponent(andreani.provincia))
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .catch(function () { return []; })
+      .then(function (lista) {
+        if (cp !== andreani.cp) return;
+        andreani.sucursales = Array.isArray(lista) ? lista : [];
+        if (!sel) return;
+        if (!andreani.sucursales.length) {
+          sel.innerHTML = '<option value="">No encontramos sucursales — te contactamos por WhatsApp</option>';
+          return;
+        }
+        sel.innerHTML = andreani.sucursales.map(function (s) {
+          return '<option value="' + escapeHtml(s.id) + '">' + escapeHtml(s.nombre + ' — ' + s.direccion + ', ' + s.localidad) + '</option>';
+        }).join('');
+        andreani.sucursalId = andreani.sucursales[0].id;
+        sel.value = andreani.sucursalId;
+        // La sucursal puede tener otro CP que el del cliente: recotizamos.
+        if (andreani.servicio === 'sucursal' && andreani.sucursales[0].cp && andreani.sucursales[0].cp !== andreani.cp) programarCotizacionAndreani();
+      });
+  }
+
+  function onCambioDestinoAndreani() {
+    andreani.cotizacion = null;
+    andreani.sucursales = null;
+    andreani.sucursalId = null;
+    if (cpValido(andreani.cp)) programarCotizacionAndreani();
+    else { clearTimeout(andreaniTimer); cotizarEnvioAndreani(); }
+  }
+
+  modalOverlay.addEventListener('change', function (e) {
+    var t = e.target;
+    if (t.id === 'ard-cart-zona') {
+      zonaSeleccionadaId = t.value || null;
+      actualizarPreciosEntregaUI();
+    } else if (t.id === 'ard-andreani-provincia') {
+      andreani.provincia = t.value;
+      renderLocalidadesSugeridas();
+      onCambioDestinoAndreani();
+    } else if (t.name === 'ard-andreani-servicio') {
+      andreani.servicio = t.value;
+      var s = sucursalActual();
+      if (andreani.servicio === 'sucursal' && s && s.cp && s.cp !== andreani.cp) programarCotizacionAndreani();
+      renderServiciosAndreani();
+    } else if (t.id === 'ard-andreani-sucursal') {
+      andreani.sucursalId = t.value || null;
+      var suc = sucursalActual();
+      if (suc && suc.cp) programarCotizacionAndreani();
+    }
+  });
+
+  modalOverlay.addEventListener('input', function (e) {
+    var t = e.target;
+    if (t.id === 'ard-andreani-cp') {
+      var limpio = t.value.replace(/\D/g, '').slice(0, 4);
+      if (limpio !== t.value) t.value = limpio;
+      if (limpio === andreani.cp) return;
+      andreani.cp = limpio;
+      andreani.cpAutocompletado = false;
+      onCambioDestinoAndreani();
+    } else if (t.id === 'ard-andreani-localidad') {
+      andreani.localidad = t.value.trim();
+      // Si eligió una localidad conocida de Catamarca, sugerimos su CP (sin
+      // pisar uno que haya escrito a mano).
+      var match = destinos && andreani.provincia === 'Catamarca'
+        ? destinos.localidadesCatamarca.filter(function (l) { return l.nombre.toLowerCase() === andreani.localidad.toLowerCase(); })[0]
+        : null;
+      if (match && match.cp && (!andreani.cp || andreani.cpAutocompletado) && match.cp !== andreani.cp) {
+        andreani.cp = match.cp;
+        andreani.cpAutocompletado = true;
+        document.getElementById('ard-andreani-cp').value = match.cp;
+        onCambioDestinoAndreani();
+      }
+    }
+  });
 
   // ---------- Checkout: paso 1 (carrito) ----------
   // Misma lista que el panel lateral, pero con sus propios +/-/quitar para
@@ -958,13 +1265,15 @@
       '<div class="ard-revision-section">' +
         '<div class="ard-revision-row"><span>Subtotal</span><span>' + formatearPrecio(subtotalBase) + '</span></div>' +
         (descuento > 0 ? '<div class="ard-revision-row" style="color:#219653;"><span>Descuento (' + cuponActual.code + ')</span><span>− ' + formatearPrecio(descuento) + '</span></div>' : '') +
-        '<div class="ard-revision-row"><span>Envío</span><span>' + (gratis || tipoEntrega === 'retiro' ? (gratis ? 'GRATIS 🎉' : 'Gratis') : (envio > 0 ? formatearPrecio(envio) : 'A coordinar')) + '</span></div>' +
+        '<div class="ard-revision-row"><span>Envío</span><span>' + textoEnvio(envio) + '</span></div>' +
       '</div>' +
       '<div class="ard-revision-section">' +
         '<div class="ard-revision-titulo">Entrega y pago</div>' +
         '<div class="ard-revision-row"><span>Método de entrega</span><span>' + zonaLbl + '</span></div>' +
-        (tipoEntrega === 'domicilio' && document.getElementById('ard-cart-direccion') && document.getElementById('ard-cart-direccion').value.trim()
-          ? '<div class="ard-revision-row"><span>Dirección</span><span>' + escapeHtml(document.getElementById('ard-cart-direccion').value.trim()) + '</span></div>' : '') +
+        (direccionEntrega()
+          ? '<div class="ard-revision-row"><span>Dirección</span><span>' + escapeHtml(direccionEntrega()) + '</span></div>' : '') +
+        (tipoEntrega === 'andreani' && andreani.servicio === 'sucursal' && sucursalActual()
+          ? '<div class="ard-revision-row"><span>Sucursal</span><span>' + escapeHtml(sucursalActual().direccion + ', ' + sucursalActual().localidad) + '</span></div>' : '') +
         '<div class="ard-revision-row"><span>Forma de pago</span><span>' + formaPagoLbl + '</span></div>' +
       '</div>' +
       '<div class="ard-revision-total"><span>Total' + (envio > 0 || gratis || tipoEntrega === 'retiro' ? '' : ' (+ envío a coordinar)') + '</span><span>' + formatearPrecio(totalFinal) + '</span></div>';
@@ -999,11 +1308,13 @@
       fetch('/api/shipping/zones').then(function (r) { return r.json(); }).catch(function () { return []; }),
       fetch('/api/shipping/pickup-points').then(function (r) { return r.json(); }).catch(function () { return []; }),
       fetch('/api/config').then(function (r) { return r.json(); }).catch(function () { return {}; }),
+      destinos ? Promise.resolve(destinos) : fetch('/api/shipping/destinos').then(function (r) { return r.json(); }).catch(function () { return null; }),
     ]).then(function (res) {
+      if (res[3] && Array.isArray(res[3].provincias)) destinos = res[3];
+      renderDestinoAndreani();
       zonasCapital = Array.isArray(res[0]) ? res[0] : [];
       puntosRetiro = Array.isArray(res[1]) ? res[1] : [];
       var cfg = res[2] || {};
-      envioTarifas.nacional = Math.max(0, Number(cfg.envioNacional) || 0);
       ENVIO_GRATIS_MONTO_CAPITAL = Math.max(0, Number(cfg.envioGratisMontoCapital) || ENVIO_GRATIS_MONTO_CAPITAL);
       actualizarSubEnvioGratis();
       renderEnvioGratisBarra();
@@ -1195,6 +1506,9 @@
     lista.innerHTML = '<div style="font-size:12px;color:#5c7091;">Calculando precios…</div>';
     quoteActual = null;
     actualizarBotonConfirmar();
+    // El bulto (peso/valor) cambió: la cotización de Andreani ya no vale.
+    andreani.cotizacion = null;
+    if (tipoEntrega === 'andreani' && cpValido(andreani.cp)) programarCotizacionAndreani();
 
     var discountAmount = cuponActual ? calcularDescuentoCupon() : 0;
     fetch('/api/orders/quote', {
@@ -1333,12 +1647,13 @@
       lineas.push('Descuento (cupón ' + cuponActual.code + '): − ' + formatearPrecio(descMsg));
     }
     lineas.push('Forma de pago: ' + formaPago);
-    var envio    = getEnvio();
+    // El costo de envío que vale es el que recalculó el servidor.
+    var envio    = pedido && pedido.shippingCost != null ? Number(pedido.shippingCost) : getEnvio();
     var subtotal = totalDeCuotas(cuotas || 0);
     lineas.push('Entrega: ' + labelEntrega());
-    if (tipoEntrega === 'domicilio') {
-      var direccionInput = document.getElementById('ard-cart-direccion');
-      if (direccionInput && direccionInput.value.trim()) lineas.push('Dirección: ' + direccionInput.value.trim());
+    if (direccionEntrega()) lineas.push('Dirección: ' + direccionEntrega());
+    if (tipoEntrega === 'andreani' && andreani.servicio === 'sucursal' && sucursalActual()) {
+      lineas.push('Sucursal Andreani: ' + sucursalActual().nombre + ' — ' + sucursalActual().direccion + ', ' + sucursalActual().localidad);
     }
     if (envioEsGratisPorMonto()) {
       lineas.push('Envío: GRATIS 🎉 (supera los ' + formatearPrecio(ENVIO_GRATIS_MONTO_CAPITAL) + ' en Catamarca Capital)');
@@ -1373,10 +1688,7 @@
     var envioMonto = getEnvio();
     var envioMontoTxt = envioEsGratisPorMonto() ? 'GRATIS' : (tipoEntrega === 'retiro' ? 'Gratis' : (envioMonto > 0 ? formatearPrecio(envioMonto) : 'A coordinar'));
     var notaEnvio = 'Entrega: ' + zonaLbl + ' — ' + envioMontoTxt;
-    var direccionInput = document.getElementById('ard-cart-direccion');
-    if (tipoEntrega === 'domicilio' && direccionInput && direccionInput.value.trim()) {
-      notaEnvio += ' | Dirección: ' + direccionInput.value.trim();
-    }
+    if (direccionEntrega()) notaEnvio += ' | Dirección: ' + direccionEntrega();
     var notas = notasBase ? notasBase + ' | ' + notaEnvio : notaEnvio;
     var cuotas = cuotasSeleccionadas();
     var canal = cuotas < 1 ? 'whatsapp' : 'mercadopago';
@@ -1406,7 +1718,8 @@
       installments: cuotas,
       paymentMethod: modoSeleccionado(),
       couponCode: cuponActual ? cuponActual.code : null,
-      campaignId: campanaId
+      campaignId: campanaId,
+      shipping: shippingPayload()
     };
 
     btn.disabled = true;

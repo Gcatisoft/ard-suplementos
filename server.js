@@ -36,6 +36,19 @@ const MP_WEBHOOK_SECRET = process.env.MERCADOPAGO_WEBHOOK_SECRET || '';
 // puede llegar a localhost).
 const PUBLIC_URL = (process.env.PUBLIC_URL || '').replace(/\/$/, '');
 
+// ---------- Andreani (envíos al interior de Catamarca y todo el país) ----------
+// Con CLIENTE + al menos un CONTRATO se cotiza en vivo contra la API de
+// Andreani. Sin eso (o si la API no responde) el checkout usa las tarifas
+// manuales del panel → Envíos. Usuario/contraseña solo hacen falta si tu
+// cuenta pide token para cotizar. Para probar: https://apisqa.andreani.com
+const ANDREANI_API_URL = (process.env.ANDREANI_API_URL || 'https://apis.andreani.com').replace(/\/$/, '');
+const ANDREANI_USUARIO = process.env.ANDREANI_USUARIO || '';
+const ANDREANI_PASSWORD = process.env.ANDREANI_PASSWORD || '';
+const ANDREANI_CLIENTE = process.env.ANDREANI_CLIENTE || '';
+const ANDREANI_CONTRATO_DOMICILIO = process.env.ANDREANI_CONTRATO_DOMICILIO || '';
+const ANDREANI_CONTRATO_SUCURSAL = process.env.ANDREANI_CONTRATO_SUCURSAL || '';
+const ANDREANI_SUCURSAL_ORIGEN = process.env.ANDREANI_SUCURSAL_ORIGEN || '';
+
 // ---------- Envío de correos (SMTP) ----------
 // Para las notificaciones de nuevos suscriptores del popup del home.
 // Con Gmail: SMTP_HOST=smtp.gmail.com, SMTP_PORT=465, SMTP_USER=tu-cuenta
@@ -286,6 +299,20 @@ let _configCache = {
   envioNacionalTexto: 'Tiempo estimado: 2 a 4 días hábiles, dependiendo de la localidad y empresa de transporte.',
   descuentoGeneralActivo: false,
   descuentoGeneralPct: 5,
+  // Andreani: bulto por defecto, recargo sobre la cotización y tarifas
+  // manuales (se usan si la API no está configurada o no responde).
+  andreaniPesoDefaultKg: 1,
+  andreaniVolumenDefaultCm3: 3000,
+  andreaniRecargoPct: 0,
+  // { [regionId]: { domicilio: [hasta1kg, hasta3kg, hasta5kg, hasta10kg, porKgExtra], sucursal: [...] } }
+  andreaniTarifasManuales: {},
+};
+
+// key de app_settings → propiedad de _configCache (todas numéricas, >= 0).
+const ANDREANI_SETTINGS = {
+  andreani_peso_default_kg: 'andreaniPesoDefaultKg',
+  andreani_volumen_default_cm3: 'andreaniVolumenDefaultCm3',
+  andreani_recargo_pct: 'andreaniRecargoPct',
 };
 
 async function refreshConfig() {
@@ -313,6 +340,16 @@ async function refreshConfig() {
         if (r.key === 'descuento_general_pct') {
           const v = Number(r.value);
           if (v > 0 && v < 100) _configCache.descuentoGeneralPct = v;
+        }
+        if (r.key === 'andreani_tarifas_manuales') {
+          try {
+            const t = JSON.parse(r.value || '{}');
+            if (t && typeof t === 'object' && !Array.isArray(t)) _configCache.andreaniTarifasManuales = t;
+          } catch (e) { /* JSON inválido: se mantiene la tabla anterior */ }
+        }
+        if (ANDREANI_SETTINGS[r.key]) {
+          const v = Number(r.value);
+          if (Number.isFinite(v) && v >= 0) _configCache[ANDREANI_SETTINGS[r.key]] = v;
         }
       });
     }
@@ -392,6 +429,22 @@ function precioSegunCuotas(prod, cuotas) {
   return efectivo;
 }
 
+// Peso (kg) y medidas (cm) del form de producto → columnas de la base.
+// Un campo vacío solo se manda (como null) si la columna ya existe en la
+// fila (`existing`), para no romper el guardado si falta la migración.
+function medidasEnvioDesdeBody(body, existing) {
+  const columnas = { weightKg: 'weight_kg', lengthCm: 'length_cm', widthCm: 'width_cm', heightCm: 'height_cm' };
+  const cambios = {};
+  Object.entries(columnas).forEach(([campo, col]) => {
+    const v = body[campo];
+    if (v === undefined) return;
+    const n = Number(v);
+    if (v !== '' && Number.isFinite(n) && n > 0) cambios[col] = n;
+    else if (existing && col in existing) cambios[col] = null;
+  });
+  return cambios;
+}
+
 // ---------- Mapeo de filas de la base (snake_case) al formato que usa el frontend (camelCase) ----------
 function mapProducto(row) {
   return {
@@ -406,6 +459,11 @@ function mapProducto(row) {
     stock: row.stock,
     barcode: row.barcode || '',
     costPrice: row.cost_price !== null && row.cost_price !== undefined ? Number(row.cost_price) : null,
+    // Peso y medidas del producto (para cotizar el envío con Andreani).
+    weightKg: row.weight_kg != null ? Number(row.weight_kg) : null,
+    lengthCm: row.length_cm != null ? Number(row.length_cm) : null,
+    widthCm: row.width_cm != null ? Number(row.width_cm) : null,
+    heightCm: row.height_cm != null ? Number(row.height_cm) : null,
     description: row.description || '',
     image: row.image || '',
     images: Array.isArray(row.images) ? row.images : (row.image ? [row.image] : []),
@@ -1211,7 +1269,7 @@ app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), maneja
     const {
       name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, barcode, costPrice,
       description, featured, active, imageUrl, flavors, installments, paymentPlans,
-      discountBadgeMode, discountBadgePercent,
+      discountBadgeMode, discountBadgePercent, weightKg, lengthCm, widthCm, heightCm,
     } = req.body;
     const modoBadge = ['general', 'custom', 'none'].includes(discountBadgeMode) ? discountBadgeMode : 'general';
     if (!name || !category || price === undefined || price === '') {
@@ -1254,6 +1312,10 @@ app.post('/api/admin/products', requireAuth, upload.array('imagenes', 8), maneja
           : null,
     };
 
+    // Solo se mandan si vienen cargados: así, si todavía no se corrió
+    // migration-andreani.sql, el alta de productos sigue funcionando.
+    Object.assign(nuevo, medidasEnvioDesdeBody({ weightKg, lengthCm, widthCm, heightCm }, null));
+
     const { data, error } = await supabase.from('products').insert(nuevo).select().single();
     if (error) throw error;
 
@@ -1277,7 +1339,7 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), man
     const {
       name, brand, category, price, oldPrice, cardPrice, creditPrice, stock, barcode, costPrice,
       description, featured, active, imagenesExistentes, flavors, installments, paymentPlans,
-      discountBadgeMode, discountBadgePercent,
+      discountBadgeMode, discountBadgePercent, weightKg, lengthCm, widthCm, heightCm,
     } = req.body;
 
     const cambios = {};
@@ -1291,6 +1353,7 @@ app.put('/api/admin/products/:id', requireAuth, upload.array('imagenes', 8), man
     if (stock !== undefined && stock !== '') cambios.stock = Number(stock);
     if (barcode !== undefined) cambios.barcode = barcode === '' ? null : String(barcode).trim();
     if (costPrice !== undefined) cambios.cost_price = costPrice === '' ? null : Number(costPrice);
+    Object.assign(cambios, medidasEnvioDesdeBody({ weightKg, lengthCm, widthCm, heightCm }, existing));
     if (description !== undefined) cambios.description = String(description).trim();
     if (flavors !== undefined) cambios.flavors = String(flavors).trim() || '[]';
     if (installments !== undefined) cambios.installments = installments === '' ? null : Number(installments);
@@ -1391,6 +1454,7 @@ app.get('/api/config', (req, res) => {
     envioInteriorTitulo: c.envioInteriorTitulo, envioInteriorTexto: c.envioInteriorTexto,
     envioNacionalTitulo: c.envioNacionalTitulo, envioNacionalTexto: c.envioNacionalTexto,
     descuentoGeneralActivo: c.descuentoGeneralActivo, descuentoGeneralPct: c.descuentoGeneralPct,
+    andreaniApi: andreaniApiConfigurada(),
   });
 });
 
@@ -1725,6 +1789,425 @@ app.delete('/api/admin/shipping/faqs/:id', requireAuth, async (req, res) => {
   }
 });
 
+// ============================================================
+// ---------- Envíos con Andreani (interior de Catamarca y todo el país) ----------
+// ============================================================
+// Cotiza a domicilio y a sucursal según el código postal de destino y el
+// bulto del carrito (peso/medidas de cada producto, o los valores por
+// defecto del panel). Si la API de Andreani no está configurada o falla,
+// usa las tarifas manuales del panel → Envíos (0 = "A coordinar").
+
+const PROVINCIAS_AR = [
+  'Buenos Aires', 'Ciudad Autónoma de Buenos Aires', 'Catamarca', 'Chaco', 'Chubut', 'Córdoba',
+  'Corrientes', 'Entre Ríos', 'Formosa', 'Jujuy', 'La Pampa', 'La Rioja', 'Mendoza', 'Misiones',
+  'Neuquén', 'Río Negro', 'Salta', 'San Juan', 'San Luis', 'Santa Cruz', 'Santa Fe',
+  'Santiago del Estero', 'Tierra del Fuego', 'Tucumán',
+];
+
+// Localidades de Catamarca para el autocompletado del checkout. El CP es
+// solo una sugerencia que el cliente puede corregir (vacío = lo escribe él).
+const LOCALIDADES_CATAMARCA = [
+  ['San Fernando del Valle de Catamarca', 'Capital', '4700'],
+  ['San Isidro', 'Valle Viejo', '4707'], ['Villa Dolores', 'Valle Viejo', ''],
+  ['San José', 'Fray Mamerto Esquiú', ''], ['Piedra Blanca', 'Fray Mamerto Esquiú', ''], ['La Carrera', 'Fray Mamerto Esquiú', ''],
+  ['La Puerta', 'Ambato', ''], ['Las Juntas', 'Ambato', ''], ['El Rodeo', 'Ambato', ''], ['Los Varela', 'Ambato', ''],
+  ['La Merced', 'Paclín', ''], ['San Antonio', 'Paclín', ''],
+  ['Huillapima', 'Capayán', ''], ['Chumbicha', 'Capayán', ''], ['Concepción', 'Capayán', ''], ['Miraflores', 'Capayán', ''],
+  ['Andalgalá', 'Andalgalá', '4740'], ['Chaquiago', 'Andalgalá', ''],
+  ['Belén', 'Belén', '4750'], ['Londres', 'Belén', ''], ['Hualfín', 'Belén', ''], ['Villa Vil', 'Belén', ''],
+  ['Pomán', 'Pomán', ''], ['Saujil', 'Pomán', ''], ['Mutquín', 'Pomán', ''],
+  ['Tinogasta', 'Tinogasta', '5340'], ['Fiambalá', 'Tinogasta', '5345'],
+  ['Santa María', 'Santa María', '4139'], ['San José (Santa María)', 'Santa María', ''],
+  ['Recreo', 'La Paz', '5260'], ['Icaño', 'La Paz', ''], ['San Antonio de La Paz', 'La Paz', ''],
+  ['El Alto', 'El Alto', ''], ['Tapso', 'El Alto', ''],
+  ['Ancasti', 'Ancasti', ''],
+  ['Bañado de Ovanta', 'Santa Rosa', ''], ['Los Altos', 'Santa Rosa', ''],
+  ['Antofagasta de la Sierra', 'Antofagasta de la Sierra', ''],
+].map(([nombre, departamento, cp]) => ({ nombre, departamento, cp }));
+
+function normalizarTexto(str) {
+  return String(str || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+function cpValido(cp) {
+  return /^\d{4}$/.test(String(cp || '').trim());
+}
+function esProvinciaCatamarca(provincia) {
+  return normalizarTexto(provincia) === 'catamarca';
+}
+function andreaniApiConfigurada() {
+  return !!(ANDREANI_CLIENTE && (ANDREANI_CONTRATO_DOMICILIO || ANDREANI_CONTRATO_SUCURSAL));
+}
+
+// Token de la API (solo si hay usuario/contraseña). Dura 24 hs; lo
+// renovamos a las 12 para no usar uno a punto de vencer.
+let _andreaniToken = null;
+let _andreaniTokenVence = 0;
+async function andreaniToken() {
+  if (!ANDREANI_USUARIO || !ANDREANI_PASSWORD) return null;
+  if (_andreaniToken && Date.now() < _andreaniTokenVence) return _andreaniToken;
+  const basic = Buffer.from(`${ANDREANI_USUARIO}:${ANDREANI_PASSWORD}`).toString('base64');
+  const res = await fetch(ANDREANI_API_URL + '/login', {
+    headers: { Authorization: `Basic ${basic}`, Accept: 'application/json' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`Login de Andreani rechazado (HTTP ${res.status})`);
+  const body = await res.json().catch(() => ({}));
+  const token = res.headers.get('x-authorization-token') || body.token;
+  if (!token) throw new Error('Andreani no devolvió el token de acceso');
+  _andreaniToken = token;
+  _andreaniTokenVence = Date.now() + 12 * 60 * 60 * 1000;
+  return token;
+}
+
+async function andreaniGet(ruta, params) {
+  const url = new URL(ANDREANI_API_URL + ruta);
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
+  });
+  const headers = { Accept: 'application/json' };
+  const token = await andreaniToken();
+  if (token) headers['x-authorization-token'] = token;
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
+  const data = await res.json().catch(() => null);
+  if (res.status === 401) _andreaniToken = null; // fuerza un login nuevo la próxima vez
+  if (!res.ok) {
+    const msg = (data && (data.detail || data.title || data.message)) || `HTTP ${res.status}`;
+    throw new Error(`Andreani: ${msg}`);
+  }
+  return data;
+}
+
+// Arma el bulto del carrito: kilos y volumen (cm³) sumando cada producto
+// por su cantidad. Sin peso/medidas cargados, usa los valores por defecto.
+async function armarBultoAndreani(items) {
+  const cfg = getConfig();
+  const lista = Array.isArray(items) ? items.filter((it) => it && it.productId) : [];
+  const ids = [...new Set(lista.map((it) => it.productId))];
+  let porId = new Map();
+  if (ids.length) {
+    // select('*') para no fallar si todavía no existen las columnas de medidas.
+    const { data } = await supabase.from('products').select('*').in('id', ids);
+    porId = new Map((data || []).map((p) => [p.id, p]));
+  }
+  let kilos = 0;
+  let volumen = 0;
+  let valor = 0;
+  lista.forEach((it) => {
+    const qty = Math.max(1, Math.round(Number(it.qty) || 1));
+    const p = porId.get(it.productId) || {};
+    const peso = Number(p.weight_kg) > 0 ? Number(p.weight_kg) : cfg.andreaniPesoDefaultKg;
+    const vol = Number(p.length_cm) > 0 && Number(p.width_cm) > 0 && Number(p.height_cm) > 0
+      ? Number(p.length_cm) * Number(p.width_cm) * Number(p.height_cm)
+      : cfg.andreaniVolumenDefaultCm3;
+    kilos += peso * qty;
+    volumen += vol * qty;
+    valor += (Number(p.price) || 0) * qty;
+  });
+  // Carrito vacío (ej: calculadora de la página de envíos): un producto tipo.
+  if (!lista.length) {
+    kilos = cfg.andreaniPesoDefaultKg;
+    volumen = cfg.andreaniVolumenDefaultCm3;
+  }
+  return {
+    kilos: Math.max(0.1, Math.round(kilos * 100) / 100),
+    volumen: Math.max(1, Math.round(volumen)),
+    valorDeclarado: Math.max(1, Math.round(valor)),
+  };
+}
+
+// Cotizaciones recientes en memoria (la tarifa no cambia minuto a minuto y
+// así no le pegamos a Andreani en cada tecla del checkout).
+const _cacheCotizaciones = new Map();
+const COTIZACION_TTL_MS = 15 * 60 * 1000;
+
+function aplicarRecargoAndreani(precio) {
+  const pct = getConfig().andreaniRecargoPct || 0;
+  return Math.ceil(precio * (1 + pct / 100));
+}
+
+// Tarifas manuales (mientras no haya contrato con Andreani, o si la API
+// falla): una tabla por región de destino y tramo de peso, editable desde
+// el panel. Las regiones se arman pensando en que el envío sale de Catamarca.
+const REGIONES_ENVIO = [
+  { id: 'catamarca', nombre: 'Catamarca (toda la provincia)', provincias: ['Catamarca'] },
+  { id: 'noa', nombre: 'NOA', provincias: ['Tucumán', 'Santiago del Estero', 'La Rioja', 'Salta', 'Jujuy'] },
+  { id: 'centro', nombre: 'Centro', provincias: ['Córdoba', 'Santa Fe', 'Entre Ríos', 'San Luis'] },
+  { id: 'cuyo', nombre: 'Cuyo', provincias: ['Mendoza', 'San Juan'] },
+  { id: 'nea', nombre: 'NEA', provincias: ['Chaco', 'Corrientes', 'Formosa', 'Misiones'] },
+  { id: 'buenosaires', nombre: 'Buenos Aires y CABA', provincias: ['Buenos Aires', 'Ciudad Autónoma de Buenos Aires', 'La Pampa'] },
+  { id: 'patagonia', nombre: 'Patagonia', provincias: ['Neuquén', 'Río Negro', 'Chubut', 'Santa Cruz', 'Tierra del Fuego'] },
+];
+// Tope (kg) de cada columna de la tabla; la última columna es "$ por kg
+// extra" por encima del último tramo.
+const TRAMOS_PESO_KG = [1, 3, 5, 10];
+
+function regionDeProvincia(provincia) {
+  const prov = normalizarTexto(provincia);
+  return REGIONES_ENVIO.find((r) => r.provincias.some((p) => normalizarTexto(p) === prov)) || null;
+}
+
+function tarifaManualAndreani(servicio, provincia, kilos) {
+  const region = regionDeProvincia(provincia);
+  const tabla = getConfig().andreaniTarifasManuales || {};
+  const fila = region && tabla[region.id] && tabla[region.id][servicio];
+  if (!Array.isArray(fila)) return null;
+  const precio = (i) => Number(fila[i]) || 0;
+  // El primer tramo que cubre el peso y tenga precio cargado (así, si solo
+  // completás "hasta 5 kg", vale también para paquetes más livianos).
+  for (let i = 0; i < TRAMOS_PESO_KG.length; i++) {
+    if (kilos <= TRAMOS_PESO_KG[i] && precio(i) > 0) return Math.ceil(precio(i));
+  }
+  // Más pesado que el último tramo: último tramo + $ por cada kg extra (o fracción).
+  const ultimo = TRAMOS_PESO_KG.length - 1;
+  const tope = TRAMOS_PESO_KG[ultimo];
+  if (kilos <= tope || !(precio(ultimo) > 0)) return null;
+  return Math.ceil(precio(ultimo) + Math.ceil(kilos - tope) * precio(TRAMOS_PESO_KG.length));
+}
+
+// servicio: 'domicilio' | 'sucursal'. cp: destino (para sucursal, el CP de
+// la sucursal elegida si se conoce). Devuelve { precio, fuente, error? };
+// precio null = sin tarifa → "A coordinar".
+async function cotizarAndreani({ servicio, cp, provincia, bulto }) {
+  const contrato = servicio === 'sucursal' ? ANDREANI_CONTRATO_SUCURSAL : ANDREANI_CONTRATO_DOMICILIO;
+  let errorApi = null;
+  if (ANDREANI_CLIENTE && contrato) {
+    const clave = [servicio, cp, bulto.kilos, bulto.volumen, bulto.valorDeclarado].join('|');
+    const enCache = _cacheCotizaciones.get(clave);
+    if (enCache && Date.now() - enCache.t < COTIZACION_TTL_MS) {
+      return { precio: aplicarRecargoAndreani(enCache.precio), fuente: 'andreani' };
+    }
+    try {
+      const data = await andreaniGet('/v1/tarifas', {
+        cpDestino: cp,
+        contrato,
+        cliente: ANDREANI_CLIENTE,
+        sucursalOrigen: ANDREANI_SUCURSAL_ORIGEN,
+        'bultos[0][valorDeclarado]': bulto.valorDeclarado,
+        'bultos[0][volumen]': bulto.volumen,
+        'bultos[0][kilos]': bulto.kilos,
+      });
+      const total = Number(
+        (data && data.tarifaConIva && data.tarifaConIva.total) ||
+        (data && data.tarifaSinIva && data.tarifaSinIva.total)
+      );
+      if (!(total > 0)) throw new Error('Andreani no devolvió una tarifa para ese destino');
+      if (_cacheCotizaciones.size > 500) _cacheCotizaciones.clear();
+      _cacheCotizaciones.set(clave, { precio: total, t: Date.now() });
+      return { precio: aplicarRecargoAndreani(total), fuente: 'andreani' };
+    } catch (err) {
+      errorApi = err.message;
+      console.error('Cotización Andreani falló, uso tarifa manual:', err.message);
+    }
+  }
+  const manual = tarifaManualAndreani(servicio, provincia, bulto.kilos);
+  return { precio: manual, fuente: manual != null ? 'manual' : null, error: errorApi || undefined };
+}
+
+// Sucursales de Andreani: se baja el listado completo una vez y se cachea
+// (cambia muy poco), y se filtra en memoria por CP o provincia.
+let _cacheSucursales = null;
+let _cacheSucursalesT = 0;
+const SUCURSALES_TTL_MS = 12 * 60 * 60 * 1000;
+
+function mapSucursalAndreani(s) {
+  const dir = s.direccion || {};
+  const limpio = (v) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+  const extra = s.datosAdicionales || {};
+  return {
+    id: String(s.id != null ? s.id : (s.codigo || s.numero || '')),
+    codigo: limpio(s.codigo),
+    nombre: limpio(s.descripcion || s.nombre) || 'Sucursal Andreani',
+    direccion: limpio([dir.calle, dir.numero].filter(Boolean).join(' ')),
+    localidad: limpio(dir.localidad),
+    provincia: limpio(dir.provincia),
+    cp: limpio(dir.codigoPostal),
+    horario: typeof s.horarioDeAtencion === 'string' ? limpio(s.horarioDeAtencion.replace(/;+\s*$/, '').replace(/;/g, ' · ')) : '',
+    cpsAtendidos: Array.isArray(s.codigosPostalesAtendidos) ? s.codigosPostalesAtendidos.map(String) : [],
+    // El listado trae también depósitos y puntos B2B/logísticos: solo sirven
+    // para retirar las de atención al público que entregan envíos.
+    entrega: (!s.canal || s.canal === 'B2C') && extra.entregaEnvios === true && extra.seHaceAtencionAlCliente === true,
+  };
+}
+
+async function sucursalesAndreani() {
+  if (_cacheSucursales && Date.now() - _cacheSucursalesT < SUCURSALES_TTL_MS) return _cacheSucursales;
+  const data = await andreaniGet('/v2/sucursales');
+  const lista = (Array.isArray(data) ? data : (data && data.content) || []).map(mapSucursalAndreani).filter((s) => s.entrega);
+  _cacheSucursales = lista;
+  _cacheSucursalesT = Date.now();
+  return lista;
+}
+
+// Primero las que atienden ese CP (la del mismo CP adelante) y después el
+// resto de la provincia, para que el cliente pueda elegir otra cercana.
+async function buscarSucursalesAndreani(cp, provincia) {
+  const todas = await sucursalesAndreani();
+  const porCp = cp ? todas.filter((s) => s.cp === cp || s.cpsAtendidos.includes(cp)) : [];
+  porCp.sort((a, b) => (a.cp === cp ? 0 : 1) - (b.cp === cp ? 0 : 1) || a.localidad.localeCompare(b.localidad, 'es'));
+  let porProvincia = [];
+  if (provincia) {
+    const prov = normalizarTexto(provincia).replace(/^ciudad autonoma de /, '');
+    porProvincia = todas
+      .filter((s) => !porCp.includes(s) && normalizarTexto(s.provincia).includes(prov))
+      .sort((a, b) => a.localidad.localeCompare(b.localidad, 'es'));
+  }
+  return porCp.concat(porProvincia)
+    .slice(0, 40)
+    .map(({ cpsAtendidos, entrega, ...s }) => s);
+}
+
+// Recalcula en el servidor el envío elegido en el checkout (nunca se confía
+// en el precio que manda el navegador). subtotalEfectivo: suma a precio de
+// efectivo, que es contra lo que se compara el monto de envío gratis.
+async function calcularEnvioPedido(shipping, items, subtotalEfectivo) {
+  const s = shipping && typeof shipping === 'object' ? shipping : null;
+  if (!s || !s.method) return { method: null, cost: 0, data: null };
+  const cfg = getConfig();
+
+  if (s.method === 'retiro') {
+    const { data: punto } = await supabase.from('pickup_points').select('*')
+      .eq('id', s.pickupPointId || '00000000-0000-0000-0000-000000000000').eq('active', true).maybeSingle();
+    return { method: 'retiro', cost: 0, data: { punto: punto ? punto.name : null, direccion: punto ? punto.address : null } };
+  }
+
+  if (s.method === 'domicilio') {
+    const { data: zona } = await supabase.from('shipping_zones').select('*')
+      .eq('id', s.zoneId || '00000000-0000-0000-0000-000000000000').eq('active', true).maybeSingle();
+    // Mismo criterio que el carrito: 0 en el panel cae al valor por defecto.
+    const umbral = cfg.envioGratisMontoCapital || 120000;
+    const gratis = subtotalEfectivo >= umbral;
+    return {
+      method: 'domicilio',
+      cost: gratis || !zona ? 0 : Number(zona.price) || 0,
+      data: { zona: zona ? zona.name : null, gratis, direccion: String(s.address || '').trim().slice(0, 300) },
+    };
+  }
+
+  if (s.method === 'andreani_domicilio' || s.method === 'andreani_sucursal') {
+    const servicio = s.method === 'andreani_sucursal' ? 'sucursal' : 'domicilio';
+    const destino = s.destino || {};
+    const cp = String(destino.cp || '').trim();
+    const provincia = String(destino.provincia || '').trim().slice(0, 80);
+    const data = {
+      servicio,
+      provincia,
+      localidad: String(destino.localidad || '').trim().slice(0, 120),
+      cp,
+      direccion: String(destino.direccion || '').trim().slice(0, 300),
+    };
+    let cpCotizacion = cp;
+    if (servicio === 'sucursal' && s.sucursalId) {
+      let suc = null;
+      try {
+        suc = (await sucursalesAndreani()).find((x) => x.id === String(s.sucursalId)) || null;
+      } catch (e) { /* sin listado: queda el nombre que mandó el cliente */ }
+      data.sucursal = suc
+        ? { id: suc.id, nombre: suc.nombre, direccion: suc.direccion, localidad: suc.localidad, cp: suc.cp }
+        : { id: String(s.sucursalId).slice(0, 40), nombre: String(s.sucursalNombre || '').slice(0, 120) };
+      if (suc && cpValido(suc.cp)) cpCotizacion = suc.cp;
+    }
+    if (!cpValido(cpCotizacion)) return { method: s.method, cost: 0, data: { ...data, aCoordinar: true } };
+    const bulto = await armarBultoAndreani(items);
+    const cot = await cotizarAndreani({ servicio, cp: cpCotizacion, provincia, bulto });
+    data.fuente = cot.fuente;
+    data.kilos = bulto.kilos;
+    if (cot.precio == null) data.aCoordinar = true;
+    return { method: s.method, cost: cot.precio || 0, data };
+  }
+
+  return { method: null, cost: 0, data: null };
+}
+
+// La calculadora es pública y le pega a una API externa: límite propio.
+const cotizadorLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: { error: 'Demasiadas cotizaciones seguidas. Probá de nuevo en unos minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Provincias y localidades de Catamarca para el selector de destino.
+app.get('/api/shipping/destinos', (req, res) => {
+  res.json({ provincias: PROVINCIAS_AR, localidadesCatamarca: LOCALIDADES_CATAMARCA });
+});
+
+// Cotización a domicilio y a sucursal. Body: { cp, provincia, items?, sucursalCp? }
+app.post('/api/shipping/andreani/quote', cotizadorLimiter, async (req, res) => {
+  try {
+    const { cp, provincia, items, sucursalCp } = req.body || {};
+    const cpDestino = String(cp || '').trim();
+    if (!cpValido(cpDestino)) return res.status(400).json({ error: 'Ingresá un código postal válido (4 números).' });
+    const bulto = await armarBultoAndreani(items);
+    const cpSucursal = cpValido(sucursalCp) ? String(sucursalCp).trim() : cpDestino;
+    const [domicilio, sucursal] = await Promise.all([
+      cotizarAndreani({ servicio: 'domicilio', cp: cpDestino, provincia, bulto }),
+      cotizarAndreani({ servicio: 'sucursal', cp: cpSucursal, provincia, bulto }),
+    ]);
+    const cfg = getConfig();
+    const catamarca = esProvinciaCatamarca(provincia);
+    res.json({
+      domicilio: { precio: domicilio.precio, fuente: domicilio.fuente },
+      sucursal: { precio: sucursal.precio, fuente: sucursal.fuente },
+      kilos: bulto.kilos,
+      tiempo: catamarca ? cfg.envioInteriorTexto : cfg.envioNacionalTexto,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'No se pudo cotizar el envío' });
+  }
+});
+
+app.get('/api/shipping/andreani/sucursales', cotizadorLimiter, async (req, res) => {
+  try {
+    const cp = String(req.query.cp || '').trim();
+    const provincia = String(req.query.provincia || '').trim();
+    if (!cpValido(cp) && !provincia) return res.status(400).json({ error: 'Falta el código postal o la provincia' });
+    res.json(await buscarSucursalesAndreani(cpValido(cp) ? cp : '', provincia));
+  } catch (err) {
+    console.error('No se pudieron obtener las sucursales de Andreani:', err.message);
+    res.status(502).json({ error: 'No pudimos obtener las sucursales de Andreani en este momento' });
+  }
+});
+
+// Panel: qué está configurado en el .env (sin exponer valores) + prueba en vivo.
+app.get('/api/admin/shipping/andreani/estado', requireAuth, (req, res) => {
+  res.json({
+    apiUrl: ANDREANI_API_URL,
+    apiConfigurada: andreaniApiConfigurada(),
+    cliente: !!ANDREANI_CLIENTE,
+    contratoDomicilio: !!ANDREANI_CONTRATO_DOMICILIO,
+    contratoSucursal: !!ANDREANI_CONTRATO_SUCURSAL,
+    credenciales: !!(ANDREANI_USUARIO && ANDREANI_PASSWORD),
+    sucursalOrigen: ANDREANI_SUCURSAL_ORIGEN || null,
+    regiones: REGIONES_ENVIO,
+    tramosKg: TRAMOS_PESO_KG,
+  });
+});
+
+app.post('/api/admin/shipping/andreani/probar', requireAuth, async (req, res) => {
+  try {
+    const cp = String((req.body && req.body.cp) || '').trim();
+    const provincia = String((req.body && req.body.provincia) || '').trim();
+    if (!cpValido(cp)) return res.status(400).json({ error: 'Código postal inválido' });
+    const bulto = await armarBultoAndreani([]);
+    const kilosPrueba = Number(req.body && req.body.kilos);
+    if (kilosPrueba > 0) bulto.kilos = Math.round(kilosPrueba * 100) / 100;
+    const region = regionDeProvincia(provincia);
+    const [domicilio, sucursal] = await Promise.all([
+      cotizarAndreani({ servicio: 'domicilio', cp, provincia, bulto }),
+      cotizarAndreani({ servicio: 'sucursal', cp, provincia, bulto }),
+    ]);
+    let sucursales = null;
+    let errorSucursales = null;
+    try { sucursales = (await buscarSucursalesAndreani(cp, provincia)).length; } catch (e) { errorSucursales = e.message; }
+    res.json({ bulto, region: region ? region.nombre : null, domicilio, sucursal, sucursales, errorSucursales });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'No se pudo probar la cotización' });
+  }
+});
+
 app.post('/api/admin/ventas/rapida', requireAuth, async (req, res) => {
   try {
     const { items, discount, discountType, paymentMethod, customerId, customerName, customerPhone, notes } = req.body;
@@ -1843,6 +2326,9 @@ function mapOrder(row) {
     discountType: row.discount_type || null,
     discountPct: row.discount_pct != null ? Number(row.discount_pct) : null,
     discountAmount: row.discount_amount != null ? Number(row.discount_amount) : null,
+    shippingMethod: row.shipping_method || null,
+    shippingCost: row.shipping_cost != null ? Number(row.shipping_cost) : null,
+    shippingData: row.shipping_data || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -1952,7 +2438,7 @@ app.post('/api/orders/quote', async (req, res) => {
 // así queda registrado en el panel aunque el cliente no confirme nada más.
 app.post('/api/orders', publicWriteLimiter, async (req, res) => {
   try {
-    const { customerName, customerPhone, customerId, items, notes, channel, installments: cuotasBody, couponCode, campaignId: campaignIdBody, paymentMethod: paymentMethodBody } = req.body || {};
+    const { customerName, customerPhone, customerId, items, notes, channel, installments: cuotasBody, couponCode, campaignId: campaignIdBody, paymentMethod: paymentMethodBody, shipping } = req.body || {};
     // 0 / vacío = efectivo o transferencia; N >= 1 = pago con tarjeta en N cuotas.
     const cuotas = Math.max(0, Math.round(Number(cuotasBody) || 0));
     const modo = cuotas >= 1 ? 'tarjeta' : 'efectivo';
@@ -2068,7 +2554,25 @@ app.post('/api/orders', publicWriteLimiter, async (req, res) => {
       discount_amount: descuentoMonto > 0 ? Math.round(descuentoMonto * 100) / 100 : null,
     };
 
-    const { data, error } = await supabase.from('orders').insert(nuevo).select().single();
+    // ---------- Envío (recalculado acá: zona, retiro o Andreani) ----------
+    // Va aparte de `total` (que sigue siendo solo productos); Mercado Pago
+    // cobra total + shipping_cost.
+    const subtotalEfectivo = items.reduce((acc, it) => {
+      const prod = prodPorId.get(it.productId);
+      return acc + (prod ? Number(prod.price) || 0 : 0) * (Number(it.qty) || 0);
+    }, 0);
+    const envio = await calcularEnvioPedido(shipping, items, subtotalEfectivo);
+    const camposEnvio = envio.method
+      ? { shipping_method: envio.method, shipping_cost: Math.round(envio.cost * 100) / 100, shipping_data: envio.data }
+      : {};
+
+    let { data, error } = await supabase.from('orders').insert({ ...nuevo, ...camposEnvio }).select().single();
+    // Si todavía no se corrió migration-andreani.sql (faltan las columnas de
+    // envío), no perdemos el pedido: se guarda sin esos datos.
+    if (error && envio.method && (error.code === 'PGRST204' || /shipping_/.test(error.message || ''))) {
+      console.warn('Faltan las columnas de envío en orders (correr migration-andreani.sql). Pedido guardado sin envío.');
+      ({ data, error } = await supabase.from('orders').insert(nuevo).select().single());
+    }
     if (error) throw error;
 
     // Para pedidos por WhatsApp, la venta se registra en el historial del
@@ -2186,6 +2690,19 @@ app.post('/api/orders/:id/pagar', publicWriteLimiter, async (req, res) => {
         title: 'Descuento cupón ' + (order.coupon_code || ''),
         quantity: 1,
         unit_price: -Math.round(Number(order.discount_amount) * 100) / 100,
+        currency_id: 'ARS',
+      });
+    }
+
+    // Costo de envío (zona de Capital o Andreani), calculado al crear el pedido.
+    if (order.shipping_cost && Number(order.shipping_cost) > 0) {
+      const tituloEnvio = String(order.shipping_method || '').startsWith('andreani')
+        ? 'Envío Andreani' + (order.shipping_method === 'andreani_sucursal' ? ' a sucursal' : ' a domicilio')
+        : 'Envío a domicilio';
+      itemsMP.push({
+        title: tituloEnvio,
+        quantity: 1,
+        unit_price: Math.round(Number(order.shipping_cost) * 100) / 100,
         currency_id: 'ARS',
       });
     }

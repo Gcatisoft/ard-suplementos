@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Envíos y retiro | ARD Suplementos Catamarca</title>
-<meta name="description" content="Zonas de envío en Catamarca Capital, puntos de retiro sin cargo, tiempos de entrega, envíos al interior y a todo el país, y preguntas frecuentes.">
+<meta name="description" content="Zonas de envío en Catamarca Capital, puntos de retiro sin cargo, envíos con Andreani al interior de Catamarca y a todo el país con calculadora de costos, y preguntas frecuentes.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#0a1626">
 <link rel="canonical" href="https://ardsuplementos.com.ar/envios.html">
@@ -140,6 +140,35 @@
 
   .estado-lista{font-family:var(--font-body); color:var(--steel-600); padding:30px 4px;}
 
+  /* -------- Calculadora Andreani -------- */
+  .calc-box{background:var(--bg-soft); border:1px solid var(--line); border-radius:14px; padding:22px 24px; max-width:820px;}
+  .calc-form{display:grid; grid-template-columns:1.2fr 1.2fr 0.6fr auto; gap:12px; align-items:end;}
+  .calc-field label{display:block; font-family:var(--font-cond); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.04em; color:var(--navy-800); margin-bottom:6px;}
+  .calc-field input, .calc-field select{width:100%; padding:11px 13px; border:1.5px solid var(--line); border-radius:10px; font-size:15px; background:#fff; color:var(--ink);}
+  .calc-field input:focus, .calc-field select:focus{outline:none; border-color:var(--accent);}
+  .calc-btn{background:var(--flame); color:#fff; border:none; border-radius:10px; padding:12px 22px; font-family:var(--font-cond); font-weight:700; font-size:14px; white-space:nowrap;}
+  .calc-btn:hover{background:var(--flame-dark);}
+  .calc-btn:disabled{opacity:.6; cursor:not-allowed;}
+  .calc-nota{font-size:12.5px; color:var(--steel-600); margin-top:12px; line-height:1.5;}
+  .calc-resultado{margin-top:18px;}
+  .calc-opciones{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .calc-opcion{background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px;}
+  .calc-opcion .tit{font-family:var(--font-cond); font-weight:700; font-size:14.5px; color:var(--navy-900); margin-bottom:4px;}
+  .calc-opcion .precio{font-family:var(--font-display); font-weight:800; font-size:22px; color:var(--accent);}
+  .calc-opcion .sub{font-size:12.5px; color:var(--steel-600); margin-top:4px;}
+  .calc-error{color:var(--flame-dark); font-size:14px;}
+  .calc-sucursales{margin-top:16px;}
+  .calc-sucursales h3{font-family:var(--font-cond); font-size:14px; color:var(--navy-900); margin-bottom:8px;}
+  .calc-sucursales ul{list-style:none; display:grid; gap:8px;}
+  .calc-sucursales li{background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 14px; font-size:13.5px; color:var(--steel-600);}
+  .calc-sucursales li strong{color:var(--navy-900);}
+  @media (max-width:760px){
+    .calc-form{grid-template-columns:1fr 1fr;}
+    .calc-btn{grid-column:1 / -1;}
+    .calc-opciones{grid-template-columns:1fr;}
+  }
+  @media (max-width:420px){ .calc-box{padding:18px 16px;} .calc-form{grid-template-columns:1fr;} }
+
   /* -------- Footer -------- */
   footer{background:var(--navy-950); color:var(--steel-300); padding:52px 0 22px; margin-top:20px;}
   .foot-grid{display:grid; grid-template-columns:1.3fr 1fr 1fr 1fr; gap:32px; padding-bottom:32px; border-bottom:1px solid rgba(255,255,255,0.08);}
@@ -230,6 +259,35 @@
   </div>
 </section>
 
+<section class="envios-section" id="sec-andreani">
+  <div class="wrap">
+    <div class="envios-section-head">
+      <h2>📦 Envíos con Andreani — Catamarca y todo el país</h2>
+      <p>Calculá cuánto sale el envío a tu localidad, a domicilio o para retirar en una sucursal de Andreani.</p>
+    </div>
+    <div class="calc-box">
+      <form class="calc-form" id="calc-form" novalidate>
+        <div class="calc-field">
+          <label for="calc-provincia">Provincia</label>
+          <select id="calc-provincia"><option>Catamarca</option></select>
+        </div>
+        <div class="calc-field">
+          <label for="calc-localidad">Localidad</label>
+          <input type="text" id="calc-localidad" list="calc-localidades" placeholder="Tu localidad" autocomplete="address-level2">
+          <datalist id="calc-localidades"></datalist>
+        </div>
+        <div class="calc-field">
+          <label for="calc-cp">Código postal</label>
+          <input type="text" id="calc-cp" inputmode="numeric" maxlength="4" placeholder="4700" autocomplete="postal-code">
+        </div>
+        <button type="submit" class="calc-btn" id="calc-btn">Calcular envío</button>
+      </form>
+      <p class="calc-nota" id="calc-nota">El costo se calcula con los productos que tengas en el carrito. Si está vacío, usamos un producto estándar como referencia.</p>
+      <div class="calc-resultado" id="calc-resultado"></div>
+    </div>
+  </div>
+</section>
+
 <section class="envios-section" id="sec-interior">
   <div class="wrap">
     <div class="envios-section-head">
@@ -291,6 +349,7 @@
         <h4>Medios de envío</h4>
         <div class="ship-icons">
           <span class="pay-chip">CADETE PROPIO</span>
+          <span class="pay-chip">ANDREANI</span>
           <span class="pay-chip">RETIRO EN LOCAL</span>
         </div>
       </div>
@@ -405,6 +464,92 @@
   }).catch(function(){
     document.getElementById('faq-list').innerHTML = '<div class="estado-lista">No pudimos cargar las preguntas frecuentes.</div>';
   });
+
+  /* ---------- Calculadora de envíos Andreani ---------- */
+  (function(){
+    var form = document.getElementById('calc-form');
+    var selProv = document.getElementById('calc-provincia');
+    var inpLoc = document.getElementById('calc-localidad');
+    var inpCp = document.getElementById('calc-cp');
+    var dl = document.getElementById('calc-localidades');
+    var btn = document.getElementById('calc-btn');
+    var out = document.getElementById('calc-resultado');
+    var localidadesCatamarca = [];
+
+    function renderLocalidades(){
+      var lista = selProv.value === 'Catamarca' ? localidadesCatamarca : [];
+      dl.innerHTML = lista.map(function(l){
+        return '<option value="' + escapeHtml(l.nombre) + '">' + escapeHtml(l.departamento + (l.cp ? ' · CP ' + l.cp : '')) + '</option>';
+      }).join('');
+    }
+
+    fetch('/api/shipping/destinos').then(function(r){ return r.json(); }).then(function(d){
+      if (!d || !Array.isArray(d.provincias)) return;
+      localidadesCatamarca = d.localidadesCatamarca || [];
+      selProv.innerHTML = d.provincias.map(function(p){
+        return '<option value="' + escapeHtml(p) + '"' + (p === 'Catamarca' ? ' selected' : '') + '>' + escapeHtml(p) + '</option>';
+      }).join('');
+      renderLocalidades();
+    }).catch(function(){});
+
+    selProv.addEventListener('change', renderLocalidades);
+    inpCp.addEventListener('input', function(){ inpCp.value = inpCp.value.replace(/\D/g, '').slice(0, 4); });
+    inpLoc.addEventListener('input', function(){
+      if (selProv.value !== 'Catamarca') return;
+      var v = inpLoc.value.trim().toLowerCase();
+      var m = localidadesCatamarca.filter(function(l){ return l.nombre.toLowerCase() === v; })[0];
+      if (m && m.cp && !inpCp.value) inpCp.value = m.cp;
+    });
+
+    function itemsCarrito(){
+      try {
+        return (window.ARDCart ? window.ARDCart.getItems() : []).map(function(it){ return { productId: it.id, qty: it.qty }; });
+      } catch(e){ return []; }
+    }
+
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      var cp = inpCp.value.trim();
+      if (!/^\d{4}$/.test(cp)) {
+        out.innerHTML = '<p class="calc-error">Ingresá un código postal válido (4 números).</p>';
+        inpCp.focus();
+        return;
+      }
+      var provincia = selProv.value;
+      btn.disabled = true;
+      out.innerHTML = '<p class="calc-nota">Calculando…</p>';
+      var items = itemsCarrito();
+      Promise.all([
+        fetch('/api/shipping/andreani/quote', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cp: cp, provincia: provincia, items: items })
+        }).then(function(r){ return r.json().then(function(d){ if (!r.ok) throw new Error(d.error); return d; }); }),
+        fetch('/api/shipping/andreani/sucursales?cp=' + encodeURIComponent(cp) + '&provincia=' + encodeURIComponent(provincia))
+          .then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; })
+      ]).then(function(res){
+        var q = res[0], sucursales = Array.isArray(res[1]) ? res[1] : [];
+        var precio = function(c){ return c && c.precio > 0 ? formatearPrecio(c.precio) : 'A coordinar'; };
+        var destino = [inpLoc.value.trim(), provincia].filter(Boolean).join(', ') + ' (CP ' + cp + ')';
+        out.innerHTML =
+          '<div class="calc-opciones">' +
+            '<div class="calc-opcion"><div class="tit">🏠 A domicilio</div><div class="precio">' + precio(q.domicilio) + '</div><div class="sub">' + escapeHtml(destino) + '</div></div>' +
+            '<div class="calc-opcion"><div class="tit">🏢 Retiro en sucursal Andreani</div><div class="precio">' + precio(q.sucursal) + '</div><div class="sub">Elegís la sucursal al finalizar la compra</div></div>' +
+          '</div>' +
+          (q.tiempo ? '<p class="calc-nota">' + escapeHtml(q.tiempo) + '</p>' : '') +
+          '<p class="calc-nota">' + (items.length ? 'Calculado para tu carrito (' + q.kilos + ' kg aprox.).' : 'Valor de referencia para un producto estándar (' + q.kilos + ' kg).') + ' El costo final se confirma al finalizar la compra.</p>' +
+          (sucursales.length
+            ? '<div class="calc-sucursales"><h3>Sucursales Andreani cerca</h3><ul>' +
+                sucursales.slice(0, 6).map(function(s){
+                  return '<li><strong>' + escapeHtml(s.nombre) + '</strong> — ' + escapeHtml(s.direccion + ', ' + s.localidad) +
+                    (s.horario ? '<br><span>' + escapeHtml(s.horario) + '</span>' : '') + '</li>';
+                }).join('') +
+              '</ul></div>'
+            : '');
+      }).catch(function(err){
+        out.innerHTML = '<p class="calc-error">' + escapeHtml((err && err.message) || 'No pudimos calcular el envío. Probá de nuevo en un momento.') + '</p>';
+      }).then(function(){ btn.disabled = false; });
+    });
+  })();
 
   /* ---------- Menú hamburguesa (mobile) ---------- */
   (function(){
