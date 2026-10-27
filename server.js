@@ -2208,6 +2208,124 @@ app.post('/api/admin/shipping/andreani/probar', requireAuth, async (req, res) =>
   }
 });
 
+// ---------- Panel de envíos: resumen y gestión de pedidos con envío ----------
+// Estado logístico del envío, aparte del estado del pedido (pago/confirmación).
+const ESTADOS_ENVIO = ['pendiente', 'preparado', 'despachado', 'entregado'];
+
+// Error de Postgres/PostgREST por columna inexistente (falta una migración).
+function esErrorColumnaFaltante(error) {
+  return !!error && (error.code === '42703' || error.code === 'PGRST204' || /column .* does not exist|Could not find the/i.test(error.message || ''));
+}
+
+app.get('/api/admin/shipping/resumen', requireAuth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('orders').select('*')
+      .not('shipping_method', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(3000);
+    if (esErrorColumnaFaltante(error)) return res.json({ migracionPendiente: true });
+    if (error) throw error;
+
+    // ¿Ya se corrió migration-envios-estado.sql? (aunque todavía no haya pedidos)
+    const { error: errColEstado } = await supabase.from('orders').select('shipping_status, tracking_number').limit(1);
+
+    const pedidos = (data || []).map(mapOrder);
+    const activos = pedidos.filter((p) => p.status !== 'cancelado');
+    const inicioMes = new Date();
+    inicioMes.setDate(1);
+    inicioMes.setHours(0, 0, 0, 0);
+    const estadoEnvio = (p) => p.shippingStatus || 'pendiente';
+    const porMetodo = { andreani_domicilio: 0, andreani_sucursal: 0, domicilio: 0, retiro: 0 };
+    activos.forEach((p) => { if (porMetodo[p.shippingMethod] !== undefined) porMetodo[p.shippingMethod]++; });
+
+    // Destinos más frecuentes de Andreani (por provincia y localidad).
+    const destinos = new Map();
+    activos.filter((p) => String(p.shippingMethod).startsWith('andreani')).forEach((p) => {
+      const d = p.shippingData || {};
+      const clave = [d.localidad || '—', d.provincia || '—'].join('|');
+      const actual = destinos.get(clave) || { localidad: d.localidad || '—', provincia: d.provincia || '—', envios: 0, costo: 0 };
+      actual.envios++;
+      actual.costo += p.shippingCost || 0;
+      destinos.set(clave, actual);
+    });
+
+    res.json({
+      stats: {
+        mes: activos.filter((p) => new Date(p.createdAt) >= inicioMes).length,
+        aPreparar: activos.filter((p) => ['pendiente', 'preparado'].includes(estadoEnvio(p))).length,
+        enCamino: activos.filter((p) => estadoEnvio(p) === 'despachado').length,
+        entregados: activos.filter((p) => estadoEnvio(p) === 'entregado').length,
+        // Lo cobrado en envíos de pedidos confirmados (pagados / cerrados).
+        cobrado: Math.round(activos.filter((p) => p.status === 'confirmado').reduce((acc, p) => acc + (p.shippingCost || 0), 0)),
+        porMetodo,
+      },
+      destinos: [...destinos.values()].sort((a, b) => b.envios - a.envios).slice(0, 8),
+      aPreparar: activos.filter((p) => ['pendiente', 'preparado'].includes(estadoEnvio(p))).slice(0, 6),
+      estadoEnvioDisponible: !esErrorColumnaFaltante(errColEstado),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener el resumen de envíos' });
+  }
+});
+
+// Listado paginado. Query: metodo, estadoEnvio, pedido ('activos'|'todos'|'cancelados'), q, page.
+app.get('/api/admin/shipping/pedidos', requireAuth, async (req, res) => {
+  try {
+    const POR_PAGINA = 15;
+    const page = Math.max(1, Math.round(Number(req.query.page) || 1));
+    const metodo = String(req.query.metodo || '');
+    const estadoEnvio = String(req.query.estadoEnvio || '');
+    const pedido = String(req.query.pedido || 'activos');
+    // Sin comas/paréntesis: rompen la sintaxis del filtro `or` de PostgREST.
+    const q = String(req.query.q || '').replace(/[,()*%\\]/g, ' ').trim().slice(0, 60);
+
+    let query = supabase.from('orders').select('*', { count: 'exact' }).not('shipping_method', 'is', null);
+    if (metodo === 'andreani') query = query.in('shipping_method', ['andreani_domicilio', 'andreani_sucursal']);
+    else if (metodo) query = query.eq('shipping_method', metodo);
+    if (ESTADOS_ENVIO.includes(estadoEnvio)) query = query.eq('shipping_status', estadoEnvio);
+    if (pedido === 'activos') query = query.neq('status', 'cancelado');
+    else if (pedido === 'cancelados') query = query.eq('status', 'cancelado');
+    if (q) query = query.or(`customer_name.ilike.%${q}%,customer_phone.ilike.%${q}%,order_number.ilike.%${q}%`);
+
+    const desde = (page - 1) * POR_PAGINA;
+    const { data, error, count } = await query.order('created_at', { ascending: false }).range(desde, desde + POR_PAGINA - 1);
+    if (esErrorColumnaFaltante(error)) return res.json({ migracionPendiente: true, items: [], total: 0, page: 1, totalPages: 1 });
+    if (error) throw error;
+    const total = count || 0;
+    res.json({ items: (data || []).map(mapOrder), total, page, totalPages: Math.max(1, Math.ceil(total / POR_PAGINA)), porPagina: POR_PAGINA });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener los pedidos con envío' });
+  }
+});
+
+// Actualiza el estado del envío y/o el número de seguimiento.
+app.patch('/api/admin/shipping/pedidos/:id', requireAuth, async (req, res) => {
+  try {
+    const { shippingStatus, trackingNumber } = req.body || {};
+    const cambios = {};
+    if (shippingStatus !== undefined) {
+      if (!ESTADOS_ENVIO.includes(shippingStatus)) return res.status(400).json({ error: 'Estado de envío inválido' });
+      cambios.shipping_status = shippingStatus;
+    }
+    if (trackingNumber !== undefined) cambios.tracking_number = String(trackingNumber).trim().slice(0, 60) || null;
+    if (!Object.keys(cambios).length) return res.status(400).json({ error: 'No hay cambios para guardar' });
+
+    const { data, error } = await supabase.from('orders').update(cambios).eq('id', req.params.id).select().maybeSingle();
+    if (esErrorColumnaFaltante(error)) {
+      return res.status(409).json({ error: 'Falta correr supabase/migration-envios-estado.sql en Supabase para guardar el estado del envío.' });
+    }
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Pedido no encontrado' });
+    res.json(mapOrder(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar el envío' });
+  }
+});
+
 app.post('/api/admin/ventas/rapida', requireAuth, async (req, res) => {
   try {
     const { items, discount, discountType, paymentMethod, customerId, customerName, customerPhone, notes } = req.body;
@@ -2329,6 +2447,8 @@ function mapOrder(row) {
     shippingMethod: row.shipping_method || null,
     shippingCost: row.shipping_cost != null ? Number(row.shipping_cost) : null,
     shippingData: row.shipping_data || null,
+    shippingStatus: row.shipping_status || (row.shipping_method ? 'pendiente' : null),
+    trackingNumber: row.tracking_number || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

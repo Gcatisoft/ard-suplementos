@@ -465,6 +465,48 @@
   }
 
   /* ===== Marketing module ===== */
+  .env-panel { display: none; }
+  .env-panel.active { display: block; }
+  .env-stack { max-width: 980px; }
+  .env-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .env-grid .cfg-card { margin: 0; }
+  .env-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .env-card-head .btn { width: auto; }
+  .env-stat-destacado { border-color: rgba(224,86,63,0.35); background: #fff7f4; }
+  .env-vacio { font-size: 13px; color: #6b7686; padding: 8px 0; }
+  .env-lista { list-style: none; margin: 0; padding: 0; }
+  .env-lista li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid rgba(111,147,193,0.15); font-size: 13.5px; }
+  .env-lista li:last-child { border-bottom: none; }
+  .env-lista .sub { display: block; font-size: 12px; color: #6b7686; }
+  .env-barra { height: 8px; background: #eef1f5; border-radius: 6px; overflow: hidden; margin-top: 5px; }
+  .env-barra span { display: block; height: 100%; background: linear-gradient(90deg, #4886c9, #2f6fb0); border-radius: 6px; }
+  .env-checklist { list-style: none; margin: 0; padding: 0; }
+  .env-checklist li { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid rgba(111,147,193,0.15); font-size: 13.5px; }
+  .env-checklist li:last-child { border-bottom: none; }
+  .env-checklist .sub { display: block; font-size: 12px; color: #6b7686; }
+  .env-checklist button { background: none; border: none; color: var(--accent); font-weight: 600; font-size: 12.5px; cursor: pointer; white-space: nowrap; padding: 0; }
+  .env-alerta { font-size: 13px; line-height: 1.55; padding: 11px 14px; border-radius: 9px; background: #f4f7fb; border: 1px solid rgba(111,147,193,0.25); color: #33415c; margin-bottom: 16px; }
+  .env-alerta-warn { background: #fff8e6; border-color: #f0d48a; color: #7a5a10; }
+  .env-filtros { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .env-filtros input, .env-filtros select { width: 100%; padding: 10px 12px; border: 1.5px solid rgba(111,147,193,0.35); border-radius: 9px; font-size: 14px; background: #fff; }
+  .env-tabla td { vertical-align: top; font-size: 13px; }
+  .env-tabla .sub { display: block; font-size: 12px; color: #6b7686; margin-top: 2px; }
+  .env-metodo { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+  .env-metodo.andreani { background: #fde8e4; color: #b8321c; }
+  .env-metodo.domicilio { background: #e3eefb; color: #1f5a99; }
+  .env-metodo.retiro { background: #e6f5ec; color: #1a7a44; }
+  .estado-badge.preparado { background: #e3eefb; color: #1f5a99; }
+  .estado-badge.despachado { background: #efe6fb; color: #6b4fa1; }
+  .estado-badge.entregado { background: #d9f2e3; color: #1a7a44; }
+  .env-detalle { font-size: 13.5px; background: #f4f7fb; border-radius: 9px; padding: 12px 14px; margin-bottom: 14px; line-height: 1.6; }
+  @media (max-width: 900px) {
+    .env-grid { grid-template-columns: 1fr; }
+    .env-filtros { grid-template-columns: 1fr 1fr; }
+    .env-filtros input { grid-column: 1 / -1; }
+  }
+  @media (max-width: 480px) {
+    .env-filtros { grid-template-columns: 1fr; }
+  }
   .mk-panel { display: none; }
   .mk-panel.active { display: block; }
 
@@ -1490,14 +1532,98 @@
     <div class="section-header">
       <div>
         <h2 class="section-title">Envíos</h2>
-        <p class="section-subtitle">
-          Zonas de Catamarca Capital, puntos de retiro, envío gratis y toda la información de envíos que ve el cliente.
-          El interior de Catamarca y el resto del país se cotizan con <strong>Andreani</strong> según el código postal.
-        </p>
+        <p class="section-subtitle">Pedidos a despachar, zonas de Capital, puntos de retiro, Andreani y la información que ve el cliente.</p>
       </div>
     </div>
 
-    <div class="cfg-stack">
+    <nav class="tabs-nav env-subnav" style="margin-top:0;">
+      <button type="button" class="tab-btn active" data-envtab="resumen">Resumen</button>
+      <button type="button" class="tab-btn" data-envtab="pedidos">Pedidos con envío <span class="tab-badge" id="env-badge-preparar" style="display:none;"></span></button>
+      <button type="button" class="tab-btn" data-envtab="capital">Catamarca Capital</button>
+      <button type="button" class="tab-btn" data-envtab="retiro">Puntos de retiro</button>
+      <button type="button" class="tab-btn" data-envtab="andreani">Andreani</button>
+      <button type="button" class="tab-btn" data-envtab="textos">Textos y FAQ</button>
+    </nav>
+
+    <div class="env-alerta env-alerta-warn" id="env-migracion-aviso" style="display:none;">
+      ⚠️ Faltan migraciones en Supabase: corré <code>supabase/migration-andreani.sql</code> y
+      <code>supabase/migration-envios-estado.sql</code> en el SQL Editor para ver y gestionar los envíos.
+    </div>
+
+    <!-- ---- Resumen ---- -->
+    <div class="env-panel active" id="env-resumen">
+      <div class="stats-grid-2">
+        <div class="stat-card-2 env-stat-destacado"><div class="num" id="env-stat-preparar">0</div><div class="label">Envíos a preparar</div></div>
+        <div class="stat-card-2"><div class="num" id="env-stat-camino">0</div><div class="label">Despachados / en camino</div></div>
+        <div class="stat-card-2"><div class="num" id="env-stat-entregados">0</div><div class="label">Entregados</div></div>
+        <div class="stat-card-2"><div class="num" id="env-stat-mes">0</div><div class="label">Envíos este mes</div></div>
+        <div class="stat-card-2"><div class="num" id="env-stat-cobrado">$0</div><div class="label">Cobrado en envíos (confirmados)</div></div>
+      </div>
+
+      <div class="env-grid">
+        <div class="cfg-card">
+          <div class="env-card-head">
+            <h3 class="cfg-card-title">📦 Para preparar</h3>
+            <button type="button" class="btn btn-ghost btn-sm" data-ir-envtab="pedidos">Ver todos →</button>
+          </div>
+          <div id="env-resumen-preparar"><div class="env-vacio">Cargando…</div></div>
+        </div>
+
+        <div class="cfg-card">
+          <div class="env-card-head"><h3 class="cfg-card-title">🚚 Por método de entrega</h3></div>
+          <div id="env-resumen-metodos"></div>
+        </div>
+
+        <div class="cfg-card">
+          <div class="env-card-head"><h3 class="cfg-card-title">⚙️ Estado de la configuración</h3></div>
+          <ul class="env-checklist" id="env-resumen-config"><li>Cargando…</li></ul>
+        </div>
+
+        <div class="cfg-card">
+          <div class="env-card-head"><h3 class="cfg-card-title">📍 Destinos Andreani más frecuentes</h3></div>
+          <div id="env-resumen-destinos"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- Pedidos con envío ---- -->
+    <div class="env-panel" id="env-pedidos">
+      <div class="env-filtros">
+        <input type="search" id="env-filtro-q" placeholder="Buscar por cliente, teléfono o N.º de pedido…">
+        <select id="env-filtro-metodo">
+          <option value="">Todos los métodos</option>
+          <option value="andreani">Andreani (todos)</option>
+          <option value="andreani_domicilio">Andreani a domicilio</option>
+          <option value="andreani_sucursal">Andreani a sucursal</option>
+          <option value="domicilio">Capital a domicilio</option>
+          <option value="retiro">Retiro en punto ARD</option>
+        </select>
+        <select id="env-filtro-estado">
+          <option value="">Todos los estados de envío</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="preparado">Preparado</option>
+          <option value="despachado">Despachado</option>
+          <option value="entregado">Entregado</option>
+        </select>
+        <select id="env-filtro-pedido">
+          <option value="activos">Pedidos activos</option>
+          <option value="todos">Incluir cancelados</option>
+          <option value="cancelados">Solo cancelados</option>
+        </select>
+      </div>
+      <div class="tabla-wrap">
+        <table class="productos-tabla env-tabla">
+          <thead><tr><th>Pedido</th><th>Cliente</th><th>Entrega</th><th>Destino</th><th>Envío</th><th>Estado del envío</th><th></th></tr></thead>
+          <tbody id="env-pedidos-body"></tbody>
+        </table>
+        <div class="empty-state" id="env-pedidos-empty" style="display:none;">No hay pedidos con envío para estos filtros.</div>
+      </div>
+      <div class="paginacion" id="env-pedidos-paginacion"></div>
+    </div>
+
+    <!-- ---- Catamarca Capital ---- -->
+    <div class="env-panel" id="env-capital">
+      <div class="cfg-stack env-stack">
 
       <!-- Zonas de envío -->
       <div class="cfg-card">
@@ -1571,6 +1697,13 @@
         </div>
       </div>
 
+      </div>
+    </div>
+
+    <!-- ---- Puntos de retiro ---- -->
+    <div class="env-panel" id="env-retiro">
+      <div class="cfg-stack env-stack">
+
       <!-- Puntos de retiro -->
       <div class="cfg-card">
         <div class="cfg-card-header">
@@ -1595,6 +1728,105 @@
           <div class="empty-state" id="puntos-empty-state" style="display:none;">Todavía no cargaste ningún punto de retiro.</div>
         </div>
       </div>
+
+      </div>
+    </div>
+
+    <!-- ---- Andreani ---- -->
+    <div class="env-panel" id="env-andreani">
+      <div class="cfg-stack env-stack">
+
+      <!-- Andreani: conexión y bulto -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">🚛</div>
+          <div>
+            <h3 class="cfg-card-title">Conexión y bulto</h3>
+            <p class="cfg-card-desc">Estado de la API de Andreani y cómo se arma el paquete de cada pedido. Sin contrato se usa la tabla de tarifas manuales.</p>
+          </div>
+        </div>
+        <div id="andreani-estado" class="env-alerta">Cargando estado de la conexión…</div>
+        <div class="cfg-grid-3">
+          <div class="cfg-field">
+            <label for="cfg-andreani-peso">Peso por producto (kg)</label>
+            <input type="number" id="cfg-andreani-peso" min="0.1" step="0.1" placeholder="1">
+          </div>
+          <div class="cfg-field">
+            <label for="cfg-andreani-volumen">Volumen por producto (cm³)</label>
+            <input type="number" id="cfg-andreani-volumen" min="1" step="100" placeholder="3000">
+          </div>
+          <div class="cfg-field">
+            <label for="cfg-andreani-recargo">Recargo sobre Andreani (%)</label>
+            <input type="number" id="cfg-andreani-recargo" min="0" step="1" placeholder="0">
+          </div>
+        </div>
+        <p class="cfg-hint" style="margin-top:10px;">
+          El peso y el volumen se usan para los productos que no tengan peso/medidas cargados en su ficha.
+          El recargo se suma a la tarifa de la API (embalaje, gestión, etc.).
+        </p>
+
+        <div class="cfg-save-row">
+          <button type="button" class="cfg-save-btn" data-andreani-guardar>Guardar</button>
+          <span class="cfg-saved-msg" data-andreani-status style="display:none;">✓ Guardado</span>
+        </div>
+      </div>
+
+      <!-- Andreani: tarifas manuales -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">💲</div>
+          <div>
+            <h3 class="cfg-card-title">Tarifas manuales por región y peso</h3>
+            <p class="cfg-card-desc">Precio final que paga el cliente según la región de destino y el peso del paquete.</p>
+          </div>
+        </div>
+        <p class="cfg-hint">
+          Se usan mientras no tengas contrato con Andreani (o si su API no responde). Cargá el precio final que
+          paga el cliente según el peso del paquete. Podés sacar los valores del cotizador de
+          <a href="https://www.andreani.com" target="_blank" rel="noopener">andreani.com</a> con origen Catamarca (CP 4700).
+          Si un tramo queda vacío se usa el siguiente con precio; todo vacío = <em>"A coordinar"</em>.
+        </p>
+        <div id="andreani-tarifas-tablas"></div>
+
+        <div class="cfg-save-row">
+          <button type="button" class="cfg-save-btn" data-andreani-guardar>Guardar tarifas</button>
+          <span class="cfg-saved-msg" data-andreani-status style="display:none;">✓ Guardado</span>
+        </div>
+      </div>
+
+      <!-- Andreani: probar -->
+      <div class="cfg-card">
+        <div class="cfg-card-header">
+          <div class="cfg-card-icon">🧪</div>
+          <div>
+            <h3 class="cfg-card-title">Probar cotización</h3>
+            <p class="cfg-card-desc">Simulá lo que vería un cliente para un código postal y un peso.</p>
+          </div>
+        </div>
+        <div class="cfg-inline-row">
+          <div class="cfg-field">
+            <label for="andreani-probar-cp">Código postal</label>
+            <input type="text" id="andreani-probar-cp" inputmode="numeric" maxlength="4" placeholder="4740">
+          </div>
+          <div class="cfg-field" style="flex:0 0 110px;">
+            <label for="andreani-probar-kilos">Peso (kg)</label>
+            <input type="number" id="andreani-probar-kilos" min="0.1" step="0.1" placeholder="1">
+          </div>
+          <div class="cfg-field" style="flex:1 1 200px;">
+            <label for="andreani-probar-provincia">Provincia</label>
+            <input type="text" id="andreani-probar-provincia" placeholder="Catamarca" value="Catamarca">
+          </div>
+          <button type="button" class="cfg-save-btn" id="andreani-probar-btn">Cotizar</button>
+        </div>
+        <div id="andreani-probar-resultado" class="cfg-hint" style="margin-bottom:0;"></div>
+      </div>
+
+      </div>
+    </div>
+
+    <!-- ---- Textos y FAQ ---- -->
+    <div class="env-panel" id="env-textos">
+      <div class="cfg-stack env-stack">
 
       <!-- Interior de Catamarca -->
       <div class="cfg-card">
@@ -1642,76 +1874,6 @@
         </div>
       </div>
 
-      <!-- Andreani -->
-      <div class="cfg-card">
-        <div class="cfg-card-header">
-          <div class="cfg-card-icon">🚛</div>
-          <div>
-            <h3 class="cfg-card-title">Andreani — interior de Catamarca y todo el país</h3>
-            <p class="cfg-card-desc">
-              El cliente elige provincia, localidad y código postal, y ve el costo a domicilio y a sucursal.
-              Con las credenciales de Andreani en el <code>.env</code> se cotiza en vivo; si no están (o la API no
-              responde) se usan las tarifas manuales de abajo. Una tarifa en <strong>0</strong> aparece como
-              <em>"A coordinar"</em>.
-            </p>
-          </div>
-        </div>
-
-        <div id="andreani-estado" class="cfg-hint">Cargando estado de la conexión…</div>
-
-        <h4 class="cfg-subtitulo">Bulto y recargo</h4>
-        <div class="cfg-grid-3">
-          <div class="cfg-field">
-            <label for="cfg-andreani-peso">Peso por producto (kg)</label>
-            <input type="number" id="cfg-andreani-peso" min="0.1" step="0.1" placeholder="1">
-          </div>
-          <div class="cfg-field">
-            <label for="cfg-andreani-volumen">Volumen por producto (cm³)</label>
-            <input type="number" id="cfg-andreani-volumen" min="1" step="100" placeholder="3000">
-          </div>
-          <div class="cfg-field">
-            <label for="cfg-andreani-recargo">Recargo sobre Andreani (%)</label>
-            <input type="number" id="cfg-andreani-recargo" min="0" step="1" placeholder="0">
-          </div>
-        </div>
-        <p class="cfg-hint" style="margin-top:10px;">
-          El peso y el volumen se usan para los productos que no tengan peso/medidas cargados en su ficha.
-          El recargo se suma a la tarifa de la API (embalaje, gestión, etc.).
-        </p>
-
-        <h4 class="cfg-subtitulo">Tarifas manuales por región y peso</h4>
-        <p class="cfg-hint">
-          Se usan mientras no tengas contrato con Andreani (o si su API no responde). Cargá el precio final que
-          paga el cliente según el peso del paquete. Podés sacar los valores del cotizador de
-          <a href="https://www.andreani.com" target="_blank" rel="noopener">andreani.com</a> con origen Catamarca (CP 4700).
-          Si un tramo queda vacío se usa el siguiente con precio; todo vacío = <em>"A coordinar"</em>.
-        </p>
-        <div id="andreani-tarifas-tablas"></div>
-
-        <div class="cfg-save-row">
-          <button type="button" class="cfg-save-btn" id="cfg-andreani-guardar-btn">Guardar</button>
-          <span id="cfg-andreani-status" class="cfg-saved-msg" style="display:none;">✓ Guardado</span>
-        </div>
-
-        <h4 class="cfg-subtitulo">Probar cotización</h4>
-        <div class="cfg-inline-row">
-          <div class="cfg-field">
-            <label for="andreani-probar-cp">Código postal</label>
-            <input type="text" id="andreani-probar-cp" inputmode="numeric" maxlength="4" placeholder="4740">
-          </div>
-          <div class="cfg-field" style="flex:0 0 110px;">
-            <label for="andreani-probar-kilos">Peso (kg)</label>
-            <input type="number" id="andreani-probar-kilos" min="0.1" step="0.1" placeholder="1">
-          </div>
-          <div class="cfg-field" style="flex:1 1 200px;">
-            <label for="andreani-probar-provincia">Provincia</label>
-            <input type="text" id="andreani-probar-provincia" placeholder="Catamarca" value="Catamarca">
-          </div>
-          <button type="button" class="cfg-save-btn" id="andreani-probar-btn">Cotizar</button>
-        </div>
-        <div id="andreani-probar-resultado" class="cfg-hint" style="margin-bottom:0;"></div>
-      </div>
-
       <!-- Preguntas frecuentes -->
       <div class="cfg-card">
         <div class="cfg-card-header">
@@ -1734,6 +1896,7 @@
         </div>
       </div>
 
+      </div>
     </div>
   </section>
 
@@ -2760,6 +2923,39 @@
 
 <script src="admin.js"></script>
 <script src="marketing.js"></script>
+<div class="modal-overlay" id="modal-overlay-envio">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h2 id="modal-envio-title">Gestionar envío</h2>
+      <button class="modal-close" id="modal-envio-close" type="button">✕</button>
+    </div>
+    <div id="modal-envio-detalle" class="env-detalle"></div>
+    <div class="error-msg" id="form-envio-error"></div>
+    <form id="envio-form">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="envio-estado">Estado del envío</label>
+          <select id="envio-estado">
+            <option value="pendiente">Pendiente</option>
+            <option value="preparado">Preparado (listo para despachar)</option>
+            <option value="despachado">Despachado / en camino</option>
+            <option value="entregado">Entregado</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label for="envio-tracking">N.º de seguimiento (opcional)</label>
+          <input type="text" id="envio-tracking" maxlength="60" placeholder="Ej: 360000012345678">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a class="btn btn-ghost" id="envio-whatsapp-btn" target="_blank" rel="noopener" style="width:auto;margin-right:auto;">💬 Avisar al cliente</a>
+        <button type="button" class="btn btn-ghost" id="cancelar-envio-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" style="width:auto;">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="ventas.js"></script>
 <script src="envios.js"></script>
 </body>

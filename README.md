@@ -159,6 +159,16 @@ envío a domicilio y a sucursal. Si un tramo queda vacío se usa el siguiente co
 ninguno, se muestra "A coordinar". Cuando tengas contrato, cargá las variables del `.env` y la
 cotización pasa a ser en vivo automáticamente (la tabla queda como respaldo).
 
+### Panel de envíos
+
+La pestaña **Envíos** del panel está dividida en secciones: **Resumen** (envíos a preparar, en
+camino, entregados, cobrado en envíos, reparto por método, destinos más frecuentes y estado de la
+configuración), **Pedidos con envío** (buscador, filtros por método / estado y paginación; desde
+"Gestionar" se marca el envío como preparado / despachado / entregado, se carga el número de
+seguimiento y se avisa al cliente por WhatsApp), **Catamarca Capital**, **Puntos de retiro**,
+**Andreani** y **Textos y FAQ**. Para el estado del envío y el seguimiento corré también
+`supabase/migration-envios-estado.sql`.
+
 El costo de envío lo recalcula siempre el servidor y se guarda en el pedido (`shipping_cost`,
 aparte del total de productos). En los pagos con Mercado Pago se cobra como un ítem "Envío".
 
